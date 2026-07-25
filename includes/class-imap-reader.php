@@ -585,8 +585,25 @@ class IMAPReader {
 
         return [
             'body'      => ! empty( $plain_body ) ? $this->clean_body( $plain_body, $structure ) : $this->clean_body( $html_body, $structure ),
-            'body_html' => ! empty( $html_body ) ? $this->clean_body( $html_body, $structure ) : '',
+            'body_html' => ! empty( $html_body ) ? $this->sanitize_html_body( $html_body ) : '',
         ];
+    }
+
+    /**
+     * Sanitize HTML body - keep formatting tags, strip dangerous ones.
+     *
+     * @param string $body Raw HTML body.
+     * @return string Sanitized HTML.
+     */
+    private function sanitize_html_body( string $body ): string {
+        // Normalize line endings first.
+        $body = str_replace( [ "\r\n", "\r" ], "\n", $body );
+        $body = trim( $body );
+
+        // Use wp_kses_post to keep formatting tags (b, i, strong, em, p, br, etc).
+        $body = wp_kses_post( $body );
+
+        return $body;
     }
 
     /**

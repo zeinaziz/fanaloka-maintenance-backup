@@ -167,7 +167,11 @@ class EmailParser {
         // Build HTML body from raw HTML if available.
         $body_html = $email_data['body_html'] ?? '';
         if ( ! empty( $body_html ) ) {
-            $body_html = $this->clean_body( $body_html );
+            // Sanitize HTML but keep formatting tags.
+            $body_html = wp_kses_post( $body_html );
+            $body_html = str_replace( [ "\r\n", "\r" ], "\n", $body_html );
+            $body_html = preg_replace( "/\n{3,}/", "\n\n", $body_html );
+            $body_html = trim( $body_html );
         }
 
         return [
