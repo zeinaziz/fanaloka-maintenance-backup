@@ -355,6 +355,22 @@ class Admin {
     }
 
     /**
+     * Set reply headers for use by TicketDetailPage.
+     *
+     * @param string   $message_id   Message-ID.
+     * @param string   $in_reply_to  In-Reply-To.
+     * @param string   $references   References.
+     * @param string[] $attachments  Attachment file paths.
+     * @return void
+     */
+    public function set_reply_headers( string $message_id, string $in_reply_to, string $references, array $attachments = [] ): void {
+        $this->reply_message_id  = $message_id;
+        $this->reply_in_reply_to = $in_reply_to;
+        $this->reply_references  = $references;
+        $this->reply_attachments = $attachments;
+    }
+
+    /**
      * Set Message-ID and In-Reply-To via PHPMailer.
      *
      * @param \PHPMailer $phpmailer PHPMailer instance.

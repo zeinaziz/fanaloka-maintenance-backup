@@ -209,21 +209,27 @@ class TicketDetailPage {
                                 <form method="post" id="fm-reply-form" enctype="multipart/form-data">
                                     <input type="hidden" name="ticket_id" value="<?php echo esc_attr( $this->ticket_id ); ?>" />
                                     <input type="hidden" name="fm_action" value="reply" />
-                                    <table class="form-table">
-                                        <tr>
-                                            <td>
-                                                <textarea name="reply_content" rows="6" class="large-text"
-                                                          placeholder="<?php esc_attr_e( 'Type your reply...', 'fanaloka-maintenance' ); ?>"></textarea>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <label><strong><?php esc_html_e( 'Attachments:', 'fanaloka-maintenance' ); ?></strong></label><br>
-                                                <input type="file" name="reply_attachments[]" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.zip" />
-                                                <p class="description"><?php esc_html_e( 'Allowed: JPG, PNG, PDF, DOC, DOCX, ZIP (max 5MB each)', 'fanaloka-maintenance' ); ?></p>
-                                            </td>
-                                        </tr>
-                                    </table>
+                                    <?php wp_nonce_field( 'fm_reply_ticket' ); ?>
+                                    <div id="reply-editor-wrap">
+                                        <?php
+                                        wp_editor( '', 'reply_content', [
+                                            'textarea_name' => 'reply_content',
+                                            'textarea_rows' => 8,
+                                            'media_buttons' => true,
+                                            'teeny'         => false,
+                                            'quicktags'     => true,
+                                            'tinymce'       => [
+                                                'toolbar1' => 'bold,italic,underline,strikethrough,bullist,numlist,link,unlink,formatselect',
+                                                'toolbar2' => '',
+                                            ],
+                                        ] );
+                                        ?>
+                                    </div>
+                                    <p style="margin-top:10px;">
+                                        <label><strong><?php esc_html_e( 'Attachments:', 'fanaloka-maintenance' ); ?></strong></label><br>
+                                        <input type="file" name="reply_attachments[]" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.zip" />
+                                        <span class="description"><?php esc_html_e( 'JPG, PNG, PDF, DOC, DOCX, ZIP (max 5MB each)', 'fanaloka-maintenance' ); ?></span>
+                                    </p>
                                     <?php submit_button( __( 'Send Reply', 'fanaloka-maintenance' ), 'primary', 'submit' ); ?>
                                 </form>
                             </div>
@@ -439,16 +445,55 @@ class TicketDetailPage {
         $to        = $ticket['client_email'] ?? '';
         $subject   = sprintf( 'Re: %s', $ticket['subject'] ?? '' );
 
+        // Get conversation data for threading.
+        $conversation = new ConversationManager();
+        $last_client_msg_id = $conversation->get_last_client_message_id( $ticket_id );
+
+        // Generate Message-ID.
+        $message_id = ( new \Fanaloka\Maintenance\Email\EmailParser() )->generate_message_id( $ticket_id );
+
+        // Build references.
+        $all_entries = $conversation->get_entries( $ticket_id );
+        $refs = [];
+        foreach ( $all_entries as $entry ) {
+            if ( ! empty( $entry['message_id'] ) ) {
+                $refs[] = $entry['message_id'];
+            }
+        }
+        $references = implode( ' ', $refs );
+
+        // Get attachment file paths from latest developer entry.
+        $attachment_files = [];
+        foreach ( array_reverse( $all_entries ) as $entry ) {
+            if ( 'developer' === $entry['entry_type'] && ! empty( $entry['attachments'] ) ) {
+                $att_ids = array_filter( array_map( 'absint', explode( ',', $entry['attachments'] ) ) );
+                foreach ( $att_ids as $att_id ) {
+                    $file = get_attached_file( $att_id );
+                    if ( $file && file_exists( $file ) ) {
+                        $attachment_files[] = $file;
+                    }
+                }
+                break;
+            }
+        }
+
+        // Store for phpmailer callback.
+        $admin = Admin::instance();
+        $admin->set_reply_headers( $message_id, $last_client_msg_id ?? '', $references, $attachment_files );
+
         $body = sprintf(
-            "Hi %s,\n\n%s\n\n---\nTicket: %s\n\nBest regards,\n%s",
-            $ticket['client_name'] ?? '',
-            $content,
-            $ticket['full_number'] ?? '',
-            get_bloginfo( 'name' )
+            '<p>Halo %s,</p><p>Berikut adalah balasan dari tim kami:</p><p>%s</p><p>Salam,<br>Tim Support</p>',
+            esc_html( $ticket['client_name'] ),
+            wp_kses_post( $content )
         );
 
-        $notification = new \Fanaloka\Maintenance\Notification\NotificationManager();
-        $notification->send( $to, $subject, $body );
+        add_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ] );
+
+        wp_mail( $to, $subject, $body, [ 'Content-Type: text/html; charset=UTF-8' ] );
+
+        remove_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ] );
+
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply email sent to %s for ticket #%d', $to, $ticket_id ) );
     }
 
     /**
