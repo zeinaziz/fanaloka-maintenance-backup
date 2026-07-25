@@ -71,6 +71,11 @@
             var $form = $( this );
             var $btn = $form.find( 'input[type="submit"]' );
             var ticketId = $form.find( 'input[name="ticket_id"]' ).val();
+
+            // Sync TinyMCE content to textarea.
+            if ( typeof tinymce !== 'undefined' ) {
+                tinymce.triggerSave();
+            }
             var content = $form.find( 'textarea[name="reply_content"]' ).val();
 
             if ( ! content.trim() ) {

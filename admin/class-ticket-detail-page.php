@@ -465,7 +465,7 @@ class TicketDetailPage {
         $to        = $ticket['client_email'] ?? '';
         $subject   = sprintf( 'Re: %s', $ticket['subject'] ?? '' );
 
-        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'send_reply_email START: to=%s ticket=%d', $to, $ticket_id ) );
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'send_reply_email START: to=%s ticket=%d content_len=%d', $to, $ticket_id, strlen( $content ) ) );
 
         $conversation = new ConversationManager();
         $last_client_msg_id = $conversation->get_last_client_message_id( $ticket_id );
@@ -500,15 +500,7 @@ class TicketDetailPage {
             }
         }
 
-        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Sending reply email to %s for ticket #%d with %d attachments', $to, $ticket_id, count( $attachment_files ) ) );
-
-        // Build plain text body.
-        $body_plain = sprintf(
-            "Halo %s,\n\n%s\n\nSalam,\n%s",
-            $ticket['client_name'] ?? '',
-            wp_strip_all_tags( $content ),
-            get_bloginfo( 'name' )
-        );
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Sending reply: %d attachments', count( $attachment_files ) ) );
 
         // Build HTML body.
         $body_html = sprintf(
@@ -518,16 +510,28 @@ class TicketDetailPage {
             esc_html( get_bloginfo( 'name' ) )
         );
 
+        // Build plain text body.
+        $body_plain = sprintf(
+            "Halo %s,\n\n%s\n\nSalam,\n%s",
+            $ticket['client_name'] ?? '',
+            wp_strip_all_tags( $content ),
+            get_bloginfo( 'name' )
+        );
+
         // Store data for phpmailer callback.
         $admin = Admin::instance();
         $admin->set_reply_headers( $message_id, $last_client_msg_id ?? '', $references, $attachment_files );
         $admin->set_reply_body( $body_html, $body_plain );
 
-        add_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ] );
+        add_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ], 999 );
 
-        wp_mail( $to, $subject, $body_plain, 'Content-Type: text/plain; charset=UTF-8' );
+        // Pass HTML body directly with HTML content type.
+        wp_mail( $to, $subject, $body_html, "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0" );
 
-        remove_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ] );
+        remove_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ], 999 );
+
+        // Reset state.
+        $admin->set_reply_body( '', '' );
 
         \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply email sent to %s for ticket #%d', $to, $ticket_id ) );
     }

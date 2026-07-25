@@ -283,7 +283,7 @@ class Admin {
         }
 
         $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
-        $content   = sanitize_textarea_field( wp_unslash( $_POST['content'] ?? '' ) );
+        $content   = wp_kses_post( wp_unslash( $_POST['content'] ?? '' ) );
 
         if ( ! $ticket_id || empty( $content ) ) {
             wp_send_json_error();
@@ -300,7 +300,7 @@ class Admin {
         wp_send_json_success( [
             'message' => 'Reply sent!',
             'author'  => $user->display_name,
-            'content' => nl2br( esc_html( $content ) ),
+            'content' => $content,
             'date'    => wp_date( 'd M Y, H:i' ),
         ] );
     }
@@ -317,14 +317,11 @@ class Admin {
         $to      = $ticket['client_email'] ?? '';
         $subject = 'Re: ' . $ticket['subject'];
 
-        // Get conversation data for threading.
         $conversation = new \Fanaloka\Maintenance\Ticket\ConversationManager();
         $last_client_msg_id = $conversation->get_last_client_message_id( $ticket_id );
 
-        // Generate Message-ID for this reply.
         $message_id = ( new \Fanaloka\Maintenance\Email\EmailParser() )->generate_message_id( $ticket_id );
 
-        // Build references chain.
         $all_entries = $conversation->get_entries( $ticket_id );
         $refs = [];
         foreach ( $all_entries as $entry ) {
@@ -334,38 +331,49 @@ class Admin {
         }
         $references = implode( ' ', $refs );
 
-        // Store data for phpmailer_init callback.
         $this->reply_message_id = $message_id;
         $this->reply_in_reply_to = $last_client_msg_id ?? '';
         $this->reply_references  = $references;
         $this->reply_attachments = [];
 
-        // Get attachment file paths from latest developer entry.
         foreach ( array_reverse( $all_entries ) as $entry ) {
             if ( 'developer' === $entry['entry_type'] && ! empty( $entry['attachments'] ) ) {
                 $att_ids = explode( ',', $entry['attachments'] );
                 foreach ( $att_ids as $att_id ) {
-                    $file = wp_get_attachment_upload_dir( absint( $att_id ) );
-                    $url  = wp_get_attachment_url( absint( $att_id ) );
-                    if ( $url ) {
-                        $this->reply_attachments[] = get_attached_file( absint( $att_id ) );
+                    $file = get_attached_file( absint( $att_id ) );
+                    if ( $file && file_exists( $file ) ) {
+                        $this->reply_attachments[] = $file;
                     }
                 }
                 break;
             }
         }
 
-        add_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ] );
-
-        $body = sprintf(
-            '<p>Halo %s,</p><p>Berikut adalah balasan dari tim kami:</p><p>%s</p><p>Salam,<br>Tim Support</p>',
-            esc_html( $ticket['client_name'] ),
-            nl2br( esc_html( $content ) )
+        $body_html = sprintf(
+            '<p>Halo %s,</p>%s<p>Salam,<br>%s</p>',
+            esc_html( $ticket['client_name'] ?? '' ),
+            wp_kses_post( $content ),
+            esc_html( get_bloginfo( 'name' ) )
         );
 
-        wp_mail( $to, $subject, $body, [ 'Content-Type: text/html; charset=UTF-8' ] );
+        $body_plain = sprintf(
+            "Halo %s,\n\n%s\n\nSalam,\n%s",
+            $ticket['client_name'] ?? '',
+            wp_strip_all_tags( $content ),
+            get_bloginfo( 'name' )
+        );
 
-        remove_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ] );
+        $this->set_reply_body( $body_html, $body_plain );
+
+        add_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ], 999 );
+
+        wp_mail( $to, $subject, $body_html, "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0" );
+
+        remove_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ], 999 );
+
+        $this->set_reply_body( '', '' );
+
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply email sent to %s for ticket #%d', $to, $ticket_id ) );
     }
 
     /**
