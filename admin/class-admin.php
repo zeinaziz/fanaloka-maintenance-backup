@@ -377,6 +377,9 @@ class Admin {
      * @return void
      */
     public function set_reply_email_headers( $phpmailer ): void {
+        $phpmailer->IsHTML( true );
+        $phpmailer->CharSet = 'UTF-8';
+
         if ( ! empty( $this->reply_message_id ) ) {
             $phpmailer->MessageID = $this->reply_message_id;
         }
@@ -386,7 +389,6 @@ class Admin {
         if ( ! empty( $this->reply_references ) ) {
             $phpmailer->addCustomHeader( 'References', $this->reply_references );
         }
-        // Add attachments.
         if ( ! empty( $this->reply_attachments ) ) {
             foreach ( $this->reply_attachments as $file_path ) {
                 if ( ! empty( $file_path ) && file_exists( $file_path ) ) {

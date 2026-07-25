@@ -168,7 +168,15 @@ class TicketDetailPage {
                                                 <span class="fm-entry-date"><?php echo esc_html( $entry['created_at'] ); ?></span>
                                             </div>
                                             <div class="fm-entry-content">
-                                                <?php echo wp_kses_post( nl2br( esc_html( $entry['body'] ) ) ); ?>
+                                                <?php
+                                                if ( 'developer' === $entry['entry_type'] || 'internal' === $entry['entry_type'] ) {
+                                                    // HTML content from wp_editor.
+                                                    echo wp_kses_post( $entry['body'] );
+                                                } else {
+                                                    // Plain text from email or system.
+                                                    echo wp_kses_post( nl2br( esc_html( $entry['body'] ) ) );
+                                                }
+                                                ?>
                                             </div>
                                             <?php
                                             // Show attachments for this entry.
@@ -321,7 +329,7 @@ class TicketDetailPage {
                 break;
 
             case 'reply':
-                $content = sanitize_textarea_field( wp_unslash( $_POST['reply_content'] ?? '' ) );
+                $content = wp_kses_post( wp_unslash( $_POST['reply_content'] ?? '' ) );
                 if ( ! empty( $content ) ) {
                     $conversation = new ConversationManager();
                     $entry_id = $conversation->add_reply_from_developer( $this->ticket_id, $content );
@@ -358,6 +366,7 @@ class TicketDetailPage {
         $files = $_FILES['reply_attachments'] ?? [];
 
         if ( empty( $files['name'][0] ) ) {
+            \Fanaloka\Maintenance\Logger\Logger::log( 'handle_reply_attachments: no files uploaded' );
             return;
         }
 
@@ -372,13 +381,13 @@ class TicketDetailPage {
 
         for ( $i = 0; $i < count( $files['name'] ); $i++ ) {
             if ( empty( $files['name'][ $i ] ) || UPLOAD_ERR_OK !== $files['error'][ $i ] ) {
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment skip: name=%s error=%d', $files['name'][ $i ] ?? '', $files['error'][ $i ] ?? -1 ) );
                 continue;
             }
 
             $filename = sanitize_file_name( $files['name'][ $i ] );
             $file_path = $ticket_dir . '/' . $filename;
 
-            // Avoid overwrites.
             $counter = 1;
             while ( file_exists( $file_path ) ) {
                 $pathinfo  = pathinfo( $filename );
@@ -387,20 +396,26 @@ class TicketDetailPage {
             }
 
             if ( move_uploaded_file( $files['tmp_name'][ $i ], $file_path ) ) {
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment moved to: %s', $file_path ) );
                 $attachment_id = $this->save_to_media( $file_path, $filename, $ticket_id );
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment media ID: %s for %s', $attachment_id ?: 'false', $filename ) );
                 if ( $attachment_id ) {
                     $saved_ids[] = $attachment_id;
                 }
+            } else {
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment move FAILED: %s to %s', $files['tmp_name'][ $i ], $file_path ) );
             }
         }
 
-        // Store attachment IDs in entry meta.
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'handle_reply_attachments: saved_ids=%s for entry_id=%d', implode( ',', $saved_ids ), $entry_id ) );
+
         if ( ! empty( $saved_ids ) ) {
             $existing = $wpdb->get_var(
                 $wpdb->prepare( "SELECT attachments FROM {$table} WHERE id = %d", $entry_id )
             );
             $all = ! empty( $existing ) ? $existing . ',' . implode( ',', $saved_ids ) : implode( ',', $saved_ids );
             $wpdb->update( $table, [ 'attachments' => $all ], [ 'id' => $entry_id ], [ '%s' ], [ '%d' ] );
+            \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'DB updated: entry_id=%d attachments=%s', $entry_id, $all ) );
         }
     }
 
@@ -445,14 +460,11 @@ class TicketDetailPage {
         $to        = $ticket['client_email'] ?? '';
         $subject   = sprintf( 'Re: %s', $ticket['subject'] ?? '' );
 
-        // Get conversation data for threading.
         $conversation = new ConversationManager();
         $last_client_msg_id = $conversation->get_last_client_message_id( $ticket_id );
 
-        // Generate Message-ID.
         $message_id = ( new \Fanaloka\Maintenance\Email\EmailParser() )->generate_message_id( $ticket_id );
 
-        // Build references.
         $all_entries = $conversation->get_entries( $ticket_id );
         $refs = [];
         foreach ( $all_entries as $entry ) {
@@ -467,24 +479,30 @@ class TicketDetailPage {
         foreach ( array_reverse( $all_entries ) as $entry ) {
             if ( 'developer' === $entry['entry_type'] && ! empty( $entry['attachments'] ) ) {
                 $att_ids = array_filter( array_map( 'absint', explode( ',', $entry['attachments'] ) ) );
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply attachments found: entry_id=%d att_ids=%s', $entry['id'], implode( ',', $att_ids ) ) );
                 foreach ( $att_ids as $att_id ) {
                     $file = get_attached_file( $att_id );
                     if ( $file && file_exists( $file ) ) {
                         $attachment_files[] = $file;
+                        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply attachment file: %s', $file ) );
+                    } else {
+                        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply attachment file missing: att_id=%d file=%s', $att_id, $file ?: 'null' ) );
                     }
                 }
                 break;
             }
         }
 
-        // Store for phpmailer callback.
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Sending reply email to %s for ticket #%d with %d attachments', $to, $ticket_id, count( $attachment_files ) ) );
+
         $admin = Admin::instance();
         $admin->set_reply_headers( $message_id, $last_client_msg_id ?? '', $references, $attachment_files );
 
         $body = sprintf(
-            '<p>Halo %s,</p><p>Berikut adalah balasan dari tim kami:</p><p>%s</p><p>Salam,<br>Tim Support</p>',
-            esc_html( $ticket['client_name'] ),
-            wp_kses_post( $content )
+            '<p>Halo %s,</p>%s<p>Salam,<br>%s</p>',
+            esc_html( $ticket['client_name'] ?? '' ),
+            wp_kses_post( $content ),
+            esc_html( get_bloginfo( 'name' ) )
         );
 
         add_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ] );
