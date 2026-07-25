@@ -175,10 +175,10 @@ class TicketDetailPage {
                                             <div class="fm-entry-content">
                                                 <?php
                                                 if ( 'developer' === $entry['entry_type'] || 'internal' === $entry['entry_type'] ) {
-                                                    // HTML content from wp_editor.
                                                     echo wp_kses_post( $entry['body'] );
+                                                } elseif ( 'client' === $entry['entry_type'] && ! empty( $entry['body_html'] ) ) {
+                                                    echo wp_kses_post( $entry['body_html'] );
                                                 } else {
-                                                    // Plain text from email or system.
                                                     echo wp_kses_post( nl2br( esc_html( $entry['body'] ) ) );
                                                 }
                                                 ?>

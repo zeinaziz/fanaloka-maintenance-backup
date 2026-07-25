@@ -280,13 +280,24 @@ class IMAPReader {
             return false;
         }
 
-        $body        = $this->get_body( $msg_number );
+        $structure = @imap_fetchstructure( $this->connection, $msg_number );
+
+        if ( false !== $structure ) {
+            $both = $this->extract_body_with_html( $msg_number, $structure );
+            $body      = $both['body'];
+            $body_html = $both['body_html'];
+        } else {
+            $body      = $this->get_body( $msg_number );
+            $body_html = '';
+        }
+
         $attachments = $this->get_attachments( $msg_number );
 
         return [
             'msg_number'  => $msg_number,
             'headers'     => $headers,
             'body'        => $body !== false ? $body : '',
+            'body_html'   => $body_html,
             'attachments' => $attachments,
         ];
     }
@@ -501,6 +512,81 @@ class IMAPReader {
         $body = ! empty( $plain_body ) ? $plain_body : $html_body;
 
         return $this->clean_body( $body, $structure );
+    }
+
+    /**
+     * Extract body and HTML body from email structure.
+     *
+     * @param int      $msg_number Message number.
+     * @param object   $structure Email structure.
+     * @return array{body: string, body_html: string}
+     */
+    private function extract_body_with_html( int $msg_number, object $structure ): array {
+        if ( empty( $structure->parts ) ) {
+            $encoding = $structure->encoding ?? 0;
+
+            if ( 0 === $encoding ) {
+                $body = @imap_body( $this->connection, $msg_number ) ?: '';
+            } elseif ( 3 === $encoding ) {
+                $body = @imap_base64( @imap_body( $this->connection, $msg_number ) ) ?: '';
+            } elseif ( 4 === $encoding ) {
+                $body = @imap_qprint( @imap_body( $this->connection, $msg_number ) ) ?: '';
+            } else {
+                $body = @imap_body( $this->connection, $msg_number ) ?: '';
+            }
+
+            $mime_type = $this->get_mime_type( $structure );
+            if ( 'text/html' === $mime_type ) {
+                return [
+                    'body'      => '',
+                    'body_html' => $this->clean_body( $body, $structure ),
+                ];
+            }
+
+            return [
+                'body'      => $this->clean_body( $body, $structure ),
+                'body_html' => '',
+            ];
+        }
+
+        $plain_body = '';
+        $html_body  = '';
+
+        foreach ( $structure->parts as $part_number => $part ) {
+            $mime_type = $this->get_mime_type( $part );
+            $encoding  = $part->encoding ?? 0;
+            $part_number_index = $part_number + 1;
+
+            if ( ! empty( $part->parts ) ) {
+                $nested = $this->extract_body_from_parts( $msg_number, $part->parts, $part_number_index );
+                if ( ! empty( $nested['plain'] ) && empty( $plain_body ) ) {
+                    $plain_body = $nested['plain'];
+                }
+                if ( ! empty( $nested['html'] ) && empty( $html_body ) ) {
+                    $html_body = $nested['html'];
+                }
+                continue;
+            }
+
+            $raw = @imap_fetchbody( $this->connection, $msg_number, (string) $part_number_index ) ?: '';
+
+            if ( 3 === $encoding ) {
+                $raw = @imap_base64( $raw ) ?: '';
+            } elseif ( 4 === $encoding ) {
+                $raw = @imap_qprint( $raw ) ?: '';
+            }
+
+            if ( 'text/plain' === $mime_type && empty( $plain_body ) ) {
+                $plain_body = $raw;
+            } elseif ( 'text/html' === $mime_type && empty( $html_body ) ) {
+                $html_body = $raw;
+            }
+        }
+
+        return [
+            'body'      => ! empty( $plain_body ) ? $this->clean_body( $plain_body, $structure ) : $this->clean_body( $html_body, $structure ),
+            'body_html' => ! empty( $html_body ) ? $this->clean_body( $html_body, $structure ) : '',
+        ];
     }
 
     /**

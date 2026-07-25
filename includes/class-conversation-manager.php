@@ -43,12 +43,13 @@ class ConversationManager {
             'email'              => $meta['from_email'] ?? '',
             'subject'            => $meta['subject'] ?? '',
             'body'               => $body,
+            'body_html'          => $meta['body_html'] ?? '',
             'entry_type'         => $type,
             'imap_uid'           => absint( $meta['imap_uid'] ?? 0 ),
             'created_at'         => $meta['date'] ?? current_time( 'mysql' ),
         ];
 
-        $format = [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ];
+        $format = [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ];
 
         $result = $wpdb->insert( $table, $data, $format );
 

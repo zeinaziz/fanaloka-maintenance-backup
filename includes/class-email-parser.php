@@ -164,12 +164,19 @@ class EmailParser {
         // Filter allowed attachment types.
         $filtered_attachments = $this->filter_attachments( $attachments );
 
+        // Build HTML body from raw HTML if available.
+        $body_html = $email_data['body_html'] ?? '';
+        if ( ! empty( $body_html ) ) {
+            $body_html = $this->clean_body( $body_html );
+        }
+
         return [
             'sender_name'        => $sender_name,
             'sender_email'       => $sender_email,
             'subject'            => $normalized_subject,
             'original_subject'   => $subject,
             'body'               => $clean_body,
+            'body_html'          => $body_html,
             'raw_body'           => $body,
             'date'               => $date,
             'message_id'         => $message_id,
