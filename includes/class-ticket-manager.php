@@ -190,10 +190,19 @@ class TicketManager {
             'imap_uid'   => $parsed['msg_number'] ?? 0,
         ] );
 
-        // Save attachments.
+        // Save attachments and store IDs in conversation entry.
         if ( ! empty( $parsed['attachments'] ) ) {
             $attachment_manager = new AttachmentManager();
-            $attachment_manager->save_attachments_from_email( $post_id, $parsed );
+            $saved_ids = $attachment_manager->save_attachments_from_email( $post_id, $parsed );
+            if ( ! empty( $saved_ids ) ) {
+                // Update the latest conversation entry with attachment IDs.
+                $last_entry = $conversation->get_last_entry( $post_id );
+                if ( $last_entry ) {
+                    global $wpdb;
+                    $table = \Fanaloka\Maintenance\Database::table_name();
+                    $wpdb->update( $table, [ 'attachments' => implode( ',', $saved_ids ) ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
+                }
+            }
         }
 
         // Send notification.
@@ -243,10 +252,18 @@ class TicketManager {
             'imap_uid'   => $parsed['msg_number'] ?? 0,
         ] );
 
-        // Save new attachments.
+        // Save new attachments and store IDs in conversation entry.
         if ( ! empty( $parsed['attachments'] ) ) {
             $attachment_manager = new AttachmentManager();
-            $attachment_manager->save_attachments_from_email( $ticket_id, $parsed );
+            $saved_ids = $attachment_manager->save_attachments_from_email( $ticket_id, $parsed );
+            if ( ! empty( $saved_ids ) ) {
+                $last_entry = $conversation->get_last_entry( $ticket_id );
+                if ( $last_entry ) {
+                    global $wpdb;
+                    $table = \Fanaloka\Maintenance\Database::table_name();
+                    $wpdb->update( $table, [ 'attachments' => implode( ',', $saved_ids ) ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
+                }
+            }
         }
 
         Logger::log( sprintf( 'Reply added to ticket #%d', $ticket_id ) );

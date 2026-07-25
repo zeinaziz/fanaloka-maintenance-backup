@@ -251,24 +251,60 @@ class TicketDetailPage {
 
                     <!-- Sidebar -->
                     <div id="postbox-container-1">
-                        <!-- Attachments -->
                         <div class="postbox">
-                            <h2 class="hndle"><?php esc_html_e( 'Attachments', 'fanaloka-maintenance' ); ?></h2>
+                            <h2 class="hndle"><?php esc_html_e( 'Ticket Information', 'fanaloka-maintenance' ); ?></h2>
                             <div class="inside">
-                                <?php if ( empty( $files ) ) : ?>
-                                    <p><?php esc_html_e( 'No attachments.', 'fanaloka-maintenance' ); ?></p>
-                                <?php else : ?>
-                                    <ul class="fm-attachment-list">
-                                        <?php foreach ( $files as $file ) : ?>
-                                            <li>
-                                                <a href="<?php echo esc_url( $file['url'] ); ?>" target="_blank">
-                                                    <?php echo esc_html( $file['name'] ); ?>
+                                <table class="widefat fm-ticket-info">
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Number', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><?php echo esc_html( $ticket['full_number'] ?? '' ); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><span class="fm-status fm-status-<?php echo esc_attr( $ticket['status'] ?? '' ); ?>"><?php echo esc_html( ucfirst( $ticket['status'] ?? '' ) ); ?></span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><?php echo esc_html( ucfirst( $ticket['priority'] ?? '' ) ); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td>
+                                            <?php echo esc_html( $ticket['client_name'] ?? '' ); ?><br>
+                                            <small>&lt;<?php echo esc_html( $ticket['client_email'] ?? '' ); ?>&gt;</small>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Assigned To', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><?php echo esc_html( $ticket['assigned_dev_name'] ?? __( 'Unassigned', 'fanaloka-maintenance' ) ); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Created', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><?php echo esc_html( $ticket['date_created'] ?? '' ); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Last Updated', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><?php echo esc_html( $ticket['last_updated'] ?? '' ); ?></td>
+                                    </tr>
+                                    <?php if ( ! empty( $ticket['completion_date'] ) ) : ?>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Completed', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><?php echo esc_html( $ticket['completion_date'] ); ?></td>
+                                    </tr>
+                                    <?php endif; ?>
+                                    <?php if ( ! empty( $files ) ) : ?>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Attachments', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td>
+                                            <?php foreach ( $files as $file ) : ?>
+                                                <a href="<?php echo esc_url( $file['url'] ); ?>" target="_blank" style="display:block;font-size:12px;">
+                                                    <?php echo esc_html( $file['name'] ); ?> (<?php echo esc_html( $file['size'] ); ?>)
                                                 </a>
-                                                <span>(<?php echo esc_html( $file['size'] ); ?>)</span>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </td>
+                                    </tr>
+                                    <?php endif; ?>
+                                </table>
                             </div>
                         </div>
                     </div>
