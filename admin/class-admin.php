@@ -52,6 +52,20 @@ class Admin {
     private array $reply_attachments = [];
 
     /**
+     * Reply HTML body.
+     *
+     * @var string
+     */
+    private string $reply_body_html = '';
+
+    /**
+     * Reply plain text body.
+     *
+     * @var string
+     */
+    private string $reply_body_plain = '';
+
+    /**
      * Get single instance.
      *
      * @return Admin
@@ -371,6 +385,18 @@ class Admin {
     }
 
     /**
+     * Set reply email bodies.
+     *
+     * @param string $html  HTML body.
+     * @param string $plain Plain text body.
+     * @return void
+     */
+    public function set_reply_body( string $html, string $plain ): void {
+        $this->reply_body_html  = $html;
+        $this->reply_body_plain = $plain;
+    }
+
+    /**
      * Set Message-ID and In-Reply-To via PHPMailer.
      *
      * @param \PHPMailer $phpmailer PHPMailer instance.
@@ -379,6 +405,14 @@ class Admin {
     public function set_reply_email_headers( $phpmailer ): void {
         $phpmailer->IsHTML( true );
         $phpmailer->CharSet = 'UTF-8';
+
+        // Force HTML body.
+        if ( ! empty( $this->reply_body_html ) ) {
+            $phpmailer->Body = $this->reply_body_html;
+        }
+        if ( ! empty( $this->reply_body_plain ) ) {
+            $phpmailer->AltBody = $this->reply_body_plain;
+        }
 
         if ( ! empty( $this->reply_message_id ) ) {
             $phpmailer->MessageID = $this->reply_message_id;
@@ -390,11 +424,17 @@ class Admin {
             $phpmailer->addCustomHeader( 'References', $this->reply_references );
         }
         if ( ! empty( $this->reply_attachments ) ) {
+            \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'PHPMailer: adding %d attachments', count( $this->reply_attachments ) ) );
             foreach ( $this->reply_attachments as $file_path ) {
                 if ( ! empty( $file_path ) && file_exists( $file_path ) ) {
                     $phpmailer->addAttachment( $file_path );
+                    \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'PHPMailer: attached %s', $file_path ) );
+                } else {
+                    \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'PHPMailer: SKIPPED %s (not found)', $file_path ) );
                 }
             }
+        } else {
+            \Fanaloka\Maintenance\Logger\Logger::log( 'PHPMailer: no attachments to add' );
         }
     }
 }

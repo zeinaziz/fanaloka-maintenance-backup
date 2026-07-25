@@ -53,6 +53,11 @@ class TicketDetailPage {
             return;
         }
 
+        // Enqueue editor and media scripts.
+        wp_enqueue_editor();
+        wp_enqueue_media();
+        wp_enqueue_style( 'editor-style' );
+
         $ticket_manager = new TicketManager();
         $ticket         = $ticket_manager->get_ticket_meta( $this->ticket_id );
 
@@ -460,6 +465,8 @@ class TicketDetailPage {
         $to        = $ticket['client_email'] ?? '';
         $subject   = sprintf( 'Re: %s', $ticket['subject'] ?? '' );
 
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'send_reply_email START: to=%s ticket=%d', $to, $ticket_id ) );
+
         $conversation = new ConversationManager();
         $last_client_msg_id = $conversation->get_last_client_message_id( $ticket_id );
 
@@ -474,7 +481,7 @@ class TicketDetailPage {
         }
         $references = implode( ' ', $refs );
 
-        // Get attachment file paths from latest developer entry.
+        // Get attachment file paths from the latest developer entry.
         $attachment_files = [];
         foreach ( array_reverse( $all_entries ) as $entry ) {
             if ( 'developer' === $entry['entry_type'] && ! empty( $entry['attachments'] ) ) {
@@ -486,7 +493,7 @@ class TicketDetailPage {
                         $attachment_files[] = $file;
                         \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply attachment file: %s', $file ) );
                     } else {
-                        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply attachment file missing: att_id=%d file=%s', $att_id, $file ?: 'null' ) );
+                        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply attachment MISSING: att_id=%d file=%s', $att_id, $file ?: 'null' ) );
                     }
                 }
                 break;
@@ -495,19 +502,30 @@ class TicketDetailPage {
 
         \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Sending reply email to %s for ticket #%d with %d attachments', $to, $ticket_id, count( $attachment_files ) ) );
 
-        $admin = Admin::instance();
-        $admin->set_reply_headers( $message_id, $last_client_msg_id ?? '', $references, $attachment_files );
+        // Build plain text body.
+        $body_plain = sprintf(
+            "Halo %s,\n\n%s\n\nSalam,\n%s",
+            $ticket['client_name'] ?? '',
+            wp_strip_all_tags( $content ),
+            get_bloginfo( 'name' )
+        );
 
-        $body = sprintf(
+        // Build HTML body.
+        $body_html = sprintf(
             '<p>Halo %s,</p>%s<p>Salam,<br>%s</p>',
             esc_html( $ticket['client_name'] ?? '' ),
             wp_kses_post( $content ),
             esc_html( get_bloginfo( 'name' ) )
         );
 
+        // Store data for phpmailer callback.
+        $admin = Admin::instance();
+        $admin->set_reply_headers( $message_id, $last_client_msg_id ?? '', $references, $attachment_files );
+        $admin->set_reply_body( $body_html, $body_plain );
+
         add_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ] );
 
-        wp_mail( $to, $subject, $body, [ 'Content-Type: text/html; charset=UTF-8' ] );
+        wp_mail( $to, $subject, $body_plain, 'Content-Type: text/plain; charset=UTF-8' );
 
         remove_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ] );
 
