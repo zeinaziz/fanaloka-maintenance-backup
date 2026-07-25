@@ -462,30 +462,90 @@ class IMAPReader {
         }
 
         // Multipart message.
+        $plain_body = '';
+        $html_body  = '';
+
         foreach ( $structure->parts as $part_number => $part ) {
             $mime_type = $this->get_mime_type( $part );
             $encoding  = $part->encoding ?? 0;
+            $part_number_index = $part_number + 1;
 
-            // Only get text/plain parts.
-            if ( 'text/plain' !== $mime_type ) {
+            // Handle nested multipart (e.g., multipart/alternative inside multipart/mixed).
+            if ( ! empty( $part->parts ) ) {
+                $nested = $this->extract_body_from_parts( $msg_number, $part->parts, $part_number_index );
+                if ( ! empty( $nested['plain'] ) && empty( $plain_body ) ) {
+                    $plain_body = $nested['plain'];
+                }
+                if ( ! empty( $nested['html'] ) && empty( $html_body ) ) {
+                    $html_body = $nested['html'];
+                }
                 continue;
             }
 
-            $part_number_index = $part_number + 1;
             $raw = @imap_fetchbody( $this->connection, $msg_number, (string) $part_number_index ) ?: '';
 
             if ( 3 === $encoding ) {
-                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
                 $raw = @imap_base64( $raw ) ?: '';
             } elseif ( 4 === $encoding ) {
                 $raw = @imap_qprint( $raw ) ?: '';
             }
 
-            $body = $raw;
-            break;
+            if ( 'text/plain' === $mime_type && empty( $plain_body ) ) {
+                $plain_body = $raw;
+            } elseif ( 'text/html' === $mime_type && empty( $html_body ) ) {
+                $html_body = $raw;
+            }
         }
 
+        // Prefer plain text, fallback to HTML.
+        $body = ! empty( $plain_body ) ? $plain_body : $html_body;
+
         return $this->clean_body( $body, $structure );
+    }
+
+    /**
+     * Extract body from nested parts.
+     *
+     * @param int      $msg_number Message number.
+     * @param object[] $parts      Email parts.
+     * @param string   $prefix     Part number prefix.
+     * @return array{plain: string, html: string}
+     */
+    private function extract_body_from_parts( int $msg_number, array $parts, string $prefix = '' ): array {
+        $result = [ 'plain' => '', 'html' => '' ];
+
+        foreach ( $parts as $i => $part ) {
+            $mime_type = $this->get_mime_type( $part );
+            $encoding  = $part->encoding ?? 0;
+            $part_num  = $prefix ? $prefix . '.' . ( $i + 1 ) : (string) ( $i + 1 );
+
+            if ( ! empty( $part->parts ) ) {
+                $nested = $this->extract_body_from_parts( $msg_number, $part->parts, $part_num );
+                if ( ! empty( $nested['plain'] ) && empty( $result['plain'] ) ) {
+                    $result['plain'] = $nested['plain'];
+                }
+                if ( ! empty( $nested['html'] ) && empty( $result['html'] ) ) {
+                    $result['html'] = $nested['html'];
+                }
+                continue;
+            }
+
+            $raw = @imap_fetchbody( $this->connection, $msg_number, $part_num ) ?: '';
+
+            if ( 3 === $encoding ) {
+                $raw = @imap_base64( $raw ) ?: '';
+            } elseif ( 4 === $encoding ) {
+                $raw = @imap_qprint( $raw ) ?: '';
+            }
+
+            if ( 'text/plain' === $mime_type && empty( $result['plain'] ) ) {
+                $result['plain'] = $raw;
+            } elseif ( 'text/html' === $mime_type && empty( $result['html'] ) ) {
+                $result['html'] = $raw;
+            }
+        }
+
+        return $result;
     }
 
     /**

@@ -45,6 +45,13 @@ class Admin {
     private string $reply_references = '';
 
     /**
+     * Attachments for reply email.
+     *
+     * @var array<int, string>
+     */
+    private array $reply_attachments = [];
+
+    /**
      * Get single instance.
      *
      * @return Admin
@@ -317,6 +324,22 @@ class Admin {
         $this->reply_message_id = $message_id;
         $this->reply_in_reply_to = $last_client_msg_id ?? '';
         $this->reply_references  = $references;
+        $this->reply_attachments = [];
+
+        // Get attachment file paths from latest developer entry.
+        foreach ( array_reverse( $all_entries ) as $entry ) {
+            if ( 'developer' === $entry['entry_type'] && ! empty( $entry['attachments'] ) ) {
+                $att_ids = explode( ',', $entry['attachments'] );
+                foreach ( $att_ids as $att_id ) {
+                    $file = wp_get_attachment_upload_dir( absint( $att_id ) );
+                    $url  = wp_get_attachment_url( absint( $att_id ) );
+                    if ( $url ) {
+                        $this->reply_attachments[] = get_attached_file( absint( $att_id ) );
+                    }
+                }
+                break;
+            }
+        }
 
         add_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ] );
 
@@ -346,6 +369,14 @@ class Admin {
         }
         if ( ! empty( $this->reply_references ) ) {
             $phpmailer->addCustomHeader( 'References', $this->reply_references );
+        }
+        // Add attachments.
+        if ( ! empty( $this->reply_attachments ) ) {
+            foreach ( $this->reply_attachments as $file_path ) {
+                if ( ! empty( $file_path ) && file_exists( $file_path ) ) {
+                    $phpmailer->addAttachment( $file_path );
+                }
+            }
         }
     }
 }
