@@ -45,6 +45,7 @@ class RequestsPage {
 
         echo '<div class="fm-card" style="padding:0;">';
         $table = new Requests_List_Table();
+        $table->process_bulk_action();
         $table->prepare_items();
         $table->display();
         echo '</div>';

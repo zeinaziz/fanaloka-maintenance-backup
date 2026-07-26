@@ -23,7 +23,7 @@
          */
         bindEvents: function() {
             $( document ).on( 'click', '.fm-btn-test-connection', this.testConnection );
-            $( document ).on( 'click', '.fm-btn-sync', this.syncNow );
+            $( document ).on( 'click', '.fm-sync-btn', this.syncNow );
             $( document ).on( 'change', '.fm-ajax-field', this.updateField );
             $( document ).on( 'submit', '#fm-reply-form', this.submitReply );
         },
