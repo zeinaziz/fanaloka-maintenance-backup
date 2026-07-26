@@ -84,80 +84,6 @@ class TicketDetailPage {
 
                     <!-- Main Content -->
                     <div id="post-body-content">
-                        <!-- Ticket Info Box -->
-                        <div class="postbox">
-                            <h2 class="hndle"><?php esc_html_e( 'Ticket Information', 'fanaloka-maintenance' ); ?></h2>
-                            <div class="inside">
-                                <table class="widefat">
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td>
-                                            <select class="fm-ajax-field"
-                                                    data-ticket-id="<?php echo esc_attr( $this->ticket_id ); ?>"
-                                                    data-field="status">
-                                                <?php foreach ( TicketManager::STATUSES as $key => $label ) : ?>
-                                                    <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $ticket['status'], $key ); ?>>
-                                                        <?php echo esc_html( $label ); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td>
-                                            <select class="fm-ajax-field"
-                                                    data-ticket-id="<?php echo esc_attr( $this->ticket_id ); ?>"
-                                                    data-field="priority">
-                                                <?php foreach ( TicketManager::PRIORITIES as $key => $label ) : ?>
-                                                    <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $ticket['priority'], $key ); ?>>
-                                                        <?php echo esc_html( $label ); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Assigned Developer', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td>
-                                            <select class="fm-ajax-field"
-                                                    data-ticket-id="<?php echo esc_attr( $this->ticket_id ); ?>"
-                                                    data-field="developer_id">
-                                                <option value="0"><?php esc_html_e( 'Unassigned', 'fanaloka-maintenance' ); ?></option>
-                                                <?php foreach ( $developers as $id => $name ) : ?>
-                                                    <option value="<?php echo esc_attr( $id ); ?>" <?php selected( $ticket['assigned_dev'], $id ); ?>>
-                                                        <?php echo esc_html( $name ); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td>
-                                            <?php echo esc_html( $ticket['client_name'] ); ?>
-                                            &lt;<?php echo esc_html( $ticket['client_email'] ); ?>&gt;
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Date Created', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td><?php echo esc_html( $ticket['date_created'] ); ?></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Last Updated', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td><?php echo esc_html( $ticket['last_updated'] ); ?></td>
-                                    </tr>
-                                    <?php if ( $ticket['completion_date'] ) : ?>
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Completed', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td><?php echo esc_html( $ticket['completion_date'] ); ?></td>
-                                    </tr>
-                                    <?php endif; ?>
-                                </table>
-                            </div>
-                        </div>
-
                         <!-- Conversation Timeline -->
                         <div class="postbox">
                             <h2 class="hndle"><?php esc_html_e( 'Conversation', 'fanaloka-maintenance' ); ?></h2>
@@ -261,11 +187,46 @@ class TicketDetailPage {
                                     </tr>
                                     <tr>
                                         <td><strong><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td><span class="fm-status fm-status-<?php echo esc_attr( $ticket['status'] ?? '' ); ?>"><?php echo esc_html( ucfirst( $ticket['status'] ?? '' ) ); ?></span></td>
+                                        <td>
+                                            <select class="fm-ajax-field"
+                                                    data-ticket-id="<?php echo esc_attr( $this->ticket_id ); ?>"
+                                                    data-field="status">
+                                                <?php foreach ( TicketManager::STATUSES as $key => $label ) : ?>
+                                                    <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $ticket['status'], $key ); ?>>
+                                                        <?php echo esc_html( $label ); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td><?php echo esc_html( ucfirst( $ticket['priority'] ?? '' ) ); ?></td>
+                                        <td>
+                                            <select class="fm-ajax-field"
+                                                    data-ticket-id="<?php echo esc_attr( $this->ticket_id ); ?>"
+                                                    data-field="priority">
+                                                <?php foreach ( TicketManager::PRIORITIES as $key => $label ) : ?>
+                                                    <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $ticket['priority'], $key ); ?>>
+                                                        <?php echo esc_html( $label ); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong><?php esc_html_e( 'Developer', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td>
+                                            <select class="fm-ajax-field"
+                                                    data-ticket-id="<?php echo esc_attr( $this->ticket_id ); ?>"
+                                                    data-field="developer_id">
+                                                <option value="0"><?php esc_html_e( 'Unassigned', 'fanaloka-maintenance' ); ?></option>
+                                                <?php foreach ( $developers as $id => $name ) : ?>
+                                                    <option value="<?php echo esc_attr( $id ); ?>" <?php selected( $ticket['assigned_dev'], $id ); ?>>
+                                                        <?php echo esc_html( $name ); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></strong></td>
@@ -273,10 +234,6 @@ class TicketDetailPage {
                                             <?php echo esc_html( $ticket['client_name'] ?? '' ); ?><br>
                                             <small>&lt;<?php echo esc_html( $ticket['client_email'] ?? '' ); ?>&gt;</small>
                                         </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong><?php esc_html_e( 'Assigned To', 'fanaloka-maintenance' ); ?></strong></td>
-                                        <td><?php echo esc_html( $ticket['assigned_dev_name'] ?? __( 'Unassigned', 'fanaloka-maintenance' ) ); ?></td>
                                     </tr>
                                     <tr>
                                         <td><strong><?php esc_html_e( 'Created', 'fanaloka-maintenance' ); ?></strong></td>
@@ -294,7 +251,7 @@ class TicketDetailPage {
                                     <?php endif; ?>
                                     <?php if ( ! empty( $files ) ) : ?>
                                     <tr>
-                                        <td><strong><?php esc_html_e( 'Attachments', 'fanaloka-maintenance' ); ?></strong></td>
+                                        <td><strong><?php esc_html_e( 'Files', 'fanaloka-maintenance' ); ?></strong></td>
                                         <td>
                                             <?php foreach ( $files as $file ) : ?>
                                                 <a href="<?php echo esc_url( $file['url'] ); ?>" target="_blank" style="display:block;font-size:12px;">
