@@ -32,11 +32,12 @@
          * Show notification.
          */
         showNotice: function( message, type ) {
-            var $notice = $( '<div class="fm-notice fm-notice-' + type + '">' + message + '</div>' );
-            $( '#poststuff' ).prepend( $notice );
+            var $target = $( '.fm-page-wrap' ).length ? $( '.fm-page-wrap' ) : $( '.wrap' );
+            var $notice = $( '<div class="fm-notice fm-notice-' + type + '"><span class="dashicons dashicons-' + ( type === 'success' ? 'yes-alt' : 'warning' ) + '"></span>' + message + '</div>' );
+            $target.first().prepend( $notice );
             setTimeout( function() {
                 $notice.fadeOut( 300, function() { $( this ).remove(); } );
-            }, 2000 );
+            }, 4000 );
         },
 
         /**

@@ -1,79 +1,43 @@
 /**
- * Fanaloka Maintenance Manager - Admin Styles
+ * Fanaloka Maintenance Manager - Global Admin Styles
  *
  * @package Fanaloka\Maintenance
  */
 
-.wrap h1 {
-    font-size: 23px;
-    font-weight: 400;
-    margin: 0 0 10px;
-    padding: 9px 0 4px;
-    line-height: 1.3;
-}
-
-.fm-dashboard-widgets {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin: 20px 0;
-}
-
-.fm-stat-box {
-    background: #fff;
-    border: 1px solid #ccd0d4;
-    border-top: 3px solid #2271b1;
-    padding: 20px;
-    text-align: center;
-}
-
-.fm-stat-box .count {
-    font-size: 32px;
-    font-weight: 600;
-    display: block;
-    line-height: 1.2;
-}
-
-.fm-stat-box .label {
-    color: #646970;
-    font-size: 13px;
-    margin-top: 5px;
-}
-
-.fm-stat-box.critical {
-    border-top-color: #d63638;
-}
-
-.fm-stat-box.open {
-    border-top-color: #dba617;
-}
-
-.fm-stat-box.completed {
-    border-top-color: #00a32a;
-}
-
-.fm-stat-box.waiting {
-    border-top-color: #996800;
-}
-
+/* Notifications - Fixed toast style */
 .fm-notice {
     position: fixed;
     top: 50px;
     right: 20px;
-    padding: 10px 20px;
-    border-radius: 4px;
+    padding: 12px 20px;
+    border-radius: 6px;
     z-index: 100000;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     animation: fm-slide-in 0.3s ease;
+    max-width: 400px;
 }
 
 .fm-notice-success {
-    background: #00a32a;
-    color: #fff;
+    background: #e6f9e6;
+    color: #00a32a;
+    border: 1px solid #b8e6b8;
 }
 
 .fm-notice-error {
-    background: #d63638;
-    color: #fff;
+    background: #fde7e7;
+    color: #d63638;
+    border: 1px solid #f5c6c6;
+}
+
+.fm-notice .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
 }
 
 @keyframes fm-slide-in {
@@ -87,6 +51,7 @@
     }
 }
 
+/* Entry attachments */
 .fm-entry-attachments {
     margin-top: 10px;
     padding-top: 8px;
