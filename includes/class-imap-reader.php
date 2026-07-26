@@ -596,7 +596,16 @@ class IMAPReader {
      * @return string Sanitized HTML.
      */
     private function sanitize_html_body( string $body ): string {
-        // Normalize line endings first.
+        // Remove <style> tags and their content.
+        $body = preg_replace( '/<style\b[^>]*>.*?<\/style\s*>/is', '', $body );
+
+        // Remove <script> tags and their content.
+        $body = preg_replace( '/<script\b[^>]*>.*?<\/script\s*>/is', '', $body );
+
+        // Remove HTML comments.
+        $body = preg_replace( '/<!--.*?-->/s', '', $body );
+
+        // Normalize line endings.
         $body = str_replace( [ "\r\n", "\r" ], "\n", $body );
         $body = trim( $body );
 
