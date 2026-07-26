@@ -32,7 +32,8 @@ class RequestsPage {
             return;
         }
 
-        $devs = $this->get_developers();
+        $devs    = $this->get_developers();
+        $interval = max( 60, absint( get_option( 'fm_sync_interval', 5 ) ) * 60 );
         ?>
         <div class="fm-page-wrap">
             <div class="fm-page-header">
@@ -40,10 +41,11 @@ class RequestsPage {
                     <span class="dashicons dashicons-welcome-view-site" style="color:#2271b1"></span>
                     <?php esc_html_e( 'All Requests', 'fanaloka-maintenance' ); ?>
                 </h1>
-                <button type="button" class="fm-btn fm-btn-primary fm-sync-btn" id="fm-sync-btn">
-                    <span class="dashicons dashicons-update"></span>
-                    <?php esc_html_e( 'Sync Now', 'fanaloka-maintenance' ); ?>
-                </button>
+                <div class="fm-auto-refresh-info">
+                    <span class="dashicons dashicons-update" id="fm-refresh-icon"></span>
+                    <span id="fm-refresh-status"><?php esc_html_e( 'Auto-refresh enabled', 'fanaloka-maintenance' ); ?></span>
+                    <span class="fm-refresh-dot" id="fm-refresh-dot"></span>
+                </div>
             </div>
 
             <div class="fm-card" id="fm-requests-card">
@@ -145,6 +147,11 @@ class RequestsPage {
         .fm-badge-danger { background: #d63638; }
         .fm-badge-default { background: #8c8f94; }
         .fm-sync-btn { white-space: nowrap; }
+        .fm-auto-refresh-info { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #646970; }
+        .fm-auto-refresh-info .dashicons { font-size: 16px; color: #00a32a; }
+        .fm-refresh-dot { width: 8px; height: 8px; border-radius: 50%; background: #00a32a; animation: fm-pulse 2s infinite; }
+        @keyframes fm-pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .fm-notice { position: fixed; top: 50px; right: 20px; padding: 12px 20px; border-radius: 6px; z-index: 100000; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fm-slide-in 0.3s ease; max-width: 400px; }
         .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
         .fm-notice-error { background: #fde7e7; color: #d63638; border: 1px solid #f5c6c6; }
@@ -155,6 +162,7 @@ class RequestsPage {
         var fmRequestsAjax = {
             url: '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>',
             nonce: '<?php echo esc_js( wp_create_nonce( 'fm_admin_nonce' ) ); ?>',
+            interval: <?php echo esc_js( $interval ); ?>,
         };
         (function($) {
             var state = {
@@ -165,6 +173,8 @@ class RequestsPage {
                 order: 'DESC',
                 per_page: 20,
             };
+            var refreshTimer = null;
+            var lastCount = 0;
 
             function loadTickets() {
                 var $tbody = $('#fm-requests-tbody');
@@ -181,10 +191,17 @@ class RequestsPage {
                     per_page: state.per_page,
                 }, function(res) {
                     if (res.success) {
+                        var newCount = res.data.total || 0;
                         $tbody.html(res.data.html);
                         $('#fm-displaying-num').text(res.data.displaying);
                         $('#fm-pagination').html(res.data.pagination);
                         $('#fm-requests-table thead .column-cb input').prop('checked', false);
+
+                        // Notify if new tickets arrived
+                        if (lastCount > 0 && newCount > lastCount) {
+                            showNotice((newCount - lastCount) + ' new request(s) received!', 'success');
+                        }
+                        lastCount = newCount;
                     } else {
                         $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#d63638;">Error loading tickets.</td></tr>');
                     }
@@ -306,6 +323,17 @@ class RequestsPage {
 
             // Initial load
             loadTickets();
+
+            // Auto-refresh
+            function startAutoRefresh() {
+                if (refreshTimer) clearInterval(refreshTimer);
+                refreshTimer = setInterval(function() {
+                    $('#fm-refresh-icon').css('animation', 'spin 1s linear infinite');
+                    loadTickets();
+                    setTimeout(function(){ $('#fm-refresh-icon').css('animation', ''); }, 1000);
+                }, fmRequestsAjax.interval * 1000);
+            }
+            startAutoRefresh();
 
         })(jQuery);
         </script>
