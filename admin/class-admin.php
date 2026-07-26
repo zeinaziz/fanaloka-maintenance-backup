@@ -501,7 +501,7 @@ class Admin {
         $displaying = $total > 0
             ? sprintf(
                 /* translators: 1: from number, 2: to number, 3: total */
-                __( '%1$d&ndash;%2$d of %3$d items', 'fanaloka-maintenance' ),
+                __( '%1$d – %2$d of %3$d items', 'fanaloka-maintenance' ),
                 $from, $to, $total
             )
             : __( 'No items', 'fanaloka-maintenance' );
