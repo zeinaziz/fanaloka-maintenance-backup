@@ -69,7 +69,7 @@ class DashboardPage {
                     <!-- Monthly Chart -->
                     <div class="postbox">
                         <h2 class="hndle"><span class="dashicons dashicons-chart-bar" style="margin-right:5px;"></span><?php esc_html_e( 'Tickets per Month', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside" style="padding:15px;">
+                        <div class="inside">
                             <canvas id="fm-monthly-chart" height="280"></canvas>
                         </div>
                     </div>
@@ -77,7 +77,7 @@ class DashboardPage {
                     <!-- Recent Activities -->
                     <div class="postbox">
                         <h2 class="hndle"><span class="dashicons dashicons-list-view" style="margin-right:5px;"></span><?php esc_html_e( 'Recent Activities', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside" style="padding:0;">
+                        <div class="inside">
                             <?php if ( empty( $recent ) ) : ?>
                                 <p style="padding:15px;"><?php esc_html_e( 'No recent activities.', 'fanaloka-maintenance' ); ?></p>
                             <?php else : ?>
@@ -113,7 +113,7 @@ class DashboardPage {
                     <!-- Quick Actions -->
                     <div class="postbox fm-sidebar-box">
                         <h2 class="hndle"><span class="dashicons dashicons-admin-settings" style="margin-right:5px;"></span><?php esc_html_e( 'Quick Actions', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside" style="padding:15px;">
+                        <div class="inside">
                             <button type="button" class="button button-primary button-hero fm-btn-sync" id="fm-sync-now" style="width:100%; margin-bottom:10px;">
                                 <span class="dashicons dashicons-update" style="margin-right:5px;"></span><?php esc_html_e( 'Sync Now', 'fanaloka-maintenance' ); ?>
                             </button>
@@ -132,7 +132,7 @@ class DashboardPage {
                     <!-- Last Sync -->
                     <div class="postbox fm-sidebar-box">
                         <h2 class="hndle"><span class="dashicons dashicons-email-alt" style="margin-right:5px;"></span><?php esc_html_e( 'Last Sync', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside" style="padding:15px;">
+                        <div class="inside">
                             <table class="widefat" style="border:0;">
                                 <tr>
                                     <td style="padding:8px 10px; border:0;"><strong><?php esc_html_e( 'Time', 'fanaloka-maintenance' ); ?></strong></td>
@@ -161,7 +161,7 @@ class DashboardPage {
                     <!-- Auto Sync Status -->
                     <div class="postbox fm-sidebar-box">
                         <h2 class="hndle"><span class="dashicons dashicons-controls-play" style="margin-right:5px;"></span><?php esc_html_e( 'Auto Sync', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside" style="padding:15px;">
+                        <div class="inside">
                             <?php
                             $cron = CronManager::instance();
                             $auto_sync = get_option( 'fm_auto_sync', 'yes' );
@@ -248,6 +248,8 @@ class DashboardPage {
         .fm-dashboard-main { flex: 3; min-width: 0; }
         .fm-dashboard-sidebar { flex: 1; min-width: 280px; max-width: 340px; }
         .fm-dashboard-sidebar .postbox { margin-bottom: 15px; }
+        #poststuff .postbox .hndle { padding: 10px 15px; margin: 0; }
+        #poststuff .postbox .inside { padding: 0 15px 15px; margin: 0; }
         .fm-sidebar-box .hndle { cursor: default; }
         .fm-log-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; line-height: 1.6; }
         .fm-log-info { background: #f0f6fc; color: #2271b1; }
