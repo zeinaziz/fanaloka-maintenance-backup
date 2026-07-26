@@ -57,20 +57,23 @@ class RequestsPage {
         .fm-page-wrap { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
         .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
-        .fm-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-        .fm-btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-decoration: none; line-height: 1.4; }
-        .fm-btn-primary { background: #2271b1; color: #fff; border: 1px solid #2271b1; }
-        .fm-btn-primary:hover { background: #135e96; border-color: #135e96; color: #fff; }
-        .fm-btn .dashicons { font-size: 16px; top: 1px; }
-        .fm-notice { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
-        .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
-        .fm-notice-success .dashicons { font-size: 18px; }
-        .widefat td, .widefat th { padding: 10px; }
+        .fm-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; overflow: visible; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-card .wp-list-table { border: none; }
+        .fm-card .tablenav { padding: 10px 12px; border-bottom: 1px solid #e2e4e7; background: #f9f9f9; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+        .fm-card .tablenav.top { border-radius: 8px 8px 0 0; }
+        .fm-card .tablenav .alignleft.actions { display: flex; align-items: center; gap: 6px; }
+        .fm-card .tablenav select { height: 32px; border-radius: 5px; border-color: #c3c4c7; font-size: 13px; }
+        .fm-card .tablenav .button { height: 32px; line-height: 30px; border-radius: 5px; font-size: 13px; }
+        .fm-card .tablenav .bulkactions { display: flex; align-items: center; gap: 6px; }
+        .fm-card .tablenav .bulkactions select { height: 32px; border-radius: 5px; font-size: 13px; }
+        .fm-card .tablenav .bulkactions .button { height: 32px; line-height: 30px; border-radius: 5px; font-size: 13px; }
+        .fm-card .tablenav .search-plugins { display: flex; align-items: center; gap: 6px; }
+        .fm-card .tablenav .search-plugins input { height: 32px; border-radius: 5px; font-size: 13px; }
+        .fm-card .tablenav .tablenav-pages { margin: 0; }
+        .widefat td, .widefat th { padding: 10px 14px; }
         .widefat thead th { background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; color: #646970; font-weight: 600; }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
         .widefat tr:hover td { background: #f9f9f9; }
-        .tablenav .alignleft.actions select { margin-right: 6px; }
-        .tablenav .alignleft.actions .button { border-radius: 6px; }
         .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; white-space: nowrap; }
         .fm-badge-primary { background: #2271b1; }
         .fm-badge-success { background: #00a32a; }
@@ -78,6 +81,9 @@ class RequestsPage {
         .fm-badge-danger { background: #d63638; }
         .fm-badge-default { background: #8c8f94; }
         .fm-sync-btn { white-space: nowrap; }
+        .fm-notice { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+        .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
+        .fm-notice-success .dashicons { font-size: 18px; }
         </style>
         <?php
     }
