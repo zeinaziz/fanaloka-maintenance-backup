@@ -139,15 +139,6 @@ class Admin {
 
         add_submenu_page(
             'fm-dashboard',
-            __( 'Dashboard', 'fanaloka-maintenance' ),
-            __( 'Dashboard', 'fanaloka-maintenance' ),
-            'manage_options',
-            'fm-dashboard',
-            [ new DashboardPage(), 'render' ]
-        );
-
-        add_submenu_page(
-            'fm-dashboard',
             __( 'Requests', 'fanaloka-maintenance' ),
             __( 'Requests', 'fanaloka-maintenance' ),
             'manage_options',
