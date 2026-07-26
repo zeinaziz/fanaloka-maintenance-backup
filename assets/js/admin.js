@@ -142,20 +142,25 @@
             e.preventDefault();
             var $btn = $( this );
 
-            $btn.prop( 'disabled', true ).text( fmAdmin.syncing || 'Syncing...' );
+            $btn.prop( 'disabled', true ).html( '<span class="dashicons dashicons-update" style="animation:spin 1s linear infinite;"></span> ' + ( fmAdmin.syncing || 'Syncing...' ) );
 
             $.post( fmAdmin.ajaxUrl, {
                 action: 'fm_sync_now',
                 nonce: fmAdmin.nonce,
             }, function( response ) {
                 if ( response.success ) {
-                    $btn.text( fmAdmin.syncComplete || 'Sync Complete!' );
+                    $btn.html( '<span class="dashicons dashicons-yes-alt"></span> ' + ( fmAdmin.syncComplete || 'Sync Complete!' ) );
+                    FMAdmin.showNotice( response.data.message || 'Sync complete!', 'success' );
                 } else {
-                    $btn.text( response.data.message || fmAdmin.failed || 'Failed' );
+                    $btn.html( '<span class="dashicons dashicons-warning"></span> ' + ( response.data.message || fmAdmin.failed || 'Failed' ) );
+                    FMAdmin.showNotice( response.data.message || 'Sync failed', 'error' );
                 }
                 setTimeout( function() {
-                    $btn.prop( 'disabled', false ).text( fmAdmin.syncNow || 'Sync Now' );
-                }, 3000 );
+                    $btn.prop( 'disabled', false ).html( '<span class="dashicons dashicons-update"></span> ' + ( fmAdmin.syncNow || 'Sync Now' ) );
+                }, 4000 );
+            } ).fail( function() {
+                $btn.prop( 'disabled', false ).html( '<span class="dashicons dashicons-update"></span> ' + ( fmAdmin.syncNow || 'Sync Now' ) );
+                FMAdmin.showNotice( 'Sync request failed', 'error' );
             } );
         },
 

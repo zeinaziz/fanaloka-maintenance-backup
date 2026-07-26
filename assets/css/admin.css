@@ -51,6 +51,11 @@
     }
 }
 
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* Entry attachments */
 .fm-entry-attachments {
     margin-top: 10px;
