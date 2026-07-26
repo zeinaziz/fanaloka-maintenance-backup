@@ -86,6 +86,8 @@ class Admin {
         add_action( 'init', [ $this, 'handle_ticket_actions' ], 1 );
         add_action( 'wp_ajax_fm_update_ticket', [ $this, 'ajax_update_ticket' ] );
         add_action( 'wp_ajax_fm_reply_ticket', [ $this, 'ajax_reply_ticket' ] );
+        add_action( 'wp_ajax_fm_list_requests', [ $this, 'ajax_list_requests' ] );
+        add_action( 'wp_ajax_fm_bulk_delete_requests', [ $this, 'ajax_bulk_delete_requests' ] );
     }
 
     /**
@@ -425,5 +427,136 @@ class Admin {
         } else {
             \Fanaloka\Maintenance\Logger\Logger::log( 'PHPMailer: no attachments to add' );
         }
+    }
+
+    /**
+     * AJAX: List requests with filter, sort, pagination.
+     *
+     * @return void
+     */
+    public function ajax_list_requests(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+
+        $paged    = isset( $_POST['paged'] ) ? max( 1, absint( $_POST['paged'] ) ) : 1;
+        $status   = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+        $priority = isset( $_POST['priority'] ) ? sanitize_text_field( wp_unslash( $_POST['priority'] ) ) : '';
+        $orderby  = isset( $_POST['orderby'] ) ? sanitize_text_field( wp_unslash( $_POST['orderby'] ) ) : 'date';
+        $order    = isset( $_POST['order'] ) ? sanitize_text_field( wp_unslash( $_POST['order'] ) ) : 'DESC';
+        $per_page = isset( $_POST['per_page'] ) ? max( 1, absint( $_POST['per_page'] ) ) : 20;
+
+        $ticket_manager = new \Fanaloka\Maintenance\Ticket\TicketManager();
+        $result         = $ticket_manager->get_tickets( [
+            'per_page' => $per_page,
+            'paged'    => $paged,
+            'status'   => $status,
+            'priority' => $priority,
+            'orderby'  => $orderby,
+            'order'    => $order,
+        ] );
+
+        $html = '';
+        if ( empty( $result['tickets'] ) ) {
+            $html = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#8c8f94;">No tickets found.</td></tr>';
+        } else {
+            $view_url = admin_url( 'admin.php?page=fm-requests&action=view&id=' );
+            foreach ( $result['tickets'] as $ticket ) {
+                $status_colors = [
+                    'new'            => 'fm-badge-primary',
+                    'open'           => 'fm-badge-warning',
+                    'in-progress'    => 'fm-badge-success',
+                    'waiting-client' => 'fm-badge-warning',
+                    'completed'      => 'fm-badge-success',
+                    'cancelled'      => 'fm-badge-danger',
+                ];
+                $priority_colors = [
+                    'low'      => 'fm-badge-default',
+                    'medium'   => 'fm-badge-warning',
+                    'high'     => 'fm-badge-danger',
+                    'critical' => 'fm-badge-danger',
+                ];
+                $sc = $status_colors[ $ticket['status'] ] ?? 'fm-badge-default';
+                $pc = $priority_colors[ $ticket['priority'] ] ?? 'fm-badge-default';
+
+                $html .= '<tr>';
+                $html .= '<th scope="row" class="check-column"><input type="checkbox" name="ticket[]" value="' . esc_attr( $ticket['id'] ) . '" /></th>';
+                $html .= '<td class="column-ticket_number column-primary"><a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['full_number'] ) . '</strong></a></td>';
+                $html .= '<td class="column-client"><strong>' . esc_html( $ticket['client_name'] ) . '</strong><br><span style="color:#8c8f94;font-size:12px;">' . esc_html( $ticket['client_email'] ) . '</span></td>';
+                $html .= '<td class="column-subject"><a href="' . esc_url( $view_url . $ticket['id'] ) . '">' . esc_html( $ticket['subject'] ) . '</a></td>';
+                $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
+                $html .= '<td class="column-priority"><span class="fm-badge ' . esc_attr( $pc ) . '">' . esc_html( $ticket['priority_label'] ?? $ticket['priority'] ) . '</span></td>';
+                $html .= '<td class="column-assigned_dev">' . esc_html( $ticket['assigned_dev_name'] ?? '-' ) . '</td>';
+                $html .= '<td class="column-date_created">' . esc_html( $ticket['date_created'] ?? '' ) . '</td>';
+                $html .= '</tr>';
+            }
+        }
+
+        $total  = $result['total'];
+        $pages  = $result['pages'];
+        $from   = ( $paged - 1 ) * $per_page + 1;
+        $to     = min( $paged * $per_page, $total );
+        $displaying = $total > 0
+            ? sprintf(
+                /* translators: 1: from number, 2: to number, 3: total */
+                __( '%1$d&ndash;%2$d of %3$d items', 'fanaloka-maintenance' ),
+                $from, $to, $total
+            )
+            : __( 'No items', 'fanaloka-maintenance' );
+
+        $pagination = '';
+        if ( $pages > 1 ) {
+            $pagination .= '<a class="button" data-page="' . max( 1, $paged - 1 ) . '"' . ( $paged <= 1 ? ' disabled' : '' ) . '>&laquo;</a> ';
+            $pagination .= '<span class="paging-input">' . $paged . ' of ' . $pages . '</span> ';
+            $pagination .= '<a class="button" data-page="' . min( $pages, $paged + 1 ) . '"' . ( $paged >= $pages ? ' disabled' : '' ) . '>&raquo;</a>';
+        }
+
+        wp_send_json_success( [
+            'html'       => $html,
+            'displaying' => $displaying,
+            'pagination' => $pagination,
+            'total'      => $total,
+            'pages'      => $pages,
+        ] );
+    }
+
+    /**
+     * AJAX: Bulk delete requests.
+     *
+     * @return void
+     */
+    public function ajax_bulk_delete_requests(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+
+        $ids = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : [];
+        $ids = array_filter( $ids );
+
+        if ( empty( $ids ) ) {
+            wp_send_json_error( [ 'message' => 'No tickets selected.' ] );
+        }
+
+        $ticket_manager = new \Fanaloka\Maintenance\Ticket\TicketManager();
+        $deleted = 0;
+
+        foreach ( $ids as $id ) {
+            if ( $ticket_manager->delete_ticket( $id ) ) {
+                ++$deleted;
+            }
+        }
+
+        wp_send_json_success( [
+            'message' => sprintf(
+                /* translators: %d: number of deleted tickets */
+                __( '%d ticket(s) deleted.', 'fanaloka-maintenance' ),
+                $deleted
+            ),
+            'deleted' => $deleted,
+        ] );
     }
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Requests Page - WP_List_Table for tickets.
+ * Requests Page - AJAX-powered ticket list.
  *
  * @package Fanaloka\Maintenance
  */
@@ -32,28 +32,95 @@ class RequestsPage {
             return;
         }
 
-        echo '<div class="fm-page-wrap">';
-        echo '<div class="fm-page-header">';
-        echo '<h1 class="fm-page-title"><span class="dashicons dashicons-welcome-view-site" style="color:#2271b1"></span> ' . esc_html__( 'All Requests', 'fanaloka-maintenance' ) . '</h1>';
-        echo '<button type="button" class="fm-btn fm-btn-primary fm-sync-btn" id="fm-sync-btn"><span class="dashicons dashicons-update"></span> ' . esc_html__( 'Sync Now', 'fanaloka-maintenance' ) . '</button>';
-        echo '</div>';
-
-        // Display notices.
-        if ( isset( $_GET['deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            echo '<div class="fm-notice fm-notice-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__( 'Ticket deleted.', 'fanaloka-maintenance' ) . '</div>';
-        }
-
-        echo '<div class="fm-card" style="padding:0;">';
-        $table = new Requests_List_Table();
-        $table->process_bulk_action();
-        $table->prepare_items();
-        $table->display();
-        echo '</div>';
-
-        echo '</div>';
-
-        // Shared design CSS.
+        $devs = $this->get_developers();
         ?>
+        <div class="fm-page-wrap">
+            <div class="fm-page-header">
+                <h1 class="fm-page-title">
+                    <span class="dashicons dashicons-welcome-view-site" style="color:#2271b1"></span>
+                    <?php esc_html_e( 'All Requests', 'fanaloka-maintenance' ); ?>
+                </h1>
+                <button type="button" class="fm-btn fm-btn-primary fm-sync-btn" id="fm-sync-btn">
+                    <span class="dashicons dashicons-update"></span>
+                    <?php esc_html_e( 'Sync Now', 'fanaloka-maintenance' ); ?>
+                </button>
+            </div>
+
+            <div class="fm-card" id="fm-requests-card">
+                <!-- Tablenav Top -->
+                <div class="tablenav top">
+                    <div class="alignleft actions bulkactions">
+                        <label for="bulk-action-selector-top" class="screen-reader-text">
+                            <?php esc_html_e( 'Select bulk action', 'fanaloka-maintenance' ); ?>
+                        </label>
+                        <select name="action" id="bulk-action-selector-top">
+                            <option value="-1"><?php esc_html_e( 'Bulk actions', 'fanaloka-maintenance' ); ?></option>
+                            <option value="delete"><?php esc_html_e( 'Delete', 'fanaloka-maintenance' ); ?></option>
+                        </select>
+                        <input type="button" id="fm-bulk-apply" class="button action" value="<?php esc_attr_e( 'Apply', 'fanaloka-maintenance' ); ?>" />
+                    </div>
+                    <div class="alignleft actions">
+                        <select id="fm-filter-status">
+                            <option value=""><?php esc_html_e( 'All Statuses', 'fanaloka-maintenance' ); ?></option>
+                            <?php foreach ( TicketManager::STATUSES as $key => $label ) : ?>
+                                <option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <select id="fm-filter-priority">
+                            <option value=""><?php esc_html_e( 'All Priorities', 'fanaloka-maintenance' ); ?></option>
+                            <?php foreach ( TicketManager::PRIORITIES as $key => $label ) : ?>
+                                <option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <input type="button" id="fm-filter-apply" class="button" value="<?php esc_attr_e( 'Filter', 'fanaloka-maintenance' ); ?>" />
+                        <input type="button" id="fm-filter-clear" class="button" value="<?php esc_attr_e( 'Clear', 'fanaloka-maintenance' ); ?>" />
+                    </div>
+                    <div class="tablenav-pages">
+                        <span class="displaying-num" id="fm-displaying-num"></span>
+                        <span class="pagination-links" id="fm-pagination"></span>
+                    </div>
+                    <br class="clear" />
+                </div>
+
+                <!-- Table -->
+                <table class="wp-list-table widefat fixed striped table-view-list requests" id="fm-requests-table">
+                    <thead>
+                        <tr>
+                            <td id="cb" class="manage-column column-cb check-column">
+                                <input id="cb-select-all" type="checkbox" />
+                            </td>
+                            <th scope="col" class="manage-column column-ticket_number column-primary"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-client"><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-subject"><?php esc_html_e( 'Subject', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-status"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-priority"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-assigned_dev"><?php esc_html_e( 'Developer', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-date_created"><?php esc_html_e( 'Date', 'fanaloka-maintenance' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody id="fm-requests-tbody">
+                        <tr><td colspan="8" style="text-align:center;padding:30px;color:#8c8f94;">
+                            <span class="spinner is-active"></span> <?php esc_html_e( 'Loading...', 'fanaloka-maintenance' ); ?>
+                        </td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td class="manage-column column-cb check-column">
+                                <input id="cb-select-all-2" type="checkbox" />
+                            </td>
+                            <th scope="col" class="manage-column column-ticket_number column-primary"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-client"><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-subject"><?php esc_html_e( 'Subject', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-status"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-priority"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-assigned_dev"><?php esc_html_e( 'Developer', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" class="manage-column column-date_created"><?php esc_html_e( 'Date', 'fanaloka-maintenance' ); ?></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
         <style>
         .fm-page-wrap { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
         .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
@@ -64,12 +131,8 @@ class RequestsPage {
         .fm-card .tablenav.top { border-radius: 8px 8px 0 0; }
         .fm-card .tablenav .alignleft.actions { display: flex; align-items: center; gap: 6px; }
         .fm-card .tablenav select { height: 32px; border-radius: 5px; border-color: #c3c4c7; font-size: 13px; }
-        .fm-card .tablenav .button { height: 32px; line-height: 30px; border-radius: 5px; font-size: 13px; }
+        .fm-card .tablenav .button { height: 32px; line-height: 30px; border-radius: 5px; font-size: 13px; padding: 0 12px; }
         .fm-card .tablenav .bulkactions { display: flex; align-items: center; gap: 6px; }
-        .fm-card .tablenav .bulkactions select { height: 32px; border-radius: 5px; font-size: 13px; }
-        .fm-card .tablenav .bulkactions .button { height: 32px; line-height: 30px; border-radius: 5px; font-size: 13px; }
-        .fm-card .tablenav .search-plugins { display: flex; align-items: center; gap: 6px; }
-        .fm-card .tablenav .search-plugins input { height: 32px; border-radius: 5px; font-size: 13px; }
         .fm-card .tablenav .tablenav-pages { margin: 0; }
         .widefat td, .widefat th { padding: 10px 14px; }
         .widefat thead th { background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; color: #646970; font-weight: 600; }
@@ -82,317 +145,174 @@ class RequestsPage {
         .fm-badge-danger { background: #d63638; }
         .fm-badge-default { background: #8c8f94; }
         .fm-sync-btn { white-space: nowrap; }
-        .fm-notice { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+        .fm-notice { position: fixed; top: 50px; right: 20px; padding: 12px 20px; border-radius: 6px; z-index: 100000; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fm-slide-in 0.3s ease; max-width: 400px; }
         .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
-        .fm-notice-success .dashicons { font-size: 18px; }
+        .fm-notice-error { background: #fde7e7; color: #d63638; border: 1px solid #f5c6c6; }
+        @keyframes fm-slide-in { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
         </style>
-        <?php
-    }
-}
 
-/**
- * WP_List_Table for Maintenance Requests.
- */
-if ( ! class_exists( 'WP_List_Table' ) ) {
-    require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
-}
+        <script>
+        (function($) {
+            var state = {
+                paged: 1,
+                status: '',
+                priority: '',
+                orderby: 'date',
+                order: 'DESC',
+                per_page: 20,
+            };
 
-/**
- * Requests_List_Table Class.
- */
-class Requests_List_Table extends \WP_List_Table {
+            function loadTickets() {
+                var $tbody = $('#fm-requests-tbody');
+                $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#8c8f94;"><span class="spinner is-active"></span> Loading...</td></tr>');
 
-    /**
-     * Constructor.
-     */
-    public function __construct() {
-        parent::__construct( [
-            'singular' => 'request',
-            'plural'   => 'requests',
-            'ajax'     => false,
-        ] );
-    }
-
-    /**
-     * Get table columns.
-     *
-     * @return array<string, string> Column slug => label.
-     */
-    public function get_columns(): array {
-        return [
-            'cb'              => '<input type="checkbox" />',
-            'ticket_number'   => __( 'Ticket', 'fanaloka-maintenance' ),
-            'client'          => __( 'Client', 'fanaloka-maintenance' ),
-            'subject'         => __( 'Subject', 'fanaloka-maintenance' ),
-            'status'          => __( 'Status', 'fanaloka-maintenance' ),
-            'priority'        => __( 'Priority', 'fanaloka-maintenance' ),
-            'assigned_dev'    => __( 'Developer', 'fanaloka-maintenance' ),
-            'date_created'    => __( 'Date', 'fanaloka-maintenance' ),
-        ];
-    }
-
-    /**
-     * Get sortable columns.
-     *
-     * @return array<string, array{0: string, 1: bool}> Sortable args.
-     */
-    public function get_sortable_columns(): array {
-        return [
-            'ticket_number' => [ 'ticket_number', false ],
-            'status'        => [ 'status', false ],
-            'priority'      => [ 'priority', false ],
-            'date_created'  => [ 'date', true ],
-        ];
-    }
-
-    /**
-     * Prepare items.
-     *
-     * @return void
-     */
-    public function prepare_items(): void {
-        $per_page = 20;
-        $paged    = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
-
-        $args = [
-            'per_page' => $per_page,
-            'paged'    => $paged,
-            'status'   => isset( $_GET['filter_status'] ) ? sanitize_text_field( wp_unslash( $_GET['filter_status'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            'priority' => isset( $_GET['filter_priority'] ) ? sanitize_text_field( wp_unslash( $_GET['filter_priority'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            'search'   => isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        ];
-
-        // Handle sorting.
-        $orderby = isset( $_GET['orderby'] ) ? sanitize_text_field( wp_unslash( $_GET['orderby'] ) ) : 'date'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $order   = isset( $_GET['order'] ) ? sanitize_text_field( wp_unslash( $_GET['order'] ) ) : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-
-        $args['orderby'] = $orderby;
-        $args['order']   = $order;
-
-        $ticket_manager = new TicketManager();
-        $result         = $ticket_manager->get_tickets( $args );
-
-        $this->items = $result['tickets'];
-
-        $this->set_pagination_args( [
-            'total_items' => $result['total'],
-            'per_page'    => $per_page,
-            'total_pages' => $result['pages'],
-        ] );
-
-        $this->_column_headers = [
-            $this->get_columns(),
-            [],
-            $this->get_sortable_columns(),
-        ];
-    }
-
-    /**
-     * Extra table navigation (filters).
-     *
-     * @param string $which Top or bottom.
-     * @return void
-     */
-    public function extra_tablenav( $which ): void {
-        if ( 'top' !== $which ) {
-            return;
-        }
-
-        $current_status  = isset( $_GET['filter_status'] ) ? sanitize_text_field( wp_unslash( $_GET['filter_status'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $current_priority = isset( $_GET['filter_priority'] ) ? sanitize_text_field( wp_unslash( $_GET['filter_priority'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        ?>
-        <div class="alignleft actions">
-            <select name="filter_status" id="filter-status">
-                <option value=""><?php esc_html_e( 'All Statuses', 'fanaloka-maintenance' ); ?></option>
-                <?php foreach ( TicketManager::STATUSES as $key => $label ) : ?>
-                    <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_status, $key ); ?>>
-                        <?php echo esc_html( $label ); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-
-            <select name="filter_priority" id="filter-priority">
-                <option value=""><?php esc_html_e( 'All Priorities', 'fanaloka-maintenance' ); ?></option>
-                <?php foreach ( TicketManager::PRIORITIES as $key => $label ) : ?>
-                    <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $current_priority, $key ); ?>>
-                        <?php echo esc_html( $label ); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-
-            <?php submit_button( __( 'Filter', 'fanaloka-maintenance' ), '', 'filter_action', false ); ?>
-        </div>
-        <?php
-    }
-
-    /**
-     * Render checkbox column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_cb( $item ): string {
-        return sprintf( '<input type="checkbox" name="ticket[]" value="%d" />', $item['id'] );
-    }
-
-    /**
-     * Render ticket number column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_ticket_number( $item ): string {
-        $url = admin_url( 'admin.php?page=fm-requests&action=view&id=' . $item['id'] );
-        return sprintf(
-            '<a href="%s"><strong>%s</strong></a>',
-            esc_url( $url ),
-            esc_html( $item['full_number'] )
-        );
-    }
-
-    /**
-     * Render client column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_client( $item ): string {
-        return sprintf(
-            '<strong>%s</strong><br><span class="row-title-description">%s</span>',
-            esc_html( $item['client_name'] ),
-            esc_html( $item['client_email'] )
-        );
-    }
-
-    /**
-     * Render subject column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_subject( $item ): string {
-        $url = admin_url( 'admin.php?page=fm-requests&action=view&id=' . $item['id'] );
-        return sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( $item['subject'] ) );
-    }
-
-    /**
-     * Render status column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_status( $item ): string {
-        $colors = [
-            'new'            => 'fm-badge-primary',
-            'open'           => 'fm-badge-warning',
-            'in-progress'    => 'fm-badge-success',
-            'waiting-client' => 'fm-badge-warning',
-            'completed'      => 'fm-badge-success',
-            'cancelled'      => 'fm-badge-danger',
-        ];
-
-        $class = $colors[ $item['status'] ] ?? 'fm-badge-default';
-        $label = $item['status_label'] ?? $item['status'];
-
-        return sprintf(
-            '<span class="fm-badge %s">%s</span>',
-            esc_attr( $class ),
-            esc_html( $label )
-        );
-    }
-
-    /**
-     * Render priority column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_priority( $item ): string {
-        $colors = [
-            'low'      => 'fm-badge-default',
-            'medium'   => 'fm-badge-warning',
-            'high'     => 'fm-badge-danger',
-            'critical' => 'fm-badge-danger',
-        ];
-
-        $class = $colors[ $item['priority'] ] ?? 'fm-badge-default';
-        $label = $item['priority_label'] ?? $item['priority'];
-
-        return sprintf(
-            '<span class="fm-badge %s">%s</span>',
-            esc_attr( $class ),
-            esc_html( $label )
-        );
-    }
-
-    /**
-     * Render developer column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_assigned_dev( $item ): string {
-        return esc_html( $item['assigned_dev_name'] );
-    }
-
-    /**
-     * Render date column.
-     *
-     * @param array<string, mixed> $item Ticket data.
-     * @return string
-     */
-    public function column_date_created( $item ): string {
-        return esc_html( $item['date_created'] );
-    }
-
-    /**
-     * Default column handler.
-     *
-     * @param array<string, mixed> $item        Ticket data.
-     * @param string               $column_name Column name.
-     * @return string
-     */
-    public function column_default( $item, $column_name ): string {
-        return isset( $item[ $column_name ] ) ? esc_html( $item[ $column_name ] ) : '';
-    }
-
-    /**
-     * Get bulk actions.
-     *
-     * @return array<string, string> Action slug => label.
-     */
-    public function get_bulk_actions(): array {
-        return [
-            'delete' => __( 'Delete', 'fanaloka-maintenance' ),
-        ];
-    }
-
-    /**
-     * Process bulk actions.
-     *
-     * @return void
-     */
-    public function process_bulk_action(): void {
-        if ( ! isset( $_REQUEST['_wpnonce'] ) ) {
-            return;
-        }
-
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ), 'bulk-requests' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            return;
-        }
-
-        $action = $this->current_action();
-
-        if ( 'delete' === $action && isset( $_REQUEST['ticket'] ) ) {
-            $ticket_manager = new TicketManager();
-            $ids            = array_map( 'absint', (array) $_REQUEST['ticket'] );
-
-            foreach ( $ids as $id ) {
-                $ticket_manager->delete_ticket( $id );
+                $.post(fmAdmin.ajaxUrl, {
+                    action: 'fm_list_requests',
+                    nonce: fmAdmin.nonce,
+                    paged: state.paged,
+                    status: state.status,
+                    priority: state.priority,
+                    orderby: state.orderby,
+                    order: state.order,
+                    per_page: state.per_page,
+                }, function(res) {
+                    if (res.success) {
+                        $tbody.html(res.data.html);
+                        $('#fm-displaying-num').text(res.data.displaying);
+                        $('#fm-pagination').html(res.data.pagination);
+                        $('#fm-requests-table thead .column-cb input').prop('checked', false);
+                    } else {
+                        $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#d63638;">Error loading tickets.</td></tr>');
+                    }
+                }).fail(function() {
+                    $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#d63638;">Request failed.</td></tr>');
+                });
             }
 
-            wp_redirect( admin_url( 'admin.php?page=fm-requests&deleted=1' ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
-            exit;
+            // Filter apply
+            $('#fm-filter-apply').on('click', function() {
+                state.status = $('#fm-filter-status').val();
+                state.priority = $('#fm-filter-priority').val();
+                state.paged = 1;
+                loadTickets();
+            });
+
+            // Filter clear
+            $('#fm-filter-clear').on('click', function() {
+                $('#fm-filter-status').val('');
+                $('#fm-filter-priority').val('');
+                state.status = '';
+                state.priority = '';
+                state.paged = 1;
+                loadTickets();
+            });
+
+            // Auto-filter on select change
+            $('#fm-filter-status, #fm-filter-priority').on('change', function() {
+                state.status = $('#fm-filter-status').val();
+                state.priority = $('#fm-filter-priority').val();
+                state.paged = 1;
+                loadTickets();
+            });
+
+            // Pagination
+            $(document).on('click', '#fm-pagination a', function(e) {
+                e.preventDefault();
+                var page = $(this).data('page');
+                if (page) {
+                    state.paged = parseInt(page);
+                    loadTickets();
+                }
+            });
+
+            // Select all checkboxes
+            $('#cb-select-all, #cb-select-all-2').on('change', function() {
+                var checked = $(this).prop('checked');
+                $('#fm-requests-tbody input[name="ticket[]"]').prop('checked', checked);
+            });
+
+            // Bulk delete
+            $('#fm-bulk-apply').on('click', function() {
+                var action = $('#bulk-action-selector-top').val();
+                if ('-1' === action) {
+                    return;
+                }
+
+                var ids = [];
+                $('#fm-requests-tbody input[name="ticket[]"]:checked').each(function() {
+                    ids.push($(this).val());
+                });
+
+                if (0 === ids.length) {
+                    return;
+                }
+
+                if ('delete' === action) {
+                    if (!confirm('Are you sure you want to delete ' + ids.length + ' ticket(s)?')) {
+                        return;
+                    }
+
+                    var $btn = $(this);
+                    $btn.prop('disabled', true).val('Deleting...');
+
+                    $.post(fmAdmin.ajaxUrl, {
+                        action: 'fm_bulk_delete_requests',
+                        nonce: fmAdmin.nonce,
+                        ids: ids,
+                    }, function(res) {
+                        $btn.prop('disabled', false).val('Apply');
+                        $('#bulk-action-selector-top').val('-1');
+                        if (res.success) {
+                            FMAdmin.showNotice(res.data.message, 'success');
+                            loadTickets();
+                        } else {
+                            FMAdmin.showNotice(res.data.message || 'Delete failed', 'error');
+                        }
+                    }).fail(function() {
+                        $btn.prop('disabled', false).val('Apply');
+                        FMAdmin.showNotice('Request failed', 'error');
+                    });
+                }
+            });
+
+            // Sort by column
+            $(document).on('click', '#fm-requests-table thead th:not(.column-cb)', function() {
+                var $th = $(this);
+                var col = $th.attr('id') || $th.data('col');
+                if (!col) return;
+
+                var sortable = { ticket_number: 'ticket_number', status: 'status', priority: 'priority', date_created: 'date' };
+                if (!sortable[col]) return;
+
+                if (state.orderby === sortable[col]) {
+                    state.order = state.order === 'ASC' ? 'DESC' : 'ASC';
+                } else {
+                    state.orderby = sortable[col];
+                    state.order = 'ASC';
+                }
+                state.paged = 1;
+                loadTickets();
+            });
+
+            // Initial load
+            loadTickets();
+
+        })(jQuery);
+        </script>
+        <?php
+    }
+
+    /**
+     * Get developers list.
+     *
+     * @return array<int, string>
+     */
+    private function get_developers(): array {
+        $users = get_users( [ 'role__in' => [ 'administrator', 'editor', 'author' ], 'fields' => [ 'ID', 'display_name' ] ] );
+        $devs  = [];
+        foreach ( $users as $user ) {
+            $devs[ $user->ID ] = $user->display_name;
         }
+        return $devs;
     }
 }
