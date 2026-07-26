@@ -967,7 +967,8 @@ class Admin {
         ];
 
         $tickets_html = '';
-        foreach ( $query->posts as $post_id ) {
+        foreach ( $query->posts as $post ) {
+            $post_id = is_object( $post ) ? $post->ID : $post;
             if ( ! $name ) {
                 $name = get_post_meta( $post_id, '_fm_client_name', true );
             }
