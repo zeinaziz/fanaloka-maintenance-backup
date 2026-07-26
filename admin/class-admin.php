@@ -88,6 +88,7 @@ class Admin {
         add_action( 'wp_ajax_fm_reply_ticket', [ $this, 'ajax_reply_ticket' ] );
         add_action( 'wp_ajax_fm_list_requests', [ $this, 'ajax_list_requests' ] );
         add_action( 'wp_ajax_fm_bulk_delete_requests', [ $this, 'ajax_bulk_delete_requests' ] );
+        add_action( 'wp_ajax_fm_get_entries', [ $this, 'ajax_get_entries' ] );
     }
 
     /**
@@ -260,7 +261,44 @@ class Admin {
                 break;
         }
 
-        wp_send_json_success( [ 'message' => 'Saved!' ] );
+        // Re-fetch ticket to get updated data.
+        $ticket = $ticket_manager->get_ticket_meta( $ticket_id );
+        $badges = $this->render_ticket_badges( $ticket );
+
+        wp_send_json_success( [
+            'message' => 'Saved!',
+            'badges'  => $badges,
+        ] );
+    }
+
+    /**
+     * Render ticket header badges HTML.
+     *
+     * @param array<string, mixed> $ticket Ticket data.
+     * @return string
+     */
+    private function render_ticket_badges( array $ticket ): string {
+        $status_colors = [
+            'new'            => '#2271b1',
+            'open'           => '#dba617',
+            'in-progress'    => '#996800',
+            'waiting-client' => '#00a32a',
+            'completed'      => '#00a32a',
+            'cancelled'      => '#d63638',
+        ];
+        $priority_colors = [
+            'low'      => '#646970',
+            'medium'   => '#2271b1',
+            'high'     => '#dba617',
+            'critical' => '#d63638',
+        ];
+        $sc = $status_colors[ $ticket['status'] ?? '' ] ?? '#646970';
+        $pc = $priority_colors[ $ticket['priority'] ?? '' ] ?? '#646970';
+
+        $html  = '<span class="fm-badge" style="background:' . esc_attr( $sc ) . ';">' . esc_html( ucfirst( str_replace( '-', ' ', $ticket['status'] ?? '' ) ) ) . '</span>';
+        $html .= '<span class="fm-badge fm-badge-outline" style="color:' . esc_attr( $pc ) . ';border-color:' . esc_attr( $pc ) . ';">' . esc_html( ucfirst( $ticket['priority'] ?? '' ) ) . '</span>';
+
+        return $html;
     }
 
     /**
@@ -272,30 +310,91 @@ class Admin {
         check_ajax_referer( 'fm_admin_nonce', 'nonce' );
 
         if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error();
+            wp_send_json_error( [ 'message' => 'Unauthorized' ] );
         }
 
         $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
         $content   = wp_kses_post( wp_unslash( $_POST['content'] ?? '' ) );
 
         if ( ! $ticket_id || empty( $content ) ) {
-            wp_send_json_error();
+            wp_send_json_error( [ 'message' => 'Empty content' ] );
         }
 
         $user = wp_get_current_user();
 
         $conversation = new \Fanaloka\Maintenance\Ticket\ConversationManager();
-        $conversation->add_reply_from_developer( $ticket_id, $content );
+        $entry_id = $conversation->add_reply_from_developer( $ticket_id, $content );
+
+        // Handle file uploads.
+        if ( ! empty( $_FILES['reply_attachments']['name'][0] ) && $entry_id ) {
+            $this->handle_reply_attachments( $ticket_id, $entry_id );
+        }
 
         // Send email to client.
         $this->send_reply_email( $ticket_id, $content );
 
+        // Build entry HTML for timeline.
+        $entry_html = $this->render_entry_html( [
+            'sender'     => $user->display_name,
+            'entry_type' => 'developer',
+            'body'       => $content,
+            'created_at' => wp_date( 'Y-m-d H:i:s' ),
+        ] );
+
+        // Get updated badges.
+        $ticket_manager = new \Fanaloka\Maintenance\Ticket\TicketManager();
+        $ticket = $ticket_manager->get_ticket_meta( $ticket_id );
+        $badges = $this->render_ticket_badges( $ticket );
+
         wp_send_json_success( [
             'message' => 'Reply sent!',
-            'author'  => $user->display_name,
-            'content' => $content,
-            'date'    => wp_date( 'd M Y, H:i' ),
+            'entry'   => $entry_html,
+            'badges'  => $badges,
         ] );
+    }
+
+    /**
+     * Render a single conversation entry HTML.
+     *
+     * @param array<string, mixed> $entry Entry data.
+     * @return string
+     */
+    private function render_entry_html( array $entry ): string {
+        $initials    = strtoupper( substr( $entry['sender'], 0, 1 ) );
+        $entry_color = 'developer' === $entry['entry_type'] ? '#2271b1' : ( 'client' === $entry['entry_type'] ? '#00a32a' : '#646970' );
+
+        $html  = '<div class="fm-entry fm-entry-' . esc_attr( $entry['entry_type'] ) . '">';
+        $html .= '<div class="fm-entry-avatar" style="background:' . esc_attr( $entry_color ) . ';">' . esc_html( $initials ) . '</div>';
+        $html .= '<div class="fm-entry-body">';
+        $html .= '<div class="fm-entry-meta">';
+        $html .= '<strong class="fm-entry-sender">' . esc_html( $entry['sender'] ) . '</strong>';
+        $html .= '<span class="fm-entry-type-badge" style="background:' . esc_attr( $entry_color ) . '15;color:' . esc_attr( $entry_color ) . ';">' . esc_html( ucfirst( $entry['entry_type'] ) ) . '</span>';
+        $html .= '<span class="fm-entry-date">' . esc_html( $entry['created_at'] ) . '</span>';
+        $html .= '</div>';
+        $html .= '<div class="fm-entry-content">' . wp_kses_post( $entry['body'] ) . '</div>';
+
+        // Handle attachments.
+        $att_ids = ! empty( $entry['attachments'] ) ? explode( ',', $entry['attachments'] ) : [];
+        $att_ids = array_filter( array_map( 'absint', $att_ids ) );
+        if ( ! empty( $att_ids ) ) {
+            $html .= '<div class="fm-entry-attachments">';
+            foreach ( $att_ids as $att_id ) {
+                $url  = wp_get_attachment_url( $att_id );
+                $name = get_the_title( $att_id );
+                if ( $url ) {
+                    if ( wp_attachment_is_image( $att_id ) ) {
+                        $html .= '<div class="fm-attachment-item"><a href="' . esc_url( $url ) . '" target="_blank"><img src="' . esc_url( $url ) . '" alt="' . esc_attr( $name ) . '" /></a></div>';
+                    } else {
+                        $html .= '<a href="' . esc_url( $url ) . '" target="_blank" class="fm-attachment-file"><span class="dashicons dashicons-media-default"></span> ' . esc_html( $name ) . '</a>';
+                    }
+                }
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</div></div>';
+
+        return $html;
     }
 
     /**
@@ -324,11 +423,12 @@ class Admin {
         }
         $references = implode( ' ', $refs );
 
-        $this->reply_message_id = $message_id;
+        $this->reply_message_id  = $message_id;
         $this->reply_in_reply_to = $last_client_msg_id ?? '';
         $this->reply_references  = $references;
         $this->reply_attachments = [];
 
+        // Get latest developer attachments.
         foreach ( array_reverse( $all_entries ) as $entry ) {
             if ( 'developer' === $entry['entry_type'] && ! empty( $entry['attachments'] ) ) {
                 $att_ids = explode( ',', $entry['attachments'] );
@@ -342,8 +442,7 @@ class Admin {
             }
         }
 
-        $body_html = wp_kses_post( $content );
-
+        $body_html  = wp_kses_post( $content );
         $body_plain = wp_strip_all_tags( $content );
 
         $this->set_reply_body( $body_html, $body_plain );
@@ -357,6 +456,135 @@ class Admin {
         $this->set_reply_body( '', '' );
 
         \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply email sent to %s for ticket #%d', $to, $ticket_id ) );
+    }
+
+    /**
+     * Handle file uploads for reply.
+     *
+     * @param int $ticket_id Ticket ID.
+     * @param int $entry_id  Conversation entry ID.
+     * @return void
+     */
+    private function handle_reply_attachments( int $ticket_id, int $entry_id ): void {
+        global $wpdb;
+
+        $table = \Fanaloka\Maintenance\Database::table_name();
+        $files = $_FILES['reply_attachments'] ?? [];
+
+        if ( empty( $files['name'][0] ) ) {
+            return;
+        }
+
+        $upload_dir = wp_upload_dir();
+        $ticket_dir = $upload_dir['path'] . '/fm_tickets/' . $ticket_id;
+
+        if ( ! file_exists( $ticket_dir ) ) {
+            wp_mkdir_p( $ticket_dir );
+        }
+
+        $saved_ids = [];
+
+        for ( $i = 0; $i < count( $files['name'] ); $i++ ) {
+            if ( empty( $files['name'][ $i ] ) || UPLOAD_ERR_OK !== $files['error'][ $i ] ) {
+                continue;
+            }
+
+            $filename = sanitize_file_name( $files['name'][ $i ] );
+            $file_path = $ticket_dir . '/' . $filename;
+
+            $counter = 1;
+            while ( file_exists( $file_path ) ) {
+                $pathinfo  = pathinfo( $filename );
+                $file_path = $ticket_dir . '/' . $pathinfo['filename'] . '-' . $counter . '.' . $pathinfo['extension'];
+                $counter++;
+            }
+
+            if ( move_uploaded_file( $files['tmp_name'][ $i ], $file_path ) ) {
+                $attachment_id = $this->save_to_media( $file_path, $filename, $ticket_id );
+                if ( $attachment_id ) {
+                    $saved_ids[] = $attachment_id;
+                }
+            }
+        }
+
+        if ( ! empty( $saved_ids ) ) {
+            $existing = $wpdb->get_var(
+                $wpdb->prepare( "SELECT attachments FROM {$table} WHERE id = %d", $entry_id )
+            );
+            $all = ! empty( $existing ) ? $existing . ',' . implode( ',', $saved_ids ) : implode( ',', $saved_ids );
+            $wpdb->update( $table, [ 'attachments' => $all ], [ 'id' => $entry_id ], [ '%s' ], [ '%d' ] );
+        }
+    }
+
+    /**
+     * Save file to media library.
+     *
+     * @param string $file_path Local file path.
+     * @param string $filename  Original filename.
+     * @param int    $ticket_id Ticket ID.
+     * @return int|false Attachment ID.
+     */
+    private function save_to_media( string $file_path, string $filename, int $ticket_id ) {
+        $filetype = wp_check_filetype( $filename );
+        $upload   = wp_insert_attachment( [
+            'post_title'     => $filename,
+            'post_mime_type' => $filetype['type'] ?? 'application/octet-stream',
+            'post_status'    => 'inherit',
+            'post_content'   => '',
+        ], $file_path );
+
+        if ( is_wp_error( $upload ) ) {
+            return false;
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        $attach_data = wp_generate_attachment_metadata( $upload, $file_path );
+        wp_update_attachment_metadata( $upload, $attach_data );
+
+        return $upload;
+    }
+
+    /**
+     * AJAX: Get latest conversation entries (for auto-refresh).
+     *
+     * @return void
+     */
+    public function ajax_get_entries(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ] );
+        }
+
+        $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
+        $after_id  = absint( $_POST['after_id'] ?? 0 );
+
+        if ( ! $ticket_id ) {
+            wp_send_json_error( [ 'message' => 'Invalid ticket' ] );
+        }
+
+        $conversation = new \Fanaloka\Maintenance\Ticket\ConversationManager();
+        $entries      = $conversation->get_entries( $ticket_id );
+
+        $new_entries = [];
+        foreach ( $entries as $entry ) {
+            if ( $entry['id'] > $after_id ) {
+                $new_entries[] = $this->render_entry_html( $entry );
+            }
+        }
+
+        // Get updated badges.
+        $ticket_manager = new \Fanaloka\Maintenance\Ticket\TicketManager();
+        $ticket = $ticket_manager->get_ticket_meta( $ticket_id );
+        $badges = $this->render_ticket_badges( $ticket );
+
+        $last_id = ! empty( $entries ) ? end( $entries )['id'] : 0;
+
+        wp_send_json_success( [
+            'entries' => $new_entries,
+            'badges'  => $badges,
+            'last_id' => $last_id,
+        ] );
     }
 
     /**

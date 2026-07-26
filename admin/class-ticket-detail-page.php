@@ -120,7 +120,7 @@ class TicketDetailPage {
                             $initials = strtoupper( substr( $entry['sender'], 0, 1 ) );
                             $entry_color = 'developer' === $entry['entry_type'] ? '#2271b1' : ( 'client' === $entry['entry_type'] ? '#00a32a' : '#646970' );
                         ?>
-                            <div class="fm-entry fm-entry-<?php echo esc_attr( $entry['entry_type'] ); ?>">
+                            <div class="fm-entry fm-entry-<?php echo esc_attr( $entry['entry_type'] ); ?>" data-entry-id="<?php echo esc_attr( $entry['id'] ); ?>">
                                 <div class="fm-entry-avatar" style="background:<?php echo esc_attr( $entry_color ); ?>;">
                                     <?php echo esc_html( $initials ); ?>
                                 </div>

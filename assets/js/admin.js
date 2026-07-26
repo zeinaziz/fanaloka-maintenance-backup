@@ -10,17 +10,15 @@
 
     var FMAdmin = {
 
-        /**
-         * Initialize.
-         */
+        lastEntryId: 0,
+        refreshTimer: null,
+
         init: function() {
             this.bindEvents();
             this.stripQuotedText();
+            this.initAutoRefresh();
         },
 
-        /**
-         * Bind events.
-         */
         bindEvents: function() {
             $( document ).on( 'click', '.fm-btn-test-connection', this.testConnection );
             $( document ).on( 'click', '.fm-sync-btn', this.syncNow );
@@ -28,21 +26,16 @@
             $( document ).on( 'submit', '#fm-reply-form', this.submitReply );
         },
 
-        /**
-         * Show notification.
-         */
         showNotice: function( message, type ) {
             var $target = $( '.fm-page-wrap' ).length ? $( '.fm-page-wrap' ) : $( '.wrap' );
-            var $notice = $( '<div class="fm-notice fm-notice-' + type + '"><span class="dashicons dashicons-' + ( type === 'success' ? 'yes-alt' : 'warning' ) + '"></span>' + message + '</div>' );
+            var icon = type === 'success' ? 'yes-alt' : 'warning';
+            var $notice = $( '<div class="fm-notice fm-notice-' + type + '"><span class="dashicons dashicons-' + icon + '"></span>' + message + '</div>' );
             $target.first().prepend( $notice );
             setTimeout( function() {
                 $notice.fadeOut( 300, function() { $( this ).remove(); } );
             }, 4000 );
         },
 
-        /**
-         * Update ticket field via AJAX.
-         */
         updateField: function( e ) {
             var $select = $( this );
             var ticketId = $select.data( 'ticket-id' );
@@ -57,20 +50,21 @@
                 value: value,
             }, function( response ) {
                 if ( response.success ) {
-                    FMAdmin.showNotice( fmAdmin.saved || 'Saved!', 'success' );
+                    // Update header badges.
+                    if ( response.data.badges ) {
+                        $( '.fm-ticket-header-right' ).html( response.data.badges );
+                    }
+                    FMAdmin.showNotice( response.data.message || 'Saved!', 'success' );
                 } else {
-                    FMAdmin.showNotice( fmAdmin.savedError || 'Error saving', 'error' );
+                    FMAdmin.showNotice( response.data.message || 'Error saving', 'error' );
                 }
             } );
         },
 
-        /**
-         * Submit reply via AJAX.
-         */
         submitReply: function( e ) {
             e.preventDefault();
             var $form = $( this );
-            var $btn = $form.find( 'input[type="submit"]' );
+            var $btn = $form.find( 'input[type="submit"], button[type="submit"]' );
             var ticketId = $form.find( 'input[name="ticket_id"]' ).val();
 
             // Sync TinyMCE content to textarea.
@@ -85,35 +79,116 @@
 
             $btn.prop( 'disabled', true ).val( 'Sending...' );
 
-            $.post( fmAdmin.ajaxUrl, {
-                action: 'fm_reply_ticket',
-                nonce: fmAdmin.nonce,
-                ticket_id: ticketId,
-                content: content,
-            }, function( response ) {
-                $btn.prop( 'disabled', false ).val( 'Send Reply' );
-                if ( response.success ) {
-                    $form.find( 'textarea' ).val( '' );
-                    // Append to timeline.
-                    var html = '<div class="fm-conversation-entry fm-entry-developer">' +
-                        '<div class="fm-entry-header">' +
-                        '<strong>' + response.data.author + '</strong>' +
-                        '<span class="fm-entry-type">Developer</span>' +
-                        '<span class="fm-entry-date">' + response.data.date + '</span>' +
-                        '</div>' +
-                        '<div class="fm-entry-content">' + response.data.content + '</div>' +
-                        '</div>';
-                    $( '.fm-conversation' ).append( html );
-                    FMAdmin.showNotice( response.data.message || 'Reply sent!', 'success' );
-                } else {
-                    FMAdmin.showNotice( fmAdmin.savedError || 'Error sending reply', 'error' );
+            // Use FormData to support file uploads.
+            var formData = new FormData( $form[0] );
+            formData.append( 'action', 'fm_reply_ticket' );
+            formData.append( 'nonce', fmAdmin.nonce );
+            formData.append( 'ticket_id', ticketId );
+            formData.append( 'content', content );
+
+            $.ajax( {
+                url: fmAdmin.ajaxUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function( response ) {
+                    $btn.prop( 'disabled', false ).val( 'Send Reply' );
+                    if ( response.success ) {
+                        // Append entry to conversation.
+                        $( '.fm-ticket-conversation .fm-empty-state' ).remove();
+                        $( '.fm-ticket-conversation .fm-reply-box' ).before( response.data.entry );
+
+                        // Update badges.
+                        if ( response.data.badges ) {
+                            $( '.fm-ticket-header-right' ).html( response.data.badges );
+                        }
+
+                        // Reset form.
+                        $form.find( 'textarea[name="reply_content"]' ).val( '' );
+                        $form.find( 'input[type="file"]' ).val( '' );
+                        if ( typeof tinymce !== 'undefined' ) {
+                            tinymce.get( 'reply_content' ).setContent( '' );
+                        }
+
+                        // Update lastEntryId.
+                        var $lastEntry = $( '.fm-ticket-conversation .fm-entry' ).last();
+                        if ( $lastEntry.length ) {
+                            FMAdmin.lastEntryId = parseInt( $lastEntry.data( 'entry-id' ) || 0 );
+                        }
+
+                        FMAdmin.showNotice( response.data.message || 'Reply sent!', 'success' );
+                    } else {
+                        FMAdmin.showNotice( response.data.message || 'Error sending reply', 'error' );
+                    }
+                },
+                error: function() {
+                    $btn.prop( 'disabled', false ).val( 'Send Reply' );
+                    FMAdmin.showNotice( 'Request failed', 'error' );
                 }
             } );
         },
 
-        /**
-         * Test IMAP connection.
-         */
+        initAutoRefresh: function() {
+            var self = this;
+
+            // Get last entry ID from page.
+            var $lastEntry = $( '.fm-ticket-conversation .fm-entry' ).last();
+            if ( $lastEntry.length ) {
+                this.lastEntryId = parseInt( $lastEntry.data( 'entry-id' ) || 0 );
+            }
+
+            // Only run on ticket detail page.
+            if ( ! $( '.fm-ticket-conversation' ).length ) {
+                return;
+            }
+
+            var ticketId = $( 'input[name="ticket_id"]' ).first().val();
+            if ( ! ticketId ) {
+                return;
+            }
+
+            this.refreshTimer = setInterval( function() {
+                self.checkNewEntries( ticketId );
+            }, 30000 ); // Check every 30 seconds
+        },
+
+        checkNewEntries: function( ticketId ) {
+            var self = this;
+
+            $.post( fmAdmin.ajaxUrl, {
+                action: 'fm_get_entries',
+                nonce: fmAdmin.nonce,
+                ticket_id: ticketId,
+                after_id: this.lastEntryId,
+            }, function( response ) {
+                if ( response.success && response.data.entries && response.data.entries.length > 0 ) {
+                    // Append new entries.
+                    var $conversation = $( '.fm-ticket-conversation' );
+                    var $replyBox = $conversation.find( '.fm-reply-box' );
+
+                    for ( var i = 0; i < response.data.entries.length; i++ ) {
+                        $replyBox.before( response.data.entries[i] );
+                    }
+
+                    // Update badges.
+                    if ( response.data.badges ) {
+                        $( '.fm-ticket-header-right' ).html( response.data.badges );
+                    }
+
+                    // Update lastEntryId.
+                    self.lastEntryId = parseInt( response.data.last_id || 0 );
+
+                    FMAdmin.showNotice( 'New message(s) received', 'success' );
+                }
+
+                // Update badges even if no new entries.
+                if ( response.success && response.data.badges ) {
+                    $( '.fm-ticket-header-right' ).html( response.data.badges );
+                }
+            } );
+        },
+
         testConnection: function( e ) {
             e.preventDefault();
             var $btn = $( this );
@@ -135,9 +210,6 @@
             } );
         },
 
-        /**
-         * Sync emails now.
-         */
         syncNow: function( e ) {
             e.preventDefault();
             var $btn = $( this );
@@ -164,24 +236,13 @@
             } );
         },
 
-        /**
-         * Strip quoted reply text from client entries in conversation timeline.
-         * Removes "Pada [date] [name] menulis:" and everything after.
-         */
         stripQuotedText: function() {
             $( '.fm-entry-client .fm-entry-content' ).each( function() {
                 var $el = $( this );
                 var text = $el.html();
-
-                // Remove "Pada ... menulis:" and everything after.
                 text = text.replace( /Pada\s+[\s\S]*?menulis:[\s\S]*$/i, '' );
-
-                // Remove lines starting with > (quoted lines).
                 text = text.replace( /^\s*&gt;.*$/gm, '' );
-
-                // Clean up extra whitespace.
                 text = text.replace( /\n{3,}/g, '\n\n' ).trim();
-
                 $el.html( text );
             } );
         },
