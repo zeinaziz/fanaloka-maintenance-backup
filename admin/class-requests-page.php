@@ -32,21 +32,54 @@ class RequestsPage {
             return;
         }
 
-        echo '<div class="wrap">';
-        echo '<h1 class="wp-heading-inline">' . esc_html__( 'Maintenance Requests', 'fanaloka-maintenance' ) . '</h1>';
-        echo '<a href="#" class="page-title-action" id="fm-sync-btn">' . esc_html__( 'Sync Now', 'fanaloka-maintenance' ) . '</a>';
-        echo '<hr class="wp-header-end">';
+        echo '<div class="fm-page-wrap">';
+        echo '<div class="fm-page-header">';
+        echo '<h1 class="fm-page-title"><span class="dashicons dashicons-welcome-view-site" style="color:#2271b1"></span> ' . esc_html__( 'All Requests', 'fanaloka-maintenance' ) . '</h1>';
+        echo '<button type="button" class="fm-btn fm-btn-primary fm-sync-btn" id="fm-sync-btn"><span class="dashicons dashicons-update"></span> ' . esc_html__( 'Sync Now', 'fanaloka-maintenance' ) . '</button>';
+        echo '</div>';
 
         // Display notices.
         if ( isset( $_GET['deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Ticket deleted.', 'fanaloka-maintenance' ) . '</p></div>';
+            echo '<div class="fm-notice fm-notice-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__( 'Ticket deleted.', 'fanaloka-maintenance' ) . '</div>';
         }
 
+        echo '<div class="fm-card" style="padding:0;">';
         $table = new Requests_List_Table();
         $table->prepare_items();
         $table->display();
+        echo '</div>';
 
         echo '</div>';
+
+        // Shared design CSS.
+        ?>
+        <style>
+        .fm-page-wrap { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
+        .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .fm-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-decoration: none; line-height: 1.4; }
+        .fm-btn-primary { background: #2271b1; color: #fff; border: 1px solid #2271b1; }
+        .fm-btn-primary:hover { background: #135e96; border-color: #135e96; color: #fff; }
+        .fm-btn .dashicons { font-size: 16px; top: 1px; }
+        .fm-notice { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+        .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
+        .fm-notice-success .dashicons { font-size: 18px; }
+        .widefat td, .widefat th { padding: 10px; }
+        .widefat thead th { background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; color: #646970; font-weight: 600; }
+        .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
+        .widefat tr:hover td { background: #f9f9f9; }
+        .tablenav .alignleft.actions select { margin-right: 6px; }
+        .tablenav .alignleft.actions .button { border-radius: 6px; }
+        .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; white-space: nowrap; }
+        .fm-badge-primary { background: #2271b1; }
+        .fm-badge-success { background: #00a32a; }
+        .fm-badge-warning { background: #dba617; color: #1d2327; }
+        .fm-badge-danger { background: #d63638; }
+        .fm-badge-default { background: #8c8f94; }
+        .fm-sync-btn { white-space: nowrap; }
+        </style>
+        <?php
     }
 }
 
@@ -243,20 +276,20 @@ class Requests_List_Table extends \WP_List_Table {
      */
     public function column_status( $item ): string {
         $colors = [
-            'new'            => '#2271b1',
-            'open'           => '#dba617',
-            'in-progress'    => '#00a32a',
-            'waiting-client' => '#996800',
-            'completed'      => '#00a32a',
-            'cancelled'      => '#d63638',
+            'new'            => 'fm-badge-primary',
+            'open'           => 'fm-badge-warning',
+            'in-progress'    => 'fm-badge-success',
+            'waiting-client' => 'fm-badge-warning',
+            'completed'      => 'fm-badge-success',
+            'cancelled'      => 'fm-badge-danger',
         ];
 
-        $color  = $colors[ $item['status'] ] ?? '#646970';
-        $label  = $item['status_label'] ?? $item['status'];
+        $class = $colors[ $item['status'] ] ?? 'fm-badge-default';
+        $label = $item['status_label'] ?? $item['status'];
 
         return sprintf(
-            '<span style="color:%s;font-weight:600;">%s</span>',
-            esc_attr( $color ),
+            '<span class="fm-badge %s">%s</span>',
+            esc_attr( $class ),
             esc_html( $label )
         );
     }
@@ -269,18 +302,18 @@ class Requests_List_Table extends \WP_List_Table {
      */
     public function column_priority( $item ): string {
         $colors = [
-            'low'      => '#646970',
-            'medium'   => '#dba617',
-            'high'     => '#d63638',
-            'critical' => '#d63638',
+            'low'      => 'fm-badge-default',
+            'medium'   => 'fm-badge-warning',
+            'high'     => 'fm-badge-danger',
+            'critical' => 'fm-badge-danger',
         ];
 
-        $color = $colors[ $item['priority'] ] ?? '#646970';
+        $class = $colors[ $item['priority'] ] ?? 'fm-badge-default';
         $label = $item['priority_label'] ?? $item['priority'];
 
         return sprintf(
-            '<span style="color:%s;font-weight:600;">%s</span>',
-            esc_attr( $color ),
+            '<span class="fm-badge %s">%s</span>',
+            esc_attr( $class ),
             esc_html( $label )
         );
     }

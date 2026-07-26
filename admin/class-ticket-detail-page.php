@@ -298,7 +298,15 @@ class TicketDetailPage {
         </div>
 
         <style>
-        .fm-ticket-wrap { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
+        /* Shared Design System */
+        .fm-page-wrap { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
+        .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .fm-page-columns { display: flex; gap: 20px; align-items: flex-start; }
+        .fm-page-main { flex: 1; min-width: 0; }
+        .fm-page-sidebar { width: 300px; flex-shrink: 0; }
+
+        /* Ticket Header */
         .fm-ticket-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-ticket-header-left { display: flex; align-items: center; gap: 15px; }
         .fm-ticket-back { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 6px; background: #f0f0f1; color: #1d2327; text-decoration: none; transition: background 0.15s; }
@@ -306,11 +314,19 @@ class TicketDetailPage {
         .fm-ticket-title { margin: 0; font-size: 20px; line-height: 1.3; }
         .fm-ticket-number { font-size: 13px; color: #646970; }
         .fm-ticket-header-right { display: flex; gap: 8px; align-items: center; }
+
+        /* Badges */
         .fm-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; }
         .fm-badge-outline { background: transparent; border: 1.5px solid; }
+        .fm-badge-success { background: #00a32a; }
+        .fm-badge-danger { background: #d63638; }
+
+        /* Conversation & Sidebar */
         .fm-ticket-body { display: flex; gap: 20px; align-items: flex-start; }
         .fm-ticket-conversation { flex: 1; min-width: 0; }
         .fm-ticket-sidebar { width: 300px; flex-shrink: 0; }
+
+        /* Entry */
         .fm-entry { display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px solid #f0f0f1; }
         .fm-entry:last-child { border-bottom: none; }
         .fm-entry-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; flex-shrink: 0; }
@@ -327,8 +343,12 @@ class TicketDetailPage {
         .fm-entry-attachments img { max-width: 280px; max-height: 180px; border-radius: 6px; border: 1px solid #e2e4e7; }
         .fm-attachment-file { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: #f0f0f1; border-radius: 6px; font-size: 13px; color: #2271b1; text-decoration: none; }
         .fm-attachment-file:hover { background: #e0e0e1; color: #135e96; }
+
+        /* Empty State */
         .fm-empty-state { text-align: center; padding: 60px 20px; color: #8c8f94; }
         .fm-empty-state .dashicons { font-size: 48px; width: 48px; height: 48px; margin-bottom: 15px; color: #c3c4c7; }
+
+        /* Reply Box */
         .fm-reply-box { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; }
         .fm-reply-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 14px; color: #1d2327; }
         .fm-reply-box .inside { padding: 0; }
@@ -338,10 +358,15 @@ class TicketDetailPage {
         .fm-attach-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 13px; color: #1d2327; transition: background 0.15s; }
         .fm-attach-btn:hover { background: #f0f0f1; }
         .fm-reply-submit { margin: 0 !important; }
-        .fm-sidebar-section { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 15px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-        .fm-sidebar-title { display: flex; align-items: center; gap: 6px; margin: 0; padding: 12px 15px; font-size: 13px; font-weight: 600; color: #1d2327; background: #f9f9f9; border-bottom: 1px solid #e2e4e7; }
-        .fm-sidebar-content { padding: 12px 15px; }
-        .fm-field-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f1; }
+
+        /* Sidebar Sections */
+        .fm-sidebar-section { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-sidebar-title { display: flex; align-items: center; gap: 6px; margin: 0; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1d2327; background: #f9f9f9; border-bottom: 1px solid #e2e4e7; }
+        .fm-sidebar-title .dashicons { color: #2271b1; font-size: 16px; }
+        .fm-sidebar-content { padding: 12px 14px; }
+
+        /* Field Rows */
+        .fm-field-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f0f0f1; }
         .fm-field-row:last-child { border-bottom: none; }
         .fm-field-row label { font-size: 12px; color: #646970; font-weight: 500; }
         .fm-field-row span { font-size: 13px; color: #1d2327; text-align: right; }

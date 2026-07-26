@@ -31,57 +31,77 @@ class DashboardPage {
         $last_sync = CronManager::instance()->get_last_sync();
         ?>
 
-        <div class="wrap">
-            <h1><?php esc_html_e( 'Maintenance Dashboard', 'fanaloka-maintenance' ); ?></h1>
+        <div class="wrap fm-page-wrap">
+            <!-- Page Header -->
+            <div class="fm-page-header">
+                <h1 class="fm-page-title"><span class="dashicons dashicons-dashboard"></span> <?php esc_html_e( 'Dashboard', 'fanaloka-maintenance' ); ?></h1>
+            </div>
 
-            <!-- Stats Widgets -->
-            <div class="fm-dashboard-widgets">
-                <div class="fm-stat-box">
-                    <div class="fm-stat-icon dashicons dashicons-feedback"></div>
-                    <span class="count"><?php echo esc_html( $stats['total'] ); ?></span>
-                    <span class="label"><?php esc_html_e( 'Total Requests', 'fanaloka-maintenance' ); ?></span>
+            <!-- Stats Row -->
+            <div class="fm-stats-row">
+                <div class="fm-stat-card">
+                    <div class="fm-stat-card-icon" style="background:#2271b115;color:#2271b1;"><span class="dashicons dashicons-feedback"></span></div>
+                    <div class="fm-stat-card-info">
+                        <span class="fm-stat-card-count"><?php echo esc_html( $stats['total'] ); ?></span>
+                        <span class="fm-stat-card-label"><?php esc_html_e( 'Total Requests', 'fanaloka-maintenance' ); ?></span>
+                    </div>
                 </div>
-                <div class="fm-stat-box open">
-                    <div class="fm-stat-icon dashicons dashicons-admin-comments"></div>
-                    <span class="count"><?php echo esc_html( $stats['open'] ); ?></span>
-                    <span class="label"><?php esc_html_e( 'Open Requests', 'fanaloka-maintenance' ); ?></span>
+                <div class="fm-stat-card">
+                    <div class="fm-stat-card-icon" style="background:#dba61715;color:#dba617;"><span class="dashicons dashicons-admin-comments"></span></div>
+                    <div class="fm-stat-card-info">
+                        <span class="fm-stat-card-count"><?php echo esc_html( $stats['open'] ); ?></span>
+                        <span class="fm-stat-card-label"><?php esc_html_e( 'Open', 'fanaloka-maintenance' ); ?></span>
+                    </div>
                 </div>
-                <div class="fm-stat-box completed">
-                    <div class="fm-stat-icon dashicons dashicons-yes-alt"></div>
-                    <span class="count"><?php echo esc_html( $stats['completed_today'] ); ?></span>
-                    <span class="label"><?php esc_html_e( 'Completed Today', 'fanaloka-maintenance' ); ?></span>
+                <div class="fm-stat-card">
+                    <div class="fm-stat-card-icon" style="background:#00a32a15;color:#00a32a;"><span class="dashicons dashicons-yes-alt"></span></div>
+                    <div class="fm-stat-card-info">
+                        <span class="fm-stat-card-count"><?php echo esc_html( $stats['completed_today'] ); ?></span>
+                        <span class="fm-stat-card-label"><?php esc_html_e( 'Completed Today', 'fanaloka-maintenance' ); ?></span>
+                    </div>
                 </div>
-                <div class="fm-stat-box waiting">
-                    <div class="fm-stat-icon dashicons dashicons-clock"></div>
-                    <span class="count"><?php echo esc_html( $stats['waiting_client'] ); ?></span>
-                    <span class="label"><?php esc_html_e( 'Waiting Client', 'fanaloka-maintenance' ); ?></span>
+                <div class="fm-stat-card">
+                    <div class="fm-stat-card-icon" style="background:#99680015;color:#996800;"><span class="dashicons dashicons-clock"></span></div>
+                    <div class="fm-stat-card-info">
+                        <span class="fm-stat-card-count"><?php echo esc_html( $stats['waiting_client'] ); ?></span>
+                        <span class="fm-stat-card-label"><?php esc_html_e( 'Waiting', 'fanaloka-maintenance' ); ?></span>
+                    </div>
                 </div>
-                <div class="fm-stat-box critical">
-                    <div class="fm-stat-icon dashicons dashicons-warning"></div>
-                    <span class="count"><?php echo esc_html( $stats['critical'] ); ?></span>
-                    <span class="label"><?php esc_html_e( 'Critical', 'fanaloka-maintenance' ); ?></span>
+                <div class="fm-stat-card">
+                    <div class="fm-stat-card-icon" style="background:#d6363815;color:#d63638;"><span class="dashicons dashicons-warning"></span></div>
+                    <div class="fm-stat-card-info">
+                        <span class="fm-stat-card-count"><?php echo esc_html( $stats['critical'] ); ?></span>
+                        <span class="fm-stat-card-label"><?php esc_html_e( 'Critical', 'fanaloka-maintenance' ); ?></span>
+                    </div>
                 </div>
             </div>
 
-            <div class="fm-dashboard-columns">
-                <!-- Main Content -->
-                <div class="fm-dashboard-main">
-                    <!-- Monthly Chart -->
-                    <div class="postbox">
-                        <h2 class="hndle"><span class="dashicons dashicons-chart-bar" style="margin-right:5px;"></span><?php esc_html_e( 'Tickets per Month', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside">
-                            <canvas id="fm-monthly-chart" height="280"></canvas>
+            <!-- Two Column Layout -->
+            <div class="fm-page-columns">
+                <!-- Main -->
+                <div class="fm-page-main">
+                    <!-- Chart -->
+                    <div class="fm-card">
+                        <div class="fm-card-header">
+                            <span class="dashicons dashicons-chart-bar"></span>
+                            <strong><?php esc_html_e( 'Tickets per Month', 'fanaloka-maintenance' ); ?></strong>
+                        </div>
+                        <div class="fm-card-body">
+                            <canvas id="fm-monthly-chart" height="260"></canvas>
                         </div>
                     </div>
 
                     <!-- Recent Activities -->
-                    <div class="postbox">
-                        <h2 class="hndle"><span class="dashicons dashicons-list-view" style="margin-right:5px;"></span><?php esc_html_e( 'Recent Activities', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside">
+                    <div class="fm-card">
+                        <div class="fm-card-header">
+                            <span class="dashicons dashicons-list-view"></span>
+                            <strong><?php esc_html_e( 'Recent Activities', 'fanaloka-maintenance' ); ?></strong>
+                        </div>
+                        <div class="fm-card-body fm-card-body-np">
                             <?php if ( empty( $recent ) ) : ?>
-                                <p style="padding:15px;"><?php esc_html_e( 'No recent activities.', 'fanaloka-maintenance' ); ?></p>
+                                <p class="fm-empty-text"><?php esc_html_e( 'No recent activities.', 'fanaloka-maintenance' ); ?></p>
                             <?php else : ?>
-                                <table class="widefat striped" style="margin:0;">
+                                <table class="fm-table">
                                     <thead>
                                         <tr>
                                             <th style="width:160px;"><?php esc_html_e( 'Time', 'fanaloka-maintenance' ); ?></th>
@@ -92,12 +112,8 @@ class DashboardPage {
                                     <tbody>
                                         <?php foreach ( $recent as $log ) : ?>
                                             <tr>
-                                                <td style="white-space:nowrap;"><?php echo esc_html( $log['time'] ); ?></td>
-                                                <td>
-                                                    <span class="fm-log-badge fm-log-<?php echo esc_attr( $log['level'] ); ?>">
-                                                        <?php echo esc_html( strtoupper( $log['level'] ) ); ?>
-                                                    </span>
-                                                </td>
+                                                <td class="fm-nowrap"><?php echo esc_html( $log['time'] ); ?></td>
+                                                <td><span class="fm-badge fm-badge-<?php echo esc_attr( $log['level'] ); ?>"><?php echo esc_html( strtoupper( $log['level'] ) ); ?></span></td>
                                                 <td><?php echo esc_html( $log['message'] ); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -109,82 +125,83 @@ class DashboardPage {
                 </div>
 
                 <!-- Sidebar -->
-                <div class="fm-dashboard-sidebar">
+                <div class="fm-page-sidebar">
                     <!-- Quick Actions -->
-                    <div class="postbox fm-sidebar-box">
-                        <h2 class="hndle"><span class="dashicons dashicons-admin-settings" style="margin-right:5px;"></span><?php esc_html_e( 'Quick Actions', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside">
-                            <button type="button" class="button button-primary button-hero fm-btn-sync" id="fm-sync-now" style="width:100%; margin-bottom:10px;">
-                                <span class="dashicons dashicons-update" style="margin-right:5px;"></span><?php esc_html_e( 'Sync Now', 'fanaloka-maintenance' ); ?>
+                    <div class="fm-sidebar-card">
+                        <div class="fm-sidebar-card-header">
+                            <span class="dashicons dashicons-admin-settings"></span>
+                            <strong><?php esc_html_e( 'Quick Actions', 'fanaloka-maintenance' ); ?></strong>
+                        </div>
+                        <div class="fm-sidebar-card-body">
+                            <button type="button" class="fm-btn fm-btn-primary fm-btn-block fm-btn-sync" id="fm-sync-now">
+                                <span class="dashicons dashicons-update"></span> <?php esc_html_e( 'Sync Now', 'fanaloka-maintenance' ); ?>
                             </button>
-                            <p id="fm-sync-status" style="display:none; margin-top:10px;"></p>
-                            <div style="display:flex; gap:8px; margin-top:10px;">
-                                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fm-settings' ) ); ?>" class="button" style="flex:1; text-align:center;">
-                                    <span class="dashicons dashicons-admin-generic" style="margin-right:3px;"></span><?php esc_html_e( 'Settings', 'fanaloka-maintenance' ); ?>
+                            <div id="fm-sync-status" style="display:none;"></div>
+                            <div class="fm-btn-row">
+                                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fm-settings' ) ); ?>" class="fm-btn fm-btn-outline">
+                                    <span class="dashicons dashicons-admin-generic"></span> <?php esc_html_e( 'Settings', 'fanaloka-maintenance' ); ?>
                                 </a>
-                                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fm-requests' ) ); ?>" class="button" style="flex:1; text-align:center;">
-                                    <span class="dashicons dashicons-list-view" style="margin-right:3px;"></span><?php esc_html_e( 'Requests', 'fanaloka-maintenance' ); ?>
+                                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fm-requests' ) ); ?>" class="fm-btn fm-btn-outline">
+                                    <span class="dashicons dashicons-list-view"></span> <?php esc_html_e( 'Requests', 'fanaloka-maintenance' ); ?>
                                 </a>
                             </div>
                         </div>
                     </div>
 
                     <!-- Last Sync -->
-                    <div class="postbox fm-sidebar-box">
-                        <h2 class="hndle"><span class="dashicons dashicons-email-alt" style="margin-right:5px;"></span><?php esc_html_e( 'Last Sync', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside">
-                            <table class="widefat" style="border:0;">
-                                <tr>
-                                    <td style="padding:8px 10px; border:0;"><strong><?php esc_html_e( 'Time', 'fanaloka-maintenance' ); ?></strong></td>
-                                    <td style="padding:8px 10px; border:0;"><?php echo esc_html( $last_sync['time'] ); ?></td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:8px 10px; border:0;"><strong><?php esc_html_e( 'Emails Found', 'fanaloka-maintenance' ); ?></strong></td>
-                                    <td style="padding:8px 10px; border:0;"><?php echo esc_html( $last_sync['total'] ); ?></td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:8px 10px; border:0;"><strong><?php esc_html_e( 'Tickets Created', 'fanaloka-maintenance' ); ?></strong></td>
-                                    <td style="padding:8px 10px; border:0;"><?php echo esc_html( $last_sync['created'] ); ?></td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:8px 10px; border:0;"><strong><?php esc_html_e( 'Replies Added', 'fanaloka-maintenance' ); ?></strong></td>
-                                    <td style="padding:8px 10px; border:0;"><?php echo esc_html( $last_sync['replies'] ); ?></td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:8px 10px; border:0;"><strong><?php esc_html_e( 'Errors', 'fanaloka-maintenance' ); ?></strong></td>
-                                    <td style="padding:8px 10px; border:0; color:<?php echo $last_sync['errors'] > 0 ? '#d63638' : '#00a32a'; ?>;"><?php echo esc_html( $last_sync['errors'] ); ?></td>
-                                </tr>
-                            </table>
+                    <div class="fm-sidebar-card">
+                        <div class="fm-sidebar-card-header">
+                            <span class="dashicons dashicons-email-alt"></span>
+                            <strong><?php esc_html_e( 'Last Sync', 'fanaloka-maintenance' ); ?></strong>
+                        </div>
+                        <div class="fm-sidebar-card-body">
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Time', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value"><?php echo esc_html( $last_sync['time'] ); ?></span>
+                            </div>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Emails', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value"><?php echo esc_html( $last_sync['total'] ); ?></span>
+                            </div>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Created', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value"><?php echo esc_html( $last_sync['created'] ); ?></span>
+                            </div>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Replies', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value"><?php echo esc_html( $last_sync['replies'] ); ?></span>
+                            </div>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Errors', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value" style="color:<?php echo $last_sync['errors'] > 0 ? '#d63638' : '#00a32a'; ?>;"><?php echo esc_html( $last_sync['errors'] ); ?></span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Auto Sync Status -->
-                    <div class="postbox fm-sidebar-box">
-                        <h2 class="hndle"><span class="dashicons dashicons-controls-play" style="margin-right:5px;"></span><?php esc_html_e( 'Auto Sync', 'fanaloka-maintenance' ); ?></h2>
-                        <div class="inside">
+                    <!-- Auto Sync -->
+                    <div class="fm-sidebar-card">
+                        <div class="fm-sidebar-card-header">
+                            <span class="dashicons dashicons-controls-play"></span>
+                            <strong><?php esc_html_e( 'Auto Sync', 'fanaloka-maintenance' ); ?></strong>
+                        </div>
+                        <div class="fm-sidebar-card-body">
                             <?php
                             $cron = CronManager::instance();
                             $auto_sync = get_option( 'fm_auto_sync', 'yes' );
                             $interval  = get_option( 'fm_sync_interval', 5 );
                             ?>
-                            <p style="margin:8px 0;">
-                                <strong><?php esc_html_e( 'Status:', 'fanaloka-maintenance' ); ?></strong>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></span>
                                 <?php if ( 'yes' === $auto_sync && $cron->is_scheduled() ) : ?>
-                                    <span class="fm-sync-active"><?php esc_html_e( 'Active', 'fanaloka-maintenance' ); ?></span>
+                                    <span class="fm-badge fm-badge-success"><?php esc_html_e( 'Active', 'fanaloka-maintenance' ); ?></span>
                                 <?php else : ?>
-                                    <span class="fm-sync-inactive"><?php esc_html_e( 'Inactive', 'fanaloka-maintenance' ); ?></span>
+                                    <span class="fm-badge fm-badge-danger"><?php esc_html_e( 'Inactive', 'fanaloka-maintenance' ); ?></span>
                                 <?php endif; ?>
-                            </p>
-                            <p style="margin:8px 0;">
-                                <strong><?php esc_html_e( 'Interval:', 'fanaloka-maintenance' ); ?></strong>
-                                <?php
-                                printf(
-                                    /* translators: %d: interval in minutes */
-                                    esc_html__( '%d minutes', 'fanaloka-maintenance' ),
-                                    $interval
-                                );
-                                ?>
-                            </p>
+                            </div>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Interval', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value"><?php printf( esc_html__( '%d min', 'fanaloka-maintenance' ), $interval ); ?></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -229,34 +246,67 @@ class DashboardPage {
         </script>
 
         <style>
-        .fm-dashboard-widgets { display: flex; flex-wrap: wrap; gap: 15px; margin: 20px 0; }
-        .fm-stat-box { flex: 1; min-width: 160px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; padding: 20px 15px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: transform 0.15s, box-shadow 0.15s; }
-        .fm-stat-box:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
-        .fm-stat-icon { font-size: 28px; color: #2271b1; margin-bottom: 8px; }
-        .fm-stat-box .count { font-size: 36px; font-weight: 700; display: block; line-height: 1.2; color: #1d2327; }
-        .fm-stat-box .label { color: #646970; font-size: 13px; margin-top: 5px; display: block; font-weight: 500; }
-        .fm-stat-box.critical { border-top: 3px solid #d63638; }
-        .fm-stat-box.critical .fm-stat-icon { color: #d63638; }
-        .fm-stat-box.open { border-top: 3px solid #dba617; }
-        .fm-stat-box.open .fm-stat-icon { color: #dba617; }
-        .fm-stat-box.completed { border-top: 3px solid #00a32a; }
-        .fm-stat-box.completed .fm-stat-icon { color: #00a32a; }
-        .fm-stat-box.waiting { border-top: 3px solid #996800; }
-        .fm-stat-box.waiting .fm-stat-icon { color: #996800; }
-        .fm-stat-box:first-child { border-top: 3px solid #2271b1; }
-        .fm-dashboard-columns { display: flex; gap: 20px; margin-top: 20px; align-items: flex-start; }
-        .fm-dashboard-main { flex: 3; min-width: 0; }
-        .fm-dashboard-sidebar { flex: 1; min-width: 280px; max-width: 340px; }
-        .fm-dashboard-sidebar .postbox { margin-bottom: 15px; }
-        #poststuff .postbox .hndle { padding: 10px 15px; margin: 0; }
-        #poststuff .postbox .inside { padding: 0 15px 15px; margin: 0; }
-        .fm-sidebar-box .hndle { cursor: default; }
-        .fm-log-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; line-height: 1.6; }
-        .fm-log-info { background: #f0f6fc; color: #2271b1; }
-        .fm-log-warning { background: #fcf0f1; color: #996800; }
-        .fm-log-error { background: #fcf0f1; color: #d63638; }
-        .fm-sync-active { color: #00a32a; font-weight: 600; }
-        .fm-sync-inactive { color: #d63638; font-weight: 600; }
+        /* Shared Design System */
+        .fm-page-wrap { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
+        .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .fm-page-title .dashicons { color: #2271b1; }
+        .fm-page-columns { display: flex; gap: 20px; align-items: flex-start; }
+        .fm-page-main { flex: 1; min-width: 0; }
+        .fm-page-sidebar { width: 300px; flex-shrink: 0; }
+
+        /* Stat Cards */
+        .fm-stats-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .fm-stat-card { flex: 1; min-width: 150px; display: flex; align-items: center; gap: 12px; padding: 16px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: transform 0.15s, box-shadow 0.15s; }
+        .fm-stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+        .fm-stat-card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+        .fm-stat-card-info { display: flex; flex-direction: column; }
+        .fm-stat-card-count { font-size: 24px; font-weight: 700; line-height: 1.2; color: #1d2327; }
+        .fm-stat-card-label { font-size: 12px; color: #646970; font-weight: 500; }
+
+        /* Cards */
+        .fm-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-card-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #e2e4e7; font-size: 14px; }
+        .fm-card-header .dashicons { color: #2271b1; }
+        .fm-card-body { padding: 16px; }
+        .fm-card-body-np { padding: 0; }
+
+        /* Sidebar Cards */
+        .fm-sidebar-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-sidebar-card-header { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; border-radius: 8px 8px 0 0; }
+        .fm-sidebar-card-header .dashicons { color: #2271b1; font-size: 16px; }
+        .fm-sidebar-card-body { padding: 12px 14px; }
+
+        /* Info Rows */
+        .fm-info-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f0f0f1; }
+        .fm-info-row:last-child { border-bottom: none; }
+        .fm-info-label { font-size: 12px; color: #646970; }
+        .fm-info-value { font-size: 13px; color: #1d2327; font-weight: 500; }
+
+        /* Table */
+        .fm-table { width: 100%; border-collapse: collapse; }
+        .fm-table th { text-align: left; padding: 10px 14px; font-size: 12px; font-weight: 600; color: #646970; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid #e2e4e7; background: #f9f9f9; }
+        .fm-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f1; color: #1d2327; }
+        .fm-table tr:hover td { background: #f9f9f9; }
+        .fm-nowrap { white-space: nowrap; }
+
+        /* Badges */
+        .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; line-height: 1.4; }
+        .fm-badge-info { background: #f0f6fc; color: #2271b1; }
+        .fm-badge-warning { background: #fcf9e8; color: #996800; }
+        .fm-badge-success { background: #edfaef; color: #00a32a; }
+        .fm-badge-danger { background: #fcf0f1; color: #d63638; }
+
+        /* Buttons */
+        .fm-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all 0.15s; }
+        .fm-btn-primary { background: #2271b1; color: #fff; border-color: #2271b1; }
+        .fm-btn-primary:hover { background: #135e96; color: #fff; }
+        .fm-btn-outline { background: #fff; color: #1d2327; border-color: #ccc; }
+        .fm-btn-outline:hover { background: #f0f0f1; color: #1d2327; }
+        .fm-btn-block { width: 100%; }
+        .fm-btn-row { display: flex; gap: 8px; margin-top: 10px; }
+        .fm-btn-row .fm-btn { flex: 1; }
+        .fm-empty-text { padding: 20px; text-align: center; color: #8c8f94; }
         </style>
         <script>
         jQuery(document).ready(function($) {

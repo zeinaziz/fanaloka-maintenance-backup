@@ -558,52 +558,79 @@ class SettingsPage {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $saved = isset( $_GET['settings-updated'] );
         ?>
-        <div class="wrap">
-            <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+        <div class="fm-page-wrap">
+            <div class="fm-page-header">
+                <h1 class="fm-page-title">
+                    <span class="dashicons dashicons-admin-settings" style="color:#8c8f94"></span>
+                    <?php echo esc_html( get_admin_page_title() ); ?>
+                </h1>
+            </div>
 
             <?php if ( $saved ) : ?>
-                <div class="notice notice-success is-dismissible">
-                    <p><?php esc_html_e( 'Settings saved.', 'fanaloka-maintenance' ); ?></p>
+                <div class="fm-notice fm-notice-success">
+                    <span class="dashicons dashicons-yes-alt"></span>
+                    <?php esc_html_e( 'Settings saved.', 'fanaloka-maintenance' ); ?>
                 </div>
             <?php endif; ?>
 
-            <nav class="nav-tab-wrapper">
-                <a href="?page=fm-settings&tab=general"
-                   class="nav-tab <?php echo 'general' === $tab ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'IMAP Connection', 'fanaloka-maintenance' ); ?>
-                </a>
-                <a href="?page=fm-settings&tab=sync"
-                   class="nav-tab <?php echo 'sync' === $tab ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'Sync', 'fanaloka-maintenance' ); ?>
-                </a>
-                <a href="?page=fm-settings&tab=ticket"
-                   class="nav-tab <?php echo 'ticket' === $tab ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?>
-                </a>
-                <a href="?page=fm-settings&tab=notification"
-                   class="nav-tab <?php echo 'notification' === $tab ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'Notifications', 'fanaloka-maintenance' ); ?>
-                </a>
-            </nav>
+            <div class="fm-card">
+                <nav class="nav-tab-wrapper fm-nav-tabs">
+                    <a href="?page=fm-settings&tab=general"
+                       class="nav-tab <?php echo 'general' === $tab ? 'nav-tab-active' : ''; ?>">
+                        <span class="dashicons dashicons-email-alt"></span> <?php esc_html_e( 'IMAP', 'fanaloka-maintenance' ); ?>
+                    </a>
+                    <a href="?page=fm-settings&tab=sync"
+                       class="nav-tab <?php echo 'sync' === $tab ? 'nav-tab-active' : ''; ?>">
+                        <span class="dashicons dashicons-update"></span> <?php esc_html_e( 'Sync', 'fanaloka-maintenance' ); ?>
+                    </a>
+                    <a href="?page=fm-settings&tab=ticket"
+                       class="nav-tab <?php echo 'ticket' === $tab ? 'nav-tab-active' : ''; ?>">
+                        <span class="dashicons dashicons-welcome-view-site"></span> <?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?>
+                    </a>
+                    <a href="?page=fm-settings&tab=notification"
+                       class="nav-tab <?php echo 'notification' === $tab ? 'nav-tab-active' : ''; ?>">
+                        <span class="dashicons dashicons-bell"></span> <?php esc_html_e( 'Notifications', 'fanaloka-maintenance' ); ?>
+                    </a>
+                </nav>
 
-            <form method="post" action="options.php">
-                <?php
-                settings_fields( self::OPTION_GROUP );
+                <div class="fm-settings-content">
+                    <form method="post" action="options.php">
+                        <?php
+                        settings_fields( self::OPTION_GROUP );
 
-                if ( 'general' === $tab ) {
-                    do_settings_sections( 'fm-settings' );
-                } elseif ( 'sync' === $tab ) {
-                    $this->render_tab_sections( [ 'fm_sync_section' ] );
-                } elseif ( 'ticket' === $tab ) {
-                    $this->render_tab_sections( [ 'fm_ticket_section' ] );
-                } elseif ( 'notification' === $tab ) {
-                    $this->render_tab_sections( [ 'fm_notification_section' ] );
-                }
+                        if ( 'general' === $tab ) {
+                            do_settings_sections( 'fm-settings' );
+                        } elseif ( 'sync' === $tab ) {
+                            $this->render_tab_sections( [ 'fm_sync_section' ] );
+                        } elseif ( 'ticket' === $tab ) {
+                            $this->render_tab_sections( [ 'fm_ticket_section' ] );
+                        } elseif ( 'notification' === $tab ) {
+                            $this->render_tab_sections( [ 'fm_notification_section' ] );
+                        }
 
-                submit_button( __( 'Save Settings', 'fanaloka-maintenance' ) );
-                ?>
-            </form>
+                        submit_button( __( 'Save Settings', 'fanaloka-maintenance' ) );
+                        ?>
+                    </form>
+                </div>
+            </div>
         </div>
+
+        <style>
+        .fm-page-wrap { max-width: 1200px; margin: 0 auto; padding: 0 0 40px; }
+        .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .fm-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-nav-tabs { padding: 12px 20px 0 !important; background: #f9f9f9; border-bottom: 1px solid #e2e4e7 !important; }
+        .fm-nav-tabs .nav-tab { border: 1px solid transparent !important; border-bottom: none !important; margin-bottom: -1px; padding: 10px 18px; font-size: 14px; color: #646970; }
+        .fm-nav-tabs .nav-tab .dashicons { margin-right: 4px; font-size: 15px; top: 2px; }
+        .fm-nav-tabs .nav-tab:hover { background: #fff; color: #1d2327; }
+        .fm-nav-tabs .nav-tab.nav-tab-active { background: #fff; border-color: #e2e4e7 !important; color: #1d2327; font-weight: 600; }
+        .fm-settings-content { padding: 20px; }
+        .fm-settings-content .form-table th { width: 200px; }
+        .fm-notice { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+        .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
+        .fm-notice-success .dashicons { font-size: 18px; }
+        </style>
         <?php
     }
 
