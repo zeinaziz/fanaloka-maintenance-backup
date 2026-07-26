@@ -449,7 +449,10 @@ class ConversationManager {
             'Fw(?:\:\s*Fw(?:\:\s*)*)*' . '|' .
             'FW(?:\:\s*FW(?:\:\s*)*)*' . '|' .
             'Fwd(?:\:\s*Fwd(?:\:\s*)*)*' . '|' .
-            'FWD(?:\:\s*FWD(?:\:\s*)*)*' .
+            'FWD(?:\:\s*FWD(?:\:\s*)*)*' . '|' .
+            'Aw(?:\:\s*Aw(?:\:\s*)*)*' . '|' .
+            'Jawab(?:\:\s*Jawab(?:\:\s*)*)*' . '|' .
+            'Balasan(?:\:\s*Balasan(?:\:\s*)*)*' .
             ')\s*/i',
             '',
             $subject

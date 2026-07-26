@@ -356,7 +356,8 @@ class TicketManager {
         $critical_keywords = [
             'urgent', 'critical', 'emergency', 'down', 'outage', 'hacked',
             'security breach', 'data loss', 'server down', 'site down',
-            'website down', 'fatal error', 'unreachable',
+            'website down', 'fatal error', 'unreachable', 'inaccessible',
+            'severely broken', 'catastrophic',
         ];
 
         foreach ( $critical_keywords as $keyword ) {
@@ -366,8 +367,10 @@ class TicketManager {
         }
 
         $high_keywords = [
-            'asap', 'broken', 'error', 'bug', 'crash', 'fail',
-            'not working', 'problem', 'issue', 'fix',
+            'asap', 'immediately', 'as soon as possible', 'pressing', 'important',
+            'broken', 'error', 'bug', 'crash', 'fail', 'failed',
+            'not working', 'malfunctioning', 'problem', 'issue',
+            'disrupted', 'disturbed', 'fix', 'repair',
         ];
 
         foreach ( $high_keywords as $keyword ) {
@@ -377,9 +380,10 @@ class TicketManager {
         }
 
         $low_keywords = [
-            'question', 'info', 'information', 'when',
-            'how', 'can you', 'please', 'request', 'update', 'change',
-            'small', 'minor', 'cosmetic',
+            'question', 'inquiry', 'info', 'information', 'when',
+            'how', 'can you', 'could you', 'help', 'please',
+            'request', 'update', 'change', 'modification',
+            'slight', 'small', 'minor', 'cosmetic',
         ];
 
         foreach ( $low_keywords as $keyword ) {
