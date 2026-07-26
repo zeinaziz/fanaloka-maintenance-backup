@@ -147,6 +147,10 @@ class ClientsPage {
         </style>
 
         <script>
+        var fmClientsAjax = {
+            url: '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>',
+            nonce: '<?php echo esc_js( wp_create_nonce( 'fm_admin_nonce' ) ); ?>',
+        };
         (function($) {
             var searchTimer = null;
 
@@ -154,9 +158,9 @@ class ClientsPage {
                 var $list = $('#fm-clients-list');
                 $list.html('<div style="text-align:center;padding:30px;color:#8c8f94;"><span class="spinner is-active"></span> Loading...</div>');
 
-                $.post(fmAdmin.ajaxUrl, {
+                $.post(fmClientsAjax.url, {
                     action: 'fm_list_clients',
-                    nonce: fmAdmin.nonce,
+                    nonce: fmClientsAjax.nonce,
                     search: search || '',
                 }, function(res) {
                     if (res.success) {
@@ -203,9 +207,9 @@ class ClientsPage {
                 $('#fm-modal-client-tickets').html('<div style="text-align:center;padding:20px;"><span class="spinner is-active"></span></div>');
                 $('#fm-client-modal').show();
 
-                $.post(fmAdmin.ajaxUrl, {
+                $.post(fmClientsAjax.url, {
                     action: 'fm_get_client_tickets',
-                    nonce: fmAdmin.nonce,
+                    nonce: fmClientsAjax.nonce,
                     email: email,
                 }, function(res) {
                     if (res.success) {
