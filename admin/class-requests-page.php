@@ -152,6 +152,10 @@ class RequestsPage {
         </style>
 
         <script>
+        var fmRequestsAjax = {
+            url: '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>',
+            nonce: '<?php echo esc_js( wp_create_nonce( 'fm_admin_nonce' ) ); ?>',
+        };
         (function($) {
             var state = {
                 paged: 1,
@@ -166,9 +170,9 @@ class RequestsPage {
                 var $tbody = $('#fm-requests-tbody');
                 $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#8c8f94;"><span class="spinner is-active"></span> Loading...</td></tr>');
 
-                $.post(fmAdmin.ajaxUrl, {
+                $.post(fmRequestsAjax.url, {
                     action: 'fm_list_requests',
-                    nonce: fmAdmin.nonce,
+                    nonce: fmRequestsAjax.nonce,
                     paged: state.paged,
                     status: state.status,
                     priority: state.priority,
@@ -255,27 +259,33 @@ class RequestsPage {
                     var $btn = $(this);
                     $btn.prop('disabled', true).val('Deleting...');
 
-                    $.post(fmAdmin.ajaxUrl, {
+                    $.post(fmRequestsAjax.url, {
                         action: 'fm_bulk_delete_requests',
-                        nonce: fmAdmin.nonce,
+                        nonce: fmRequestsAjax.nonce,
                         ids: ids,
                     }, function(res) {
                         $btn.prop('disabled', false).val('Apply');
                         $('#bulk-action-selector-top').val('-1');
                         if (res.success) {
-                            FMAdmin.showNotice(res.data.message, 'success');
+                            showNotice(res.data.message, 'success');
                             loadTickets();
                         } else {
-                            FMAdmin.showNotice(res.data.message || 'Delete failed', 'error');
+                            showNotice(res.data.message || 'Delete failed', 'error');
                         }
                     }).fail(function() {
                         $btn.prop('disabled', false).val('Apply');
-                        FMAdmin.showNotice('Request failed', 'error');
+                        showNotice('Request failed', 'error');
                     });
                 }
             });
 
-            // Sort by column
+            // Simple notice helper
+            function showNotice(msg, type) {
+                var icon = type === 'success' ? 'yes-alt' : 'warning';
+                var $n = $('<div class="fm-notice fm-notice-' + type + '"><span class="dashicons dashicons-' + icon + '"></span>' + msg + '</div>');
+                $('.fm-page-wrap').first().prepend($n);
+                setTimeout(function(){ $n.fadeOut(300, function(){ $(this).remove(); }); }, 4000);
+            }
             $(document).on('click', '#fm-requests-table thead th:not(.column-cb)', function() {
                 var $th = $(this);
                 var col = $th.attr('id') || $th.data('col');
