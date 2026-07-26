@@ -89,6 +89,8 @@ class Admin {
         add_action( 'wp_ajax_fm_list_requests', [ $this, 'ajax_list_requests' ] );
         add_action( 'wp_ajax_fm_bulk_delete_requests', [ $this, 'ajax_bulk_delete_requests' ] );
         add_action( 'wp_ajax_fm_get_entries', [ $this, 'ajax_get_entries' ] );
+        add_action( 'wp_ajax_fm_list_clients', [ $this, 'ajax_list_clients' ] );
+        add_action( 'wp_ajax_fm_get_client_tickets', [ $this, 'ajax_get_client_tickets' ] );
     }
 
     /**
@@ -785,6 +787,224 @@ class Admin {
                 $deleted
             ),
             'deleted' => $deleted,
+        ] );
+    }
+
+    /**
+     * AJAX: List all unique clients from tickets.
+     *
+     * @return void
+     */
+    public function ajax_list_clients(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+
+        $search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+
+        $clients = $this->get_unique_clients( $search );
+
+        // Stats.
+        $total_clients  = count( $clients );
+        $total_tickets  = 0;
+        foreach ( $clients as &$c ) {
+            $total_tickets += $c['total'];
+        }
+        unset( $c );
+
+        // Build HTML.
+        $html = '';
+        if ( empty( $clients ) ) {
+            $html = '<div style="text-align:center;padding:40px;color:#8c8f94;">No clients found.</div>';
+        } else {
+            $colors = [ '#2271b1', '#00a32a', '#dba617', '#d63638', '#996800', '#8c8f94' ];
+            foreach ( $clients as $client ) {
+                $initials = strtoupper( substr( $client['name'], 0, 1 ) );
+                $color    = $colors[ crc32( $client['email'] ) % count( $colors ) ];
+
+                $html .= '<div class="fm-client-row" data-email="' . esc_attr( $client['email'] ) . '" data-name="' . esc_attr( $client['name'] ) . '">';
+                $html .= '<div class="fm-client-info">';
+                $html .= '<div class="fm-client-avatar" style="background:' . esc_attr( $color ) . ';">' . esc_html( $initials ) . '</div>';
+                $html .= '<div>';
+                $html .= '<div class="fm-client-name">' . esc_html( $client['name'] ?: $client['email'] ) . '</div>';
+                $html .= '<div class="fm-client-email">' . esc_html( $client['email'] ) . '</div>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '<div class="fm-client-stats">';
+                $html .= '<div class="fm-client-stat"><span class="fm-client-stat-num">' . esc_html( $client['total'] ) . '</span><span class="fm-client-stat-label">Tickets</span></div>';
+                $html .= '<div class="fm-client-stat"><span class="fm-client-stat-num">' . esc_html( $client['open'] ) . '</span><span class="fm-client-stat-label">Open</span></div>';
+                $html .= '<div class="fm-client-stat"><span class="fm-client-stat-num">' . esc_html( $client['completed'] ) . '</span><span class="fm-client-stat-label">Done</span></div>';
+                $html .= '<span class="fm-client-arrow dashicons dashicons-arrow-right-alt2"></span>';
+                $html .= '</div>';
+                $html .= '</div>';
+            }
+        }
+
+        wp_send_json_success( [
+            'html'          => $html,
+            'total_clients' => $total_clients,
+            'total_tickets' => $total_tickets,
+        ] );
+    }
+
+    /**
+     * Get unique clients from tickets.
+     *
+     * @param string $search Search query.
+     * @return array<int, array{email: string, name: string, total: int, open: int, completed: int}>
+     */
+    private function get_unique_clients( string $search = '' ): array {
+        global $wpdb;
+
+        $args = [
+            'post_type'      => 'maintenance_request',
+            'post_status'    => 'any',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+        ];
+
+        if ( $search ) {
+            $args['meta_query'] = [
+                'relation' => 'OR',
+                [
+                    'key'     => '_fm_client_name',
+                    'value'   => $search,
+                    'compare' => 'LIKE',
+                ],
+                [
+                    'key'     => '_fm_client_email',
+                    'value'   => $search,
+                    'compare' => 'LIKE',
+                ],
+            ];
+        }
+
+        $query   = new \WP_Query( $args );
+        $clients = [];
+
+        foreach ( $query->posts as $post_id ) {
+            $email = get_post_meta( $post_id, '_fm_client_email', true );
+            $name  = get_post_meta( $post_id, '_fm_client_name', true );
+
+            if ( empty( $email ) ) {
+                continue;
+            }
+
+            if ( ! isset( $clients[ $email ] ) ) {
+                $clients[ $email ] = [
+                    'email'     => $email,
+                    'name'      => $name,
+                    'total'     => 0,
+                    'open'      => 0,
+                    'completed' => 0,
+                ];
+            }
+
+            $clients[ $email ]['total']++;
+
+            $status = get_post_meta( $post_id, '_fm_status', true );
+            if ( in_array( $status, [ 'new', 'open', 'in-progress', 'waiting-client' ], true ) ) {
+                $clients[ $email ]['open']++;
+            } elseif ( 'completed' === $status ) {
+                $clients[ $email ]['completed']++;
+            }
+        }
+
+        // Sort by total desc.
+        uasort( $clients, function ( $a, $b ) {
+            return $b['total'] - $a['total'];
+        } );
+
+        return array_values( $clients );
+    }
+
+    /**
+     * AJAX: Get tickets for a specific client.
+     *
+     * @return void
+     */
+    public function ajax_get_client_tickets(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+
+        $email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+
+        if ( empty( $email ) ) {
+            wp_send_json_error( [ 'message' => 'Invalid email' ] );
+        }
+
+        $query = new \WP_Query( [
+            'post_type'      => 'maintenance_request',
+            'post_status'    => 'any',
+            'posts_per_page' => -1,
+            'meta_query'     => [
+                [
+                    'key'   => '_fm_client_email',
+                    'value' => $email,
+                ],
+            ],
+            'orderby'  => 'date',
+            'order'    => 'DESC',
+        ] );
+
+        $name = '';
+        $total     = 0;
+        $open      = 0;
+        $completed = 0;
+
+        $status_colors = [
+            'new'            => 'fm-badge-primary',
+            'open'           => 'fm-badge-warning',
+            'in-progress'    => 'fm-badge-success',
+            'waiting-client' => 'fm-badge-warning',
+            'completed'      => 'fm-badge-success',
+            'cancelled'      => 'fm-badge-danger',
+        ];
+
+        $tickets_html = '';
+        foreach ( $query->posts as $post_id ) {
+            if ( ! $name ) {
+                $name = get_post_meta( $post_id, '_fm_client_name', true );
+            }
+            $total++;
+            $status      = get_post_meta( $post_id, '_fm_status', true );
+            $priority    = get_post_meta( $post_id, '_fm_priority', true );
+            $full_number = get_post_meta( $post_id, '_fm_full_number', true );
+            $subject     = get_the_title( $post_id );
+
+            if ( in_array( $status, [ 'new', 'open', 'in-progress', 'waiting-client' ], true ) ) {
+                $open++;
+            } elseif ( 'completed' === $status ) {
+                $completed++;
+            }
+
+            $sc = $status_colors[ $status ] ?? 'fm-badge-default';
+            $view_url = admin_url( 'admin.php?page=fm-requests&action=view&id=' . $post_id );
+
+            $tickets_html .= '<div class="fm-modal-ticket-row">';
+            $tickets_html .= '<a href="' . esc_url( $view_url ) . '" class="fm-modal-ticket-num">' . esc_html( $full_number ) . '</a>';
+            $tickets_html .= '<span class="fm-modal-ticket-subject">' . esc_html( $subject ) . '</span>';
+            $tickets_html .= '<span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( ucfirst( str_replace( '-', ' ', $status ) ) ) . '</span>';
+            $tickets_html .= '</div>';
+        }
+
+        if ( empty( $tickets_html ) ) {
+            $tickets_html = '<div style="text-align:center;padding:20px;color:#8c8f94;">No tickets found.</div>';
+        }
+
+        $info_html  = '<div class="fm-modal-info-item"><strong>' . esc_html( $email ) . '</strong>Email</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $total ) . '</strong>Total Tickets</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $open ) . '</strong>Open</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $completed ) . '</strong>Completed</div>';
+
+        wp_send_json_success( [
+            'info_html'    => $info_html,
+            'tickets_html' => $tickets_html,
         ] );
     }
 }
