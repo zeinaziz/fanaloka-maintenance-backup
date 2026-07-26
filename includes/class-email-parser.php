@@ -120,9 +120,6 @@ class EmailParser {
         'FW',
         'Fwd',
         'FWD',
-        'Aw',
-        'Jawab',
-        'Balasan',
     ];
 
     /**

@@ -356,8 +356,7 @@ class TicketManager {
         $critical_keywords = [
             'urgent', 'critical', 'emergency', 'down', 'outage', 'hacked',
             'security breach', 'data loss', 'server down', 'site down',
-            'website down', 'tidak bisa diakses', 'error fatal', 'fatal error',
-            'mati', 'rusak parah', 'darurat',
+            'website down', 'fatal error', 'unreachable',
         ];
 
         foreach ( $critical_keywords as $keyword ) {
@@ -367,10 +366,8 @@ class TicketManager {
         }
 
         $high_keywords = [
-            'asap', 'segera', 'secepatnya', 'mendesak', 'penting',
-            'broken', 'error', 'bug', 'crash', 'fail', 'gagal',
-            'tidak berfungsi', 'not working', 'masalah', 'problem',
-            'issue', 'gangguan', 'terganggu', 'fix', 'perbaiki',
+            'asap', 'broken', 'error', 'bug', 'crash', 'fail',
+            'not working', 'problem', 'issue', 'fix',
         ];
 
         foreach ( $high_keywords as $keyword ) {
@@ -380,10 +377,9 @@ class TicketManager {
         }
 
         $low_keywords = [
-            'question', 'pertanyaan', 'info', 'information', 'when', 'kapan',
-            'how', 'bagaimana', 'can you', 'bisakah', 'tolong',
-            'please', 'request', 'permintaan', 'update', 'change',
-            'perubahan', 'sedikit', 'small', 'minor', 'cosmetic',
+            'question', 'info', 'information', 'when',
+            'how', 'can you', 'please', 'request', 'update', 'change',
+            'small', 'minor', 'cosmetic',
         ];
 
         foreach ( $low_keywords as $keyword ) {

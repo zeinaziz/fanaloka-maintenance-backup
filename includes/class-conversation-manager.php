@@ -442,7 +442,6 @@ class ConversationManager {
         $subject = preg_replace( '/^\[' . preg_quote( $prefix, '/' ) . '-\d+\]\s*/i', '', $subject );
 
         // Remove multiple levels of Re:/Fwd: prefixes.
-        // Matches: Re:, RE:, Fw:, FW:, Fwd:, FWD:, Aw:, Jawab:, Balasan:, etc.
         $subject = preg_replace(
             '/^(?:' .
             'Re(?:\:\s*Re(?:\:\s*)*)*' . '|' .
@@ -450,10 +449,7 @@ class ConversationManager {
             'Fw(?:\:\s*Fw(?:\:\s*)*)*' . '|' .
             'FW(?:\:\s*FW(?:\:\s*)*)*' . '|' .
             'Fwd(?:\:\s*Fwd(?:\:\s*)*)*' . '|' .
-            'FWD(?:\:\s*FWD(?:\:\s*)*)*' . '|' .
-            'Aw(?:\:\s*Aw(?:\:\s*)*)*' . '|' .
-            'Jawab(?:\:\s*Jawab(?:\:\s*)*)*' . '|' .
-            'Balasan(?:\:\s*Balasan(?:\:\s*)*)*' .
+            'FWD(?:\:\s*FWD(?:\:\s*)*)*' .
             ')\s*/i',
             '',
             $subject

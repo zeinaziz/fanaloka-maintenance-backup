@@ -349,19 +349,9 @@ class Admin {
             }
         }
 
-        $body_html = sprintf(
-            '<p>Halo %s,</p>%s<p>Salam,<br>%s</p>',
-            esc_html( $ticket['client_name'] ?? '' ),
-            wp_kses_post( $content ),
-            esc_html( get_bloginfo( 'name' ) )
-        );
+        $body_html = wp_kses_post( $content );
 
-        $body_plain = sprintf(
-            "Halo %s,\n\n%s\n\nSalam,\n%s",
-            $ticket['client_name'] ?? '',
-            wp_strip_all_tags( $content ),
-            get_bloginfo( 'name' )
-        );
+        $body_plain = wp_strip_all_tags( $content );
 
         $this->set_reply_body( $body_html, $body_plain );
 
