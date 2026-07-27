@@ -262,6 +262,10 @@ class IMAPReader {
     /**
      * Search for unread emails.
      *
+     * Gmail IMAP bug: imap_search('UNSEEN') returns empty, and emails get
+     * auto-marked as seen when accessed via IMAP.
+     * Workaround: get all recent emails, deduplication is handled by message_id.
+     *
      * @return array<int, int> Array of message numbers.
      */
     public function search_unseen(): array {
@@ -272,7 +276,9 @@ class IMAPReader {
             }
         }
 
-        $search = @imap_search( $this->connection, 'UNSEEN' );
+        // Get all emails from last 30 days (dedup by message_id happens in sync).
+        $since_date = gmdate( 'd-M-Y', strtotime( '-30 days' ) );
+        $search = @imap_search( $this->connection, 'SINCE "' . $since_date . '"' );
 
         if ( false === $search || ! is_array( $search ) ) {
             return [];
@@ -418,7 +424,8 @@ class IMAPReader {
             }
         }
 
-        $search = @imap_search( $this->connection, 'UNSEEN SINCE "' . $since_date . '"' );
+        // Gmail IMAP bug: UNSEEN in search returns empty. Get all and dedup by message_id.
+        $search = @imap_search( $this->connection, 'SINCE "' . $since_date . '"' );
 
         if ( false === $search || ! is_array( $search ) ) {
             return [];
