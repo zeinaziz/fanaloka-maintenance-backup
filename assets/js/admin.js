@@ -192,21 +192,24 @@
         testConnection: function( e ) {
             e.preventDefault();
             var $btn = $( this );
+            var $result = $( '#fm-test-result' );
 
             $btn.prop( 'disabled', true ).text( fmAdmin.testing || 'Testing...' );
+            $result.text( '' ).removeClass( 'fm-test-success fm-test-error' );
 
             $.post( fmAdmin.ajaxUrl, {
                 action: 'fm_test_connection',
                 nonce: fmAdmin.nonce,
             }, function( response ) {
                 if ( response.success ) {
-                    $btn.text( fmAdmin.success || 'Connected!' );
+                    $result.text( response.data.message || fmAdmin.success || 'Connected!' ).addClass( 'fm-test-success' );
                 } else {
-                    $btn.text( response.data.message || fmAdmin.failed || 'Failed' );
+                    $result.text( response.data.message || fmAdmin.failed || 'Failed' ).addClass( 'fm-test-error' );
                 }
-                setTimeout( function() {
-                    $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Test Connection' );
-                }, 3000 );
+                $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Test Connection' );
+            } ).fail( function() {
+                $result.text( 'Request failed. Please try again.' ).addClass( 'fm-test-error' );
+                $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Test Connection' );
             } );
         },
 
@@ -240,7 +243,14 @@
             $( '.fm-entry-client .fm-entry-content' ).each( function() {
                 var $el = $( this );
                 var text = $el.html();
+                // Strip Indonesian quoted text: "Pada [date] [name] menulis:"
                 text = text.replace( /Pada\s+[\s\S]*?menulis:[\s\S]*$/i, '' );
+                // Strip English quoted text: "On [date], [name] wrote:" — only if text starts with "On"
+                var trimmed = text.replace( /^\s+/, '' );
+                if ( /^On\b/i.test( trimmed ) && /\bwrote:/i.test( trimmed ) ) {
+                    text = text.replace( /On\s+[\s\S]*?\bwrote:[\s\S]*$/i, '' );
+                }
+                // Strip blockquoted lines starting with >
                 text = text.replace( /^\s*&gt;.*$/gm, '' );
                 text = text.replace( /\n{3,}/g, '\n\n' ).trim();
                 $el.html( text );

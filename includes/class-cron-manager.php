@@ -10,6 +10,7 @@ namespace Fanaloka\Maintenance\Cron;
 use Fanaloka\Maintenance\IMAP\IMAPReader;
 use Fanaloka\Maintenance\Email\EmailParser;
 use Fanaloka\Maintenance\Ticket\TicketManager;
+use Fanaloka\Maintenance\Ticket\ConversationManager;
 use Fanaloka\Maintenance\Logger\Logger;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -147,6 +148,7 @@ class CronManager {
             'total'   => 0,
             'created' => 0,
             'replies' => 0,
+            'ignored' => 0,
             'errors'  => 0,
         ];
 
@@ -189,6 +191,17 @@ class CronManager {
                             Logger::LEVEL_WARNING
                         );
                         $results['errors']++;
+                        continue;
+                    }
+
+                    // Check if sender should be ignored.
+                    $sender_email = $parsed['sender_email'] ?? '';
+                    if ( $parser->should_ignore( $sender_email ) ) {
+                        Logger::log(
+                            sprintf( 'Ignored email from %s (matches ignore pattern)', $sender_email ),
+                            Logger::LEVEL_DEBUG
+                        );
+                        $results['ignored']++;
                         continue;
                     }
 
@@ -247,6 +260,80 @@ class CronManager {
                     );
                 }
             }
+
+            // --- Sent folder sync ---
+            $results['sent_synced'] = 0;
+            $sent_folder = '[Gmail]/Sent Mail';
+            if ( $reader->open_folder( $sent_folder ) ) {
+                Logger::log( sprintf( 'Syncing Sent folder: %s', $sent_folder ) );
+                $since_date_sent = gmdate( 'd-M-Y', strtotime( '-30 days' ) );
+                $sent_emails     = $reader->get_all_emails_since( $since_date_sent );
+                Logger::log( sprintf( 'Found %d emails in Sent folder', count( $sent_emails ) ) );
+
+                foreach ( $sent_emails as $sent_email ) {
+                    try {
+                        $parsed = $parser->parse_email( $sent_email );
+                        if ( false === $parsed ) {
+                            continue;
+                        }
+
+                        // Skip if from admin (zein@fanaloka.co) — it's our own sent email.
+                        $from_email = $parsed['sender_email'] ?? '';
+                        $admin_email = get_option( 'fm_imap_username', '' );
+                        if ( strtolower( $from_email ) !== strtolower( $admin_email ) ) {
+                            continue;
+                        }
+
+                        // Find matching ticket by subject.
+                        $subject            = $parsed['subject'] ?? '';
+                        $normalized_subject = ( new ConversationManager() )->normalize_subject( $subject );
+
+                        if ( empty( $normalized_subject ) ) {
+                            continue;
+                        }
+
+                        // Find ticket by subject.
+                        $ticket_id = $this->find_ticket_by_sent_subject( $normalized_subject );
+                        if ( false === $ticket_id ) {
+                            continue;
+                        }
+
+                        // Check deduplication by message_id.
+                        $message_id = $parsed['message_id'] ?? '';
+                        $conversation = new ConversationManager();
+                        if ( ! empty( $message_id ) && $conversation->message_id_exists( $message_id ) ) {
+                            Logger::log( sprintf( 'Sent email skip duplicate: message_id %s already exists', $message_id ), Logger::LEVEL_DEBUG );
+                            continue;
+                        }
+
+                        // Also check by sender+time (website sends generate different Message-IDs).
+                        if ( $conversation->has_recent_developer_reply( $ticket_id, $from_email ) ) {
+                            Logger::log( sprintf( 'Sent email skip duplicate: similar developer reply already exists in ticket #%d', $ticket_id ), Logger::LEVEL_DEBUG );
+                            continue;
+                        }
+
+                        // Add as developer reply.
+                        $conversation->add_entry( $ticket_id, 'developer', $parsed['body'] ?? '', [
+                            'message_id'  => $message_id,
+                            'from_email'  => $from_email,
+                            'from_name'   => $parsed['sender_name'] ?? '',
+                            'subject'     => $subject,
+                            'date'        => $parsed['date'] ?? current_time( 'mysql' ),
+                            'body_html'   => $parsed['body_html'] ?? '',
+                            'imap_uid'    => $sent_email['msg_number'] ?? 0,
+                        ] );
+
+                        update_post_meta( $ticket_id, '_fm_last_updated', time() );
+                        $results['sent_synced']++;
+
+                        Logger::log( sprintf( 'Sent email synced to ticket #%d from %s', $ticket_id, $from_email ) );
+
+                    } catch ( \Exception $e ) {
+                        Logger::log( 'Sent email processing error: ' . $e->getMessage(), Logger::LEVEL_ERROR );
+                    }
+                }
+            }
+
         } catch ( \Exception $e ) {
             Logger::log( 'Sync error: ' . $e->getMessage(), Logger::LEVEL_ERROR );
         } finally {
@@ -256,23 +343,38 @@ class CronManager {
 
         // Save sync stats.
         update_option( 'fm_last_sync', [
-            'time'        => current_time( 'mysql' ),
-            'total'       => $results['total'],
-            'created'     => $results['created'],
-            'replies'     => $results['replies'],
-            'errors'      => $results['errors'],
-            'incremental' => true,
+            'time'         => current_time( 'mysql' ),
+            'total'        => $results['total'],
+            'created'      => $results['created'],
+            'replies'      => $results['replies'],
+            'ignored'      => $results['ignored'],
+            'errors'       => $results['errors'],
+            'sent_synced'  => $results['sent_synced'] ?? 0,
+            'incremental'  => true,
         ] );
 
         Logger::log(
             sprintf(
-                'Sync completed: %d total, %d created, %d replies, %d errors',
+                'Sync completed: %d total, %d created, %d replies, %d ignored, %d sent synced, %d errors',
                 $results['total'],
                 $results['created'],
                 $results['replies'],
+                $results['ignored'],
+                $results['sent_synced'] ?? 0,
                 $results['errors']
             )
         );
+    }
+
+    /**
+     * Find a ticket by normalized subject (for Sent folder matching).
+     *
+     * @param string $normalized_subject Normalized subject.
+     * @return int|false Ticket post ID or false if not found.
+     */
+    private function find_ticket_by_sent_subject( string $normalized_subject ) {
+        $conversation = new ConversationManager();
+        return $conversation->find_ticket_by_subject( $normalized_subject );
     }
 
     /**
@@ -296,11 +398,13 @@ class CronManager {
 
         wp_send_json_success( [
             'message' => sprintf(
-                /* translators: 1: total emails, 2: created tickets, 3: replies */
-                __( 'Sync complete: %1$d emails found, %2$d tickets created, %3$d replies added.', 'fanaloka-maintenance' ),
+                /* translators: 1: total emails, 2: created tickets, 3: replies, 4: ignored, 5: sent synced */
+                __( 'Sync complete: %1$d emails found, %2$d tickets created, %3$d replies added, %4$d ignored, %5$d sent synced.', 'fanaloka-maintenance' ),
                 $results['total'],
                 $results['created'],
-                $results['replies']
+                $results['replies'],
+                $results['ignored'],
+                $results['sent_synced'] ?? 0
             ),
             'results' => $results,
         ] );
@@ -381,7 +485,7 @@ class CronManager {
         $lock_key = 'fm_sync_lock';
         if ( get_transient( $lock_key ) ) {
             Logger::log( 'Sync skipped: another sync is already running' );
-            return [ 'total' => 0, 'created' => 0, 'replies' => 0, 'errors' => 0, 'skipped' => true ];
+            return [ 'total' => 0, 'created' => 0, 'replies' => 0, 'ignored' => 0, 'errors' => 0, 'skipped' => true ];
         }
         set_transient( $lock_key, true, 120 );
 
@@ -394,6 +498,7 @@ class CronManager {
             'total'   => 0,
             'created' => 0,
             'replies' => 0,
+            'ignored' => 0,
             'errors'  => 0,
         ];
 
@@ -414,6 +519,17 @@ class CronManager {
 
                     if ( false === $parsed ) {
                         $results['errors']++;
+                        continue;
+                    }
+
+                    // Check if sender should be ignored.
+                    $sender_email = $parsed['sender_email'] ?? '';
+                    if ( $parser->should_ignore( $sender_email ) ) {
+                        Logger::log(
+                            sprintf( 'Ignored email from %s (matches ignore pattern)', $sender_email ),
+                            Logger::LEVEL_DEBUG
+                        );
+                        $results['ignored']++;
                         continue;
                     }
 
@@ -438,32 +554,103 @@ class CronManager {
                     Logger::log( 'Email processing error: ' . $e->getMessage(), Logger::LEVEL_ERROR );
                 }
             }
+
+            // --- Sent folder sync ---
+            $results['sent_synced'] = 0;
+            $sent_folder = '[Gmail]/Sent Mail';
+            if ( $reader->open_folder( $sent_folder ) ) {
+                Logger::log( sprintf( 'Syncing Sent folder: %s', $sent_folder ) );
+                $since_date_sent = gmdate( 'd-M-Y', strtotime( '-30 days' ) );
+                $sent_emails     = $reader->get_all_emails_since( $since_date_sent );
+                Logger::log( sprintf( 'Found %d emails in Sent folder', count( $sent_emails ) ) );
+
+                foreach ( $sent_emails as $sent_email ) {
+                    try {
+                        $parsed = $parser->parse_email( $sent_email );
+                        if ( false === $parsed ) {
+                            continue;
+                        }
+
+                        $from_email  = $parsed['sender_email'] ?? '';
+                        $admin_email = get_option( 'fm_imap_username', '' );
+                        if ( strtolower( $from_email ) !== strtolower( $admin_email ) ) {
+                            continue;
+                        }
+
+                        $subject            = $parsed['subject'] ?? '';
+                        $normalized_subject = ( new ConversationManager() )->normalize_subject( $subject );
+
+                        if ( empty( $normalized_subject ) ) {
+                            continue;
+                        }
+
+                        $ticket_id = $this->find_ticket_by_sent_subject( $normalized_subject );
+                        if ( false === $ticket_id ) {
+                            continue;
+                        }
+
+                        $message_id   = $parsed['message_id'] ?? '';
+                        $conversation = new ConversationManager();
+                        if ( ! empty( $message_id ) && $conversation->message_id_exists( $message_id ) ) {
+                            Logger::log( sprintf( 'Sent email skip duplicate: message_id %s already exists', $message_id ), Logger::LEVEL_DEBUG );
+                            continue;
+                        }
+
+                        if ( $conversation->has_recent_developer_reply( $ticket_id, $from_email ) ) {
+                            Logger::log( sprintf( 'Sent email skip duplicate: similar developer reply already exists in ticket #%d', $ticket_id ), Logger::LEVEL_DEBUG );
+                            continue;
+                        }
+
+                        $conversation->add_entry( $ticket_id, 'developer', $parsed['body'] ?? '', [
+                            'message_id'  => $message_id,
+                            'from_email'  => $from_email,
+                            'from_name'   => $parsed['sender_name'] ?? '',
+                            'subject'     => $subject,
+                            'date'        => $parsed['date'] ?? current_time( 'mysql' ),
+                            'body_html'   => $parsed['body_html'] ?? '',
+                            'imap_uid'    => $sent_email['msg_number'] ?? 0,
+                        ] );
+
+                        update_post_meta( $ticket_id, '_fm_last_updated', time() );
+                        $results['sent_synced']++;
+
+                        Logger::log( sprintf( 'Sent email synced to ticket #%d from %s', $ticket_id, $from_email ) );
+
+                    } catch ( \Exception $e ) {
+                        Logger::log( 'Sent email processing error: ' . $e->getMessage(), Logger::LEVEL_ERROR );
+                    }
+                }
+            }
+
         } catch ( \Exception $e ) {
             Logger::log( 'Manual sync error: ' . $e->getMessage(), Logger::LEVEL_ERROR );
         } finally {
             $reader->disconnect();
+            delete_transient( 'fm_sync_lock' );
         }
 
         update_option( 'fm_last_sync', [
-            'time'        => current_time( 'mysql' ),
-            'total'       => $results['total'],
-            'created'     => $results['created'],
-            'replies'     => $results['replies'],
-            'errors'      => $results['errors'],
-            'incremental' => true,
+            'time'         => current_time( 'mysql' ),
+            'total'        => $results['total'],
+            'created'      => $results['created'],
+            'replies'      => $results['replies'],
+            'ignored'      => $results['ignored'],
+            'errors'       => $results['errors'],
+            'sent_synced'  => $results['sent_synced'] ?? 0,
+            'incremental'  => true,
         ] );
 
         Logger::log(
             sprintf(
-                'Manual sync completed: %d total, %d created, %d replies, %d errors',
+                'Manual sync completed: %d total, %d created, %d replies, %d ignored, %d sent synced, %d errors',
                 $results['total'],
                 $results['created'],
                 $results['replies'],
+                $results['ignored'],
+                $results['sent_synced'] ?? 0,
                 $results['errors']
             )
         );
-
-        delete_transient( 'fm_sync_lock' );
 
         return $results;
     }

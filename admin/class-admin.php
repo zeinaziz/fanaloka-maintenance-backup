@@ -91,6 +91,9 @@ class Admin {
         add_action( 'wp_ajax_fm_get_entries', [ $this, 'ajax_get_entries' ] );
         add_action( 'wp_ajax_fm_list_clients', [ $this, 'ajax_list_clients' ] );
         add_action( 'wp_ajax_fm_get_client_tickets', [ $this, 'ajax_get_client_tickets' ] );
+        add_action( 'wp_ajax_fm_list_developers', [ $this, 'ajax_list_developers' ] );
+        add_action( 'wp_ajax_fm_get_developer_tickets', [ $this, 'ajax_get_developer_tickets' ] );
+        add_action( 'wp_ajax_fm_test_connection', [ new SettingsPage(), 'ajax_test_connection' ] );
     }
 
     /**
@@ -138,7 +141,7 @@ class Admin {
             'manage_options',
             'fm-dashboard',
             [ new DashboardPage(), 'render' ],
-            'dashicons-tools',
+            'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><rect width="24" height="24" rx="4" fill="#2271b1"/><g transform="translate(4,4)"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l.7.7-4.2 4.2-.7-.7a1 1 0 0 0-1.4 0l-2.8 2.8a1 1 0 0 0 0 1.4l.7.7H3.6a.6.6 0 0 0-.6.6v1.1c0 .3.3.6.6.6h1.1l.7.7a1 1 0 0 0 1.4 0l2.8-2.8a1 1 0 0 0 0-1.4l-.7-.7 4.2-4.2.7.7a1 1 0 0 0 1.4 0l2.8-2.8a1 1 0 0 0 .1-1.3z" fill="none" stroke="#FFD700" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></svg>' ),
             3
         );
 
@@ -186,6 +189,15 @@ class Admin {
             'fm-settings',
             [ new SettingsPage(), 'render' ]
         );
+
+        add_submenu_page(
+            'fm-dashboard',
+            __( 'Guide', 'fanaloka-maintenance' ),
+            __( 'Guide', 'fanaloka-maintenance' ),
+            'manage_options',
+            'fm-guide',
+            [ new GuidePage(), 'render' ]
+        );
     }
 
     /**
@@ -198,6 +210,8 @@ class Admin {
         if ( strpos( $hook, 'fm-' ) === false ) {
             return;
         }
+
+        wp_enqueue_style( 'dashicons' );
 
         wp_enqueue_style(
             'fm-admin',
@@ -263,6 +277,9 @@ class Admin {
                 break;
         }
 
+        // Update last activity on any field change.
+        update_post_meta( $ticket_id, '_fm_last_updated', time() );
+
         // Re-fetch ticket to get updated data.
         $ticket = $ticket_manager->get_ticket_meta( $ticket_id );
         $badges = $this->render_ticket_badges( $ticket );
@@ -326,6 +343,9 @@ class Admin {
 
         $conversation = new \Fanaloka\Maintenance\Ticket\ConversationManager();
         $entry_id = $conversation->add_reply_from_developer( $ticket_id, $content );
+
+        // Update last activity.
+        update_post_meta( $ticket_id, '_fm_last_updated', time() );
 
         // Handle file uploads.
         if ( ! empty( $_FILES['reply_attachments']['name'][0] ) && $entry_id ) {
@@ -672,9 +692,10 @@ class Admin {
         }
 
         $paged    = isset( $_POST['paged'] ) ? max( 1, absint( $_POST['paged'] ) ) : 1;
+        $client   = isset( $_POST['client'] ) ? sanitize_email( wp_unslash( $_POST['client'] ) ) : '';
         $status   = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
         $priority = isset( $_POST['priority'] ) ? sanitize_text_field( wp_unslash( $_POST['priority'] ) ) : '';
-        $orderby  = isset( $_POST['orderby'] ) ? sanitize_text_field( wp_unslash( $_POST['orderby'] ) ) : 'date';
+        $orderby  = isset( $_POST['orderby'] ) ? sanitize_text_field( wp_unslash( $_POST['orderby'] ) ) : '_fm_last_updated';
         $order    = isset( $_POST['order'] ) ? sanitize_text_field( wp_unslash( $_POST['order'] ) ) : 'DESC';
         $per_page = isset( $_POST['per_page'] ) ? max( 1, absint( $_POST['per_page'] ) ) : 20;
 
@@ -682,6 +703,7 @@ class Admin {
         $result         = $ticket_manager->get_tickets( [
             'per_page' => $per_page,
             'paged'    => $paged,
+            'client'   => $client,
             'status'   => $status,
             'priority' => $priority,
             'orderby'  => $orderby,
@@ -713,7 +735,7 @@ class Admin {
 
                 $html .= '<tr>';
                 $html .= '<th scope="row" class="check-column"><input type="checkbox" name="ticket[]" value="' . esc_attr( $ticket['id'] ) . '" /></th>';
-                $html .= '<td class="column-ticket_number column-primary"><a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['full_number'] ) . '</strong></a></td>';
+                $html .= '<td class="column-ticket_number column-primary"><a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a></td>';
                 $html .= '<td class="column-client"><strong>' . esc_html( $ticket['client_name'] ) . '</strong><br><span style="color:#8c8f94;font-size:12px;">' . esc_html( $ticket['client_email'] ) . '</span></td>';
                 $html .= '<td class="column-subject"><a href="' . esc_url( $view_url . $ticket['id'] ) . '">' . esc_html( $ticket['subject'] ) . '</a></td>';
                 $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
@@ -1000,6 +1022,249 @@ class Admin {
 
         $info_html  = '<div class="fm-modal-info-item"><strong>' . esc_html( $email ) . '</strong>Email</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $total ) . '</strong>Total Tickets</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $open ) . '</strong>Open</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $completed ) . '</strong>Completed</div>';
+
+        wp_send_json_success( [
+            'info_html'    => $info_html,
+            'tickets_html' => $tickets_html,
+        ] );
+    }
+
+    /**
+     * AJAX: List all developers from WordPress users with assigned tickets.
+     *
+     * @return void
+     */
+    public function ajax_list_developers(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+
+        $search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+
+        $developers = $this->get_developers( $search );
+
+        $total_devs    = count( $developers );
+        $total_tickets = 0;
+        foreach ( $developers as &$d ) {
+            $total_tickets += $d['total'];
+        }
+        unset( $d );
+
+        $html = '';
+        if ( empty( $developers ) ) {
+            $html = '<div style="text-align:center;padding:40px;color:#8c8f94;">No developers found.</div>';
+        } else {
+            $colors = [ '#2271b1', '#00a32a', '#dba617', '#d63638', '#996800', '#8c8f94' ];
+            foreach ( $developers as $dev ) {
+                $initials = strtoupper( substr( $dev['display_name'], 0, 1 ) );
+                $color    = $colors[ crc32( $dev['email'] ) % count( $colors ) ];
+                $role_badge = esc_html( ucfirst( str_replace( '_', ' ', $dev['role'] ) ) );
+
+                $html .= '<div class="fm-dev-row" data-user-id="' . esc_attr( $dev['id'] ) . '" data-name="' . esc_attr( $dev['display_name'] ) . '">';
+                $html .= '<div class="fm-dev-info">';
+                $html .= '<div class="fm-dev-avatar" style="background:' . esc_attr( $color ) . ';">' . esc_html( $initials ) . '</div>';
+                $html .= '<div>';
+                $html .= '<div class="fm-dev-name">' . esc_html( $dev['display_name'] ) . '</div>';
+                $html .= '<div class="fm-dev-email">' . esc_html( $dev['email'] ) . '</div>';
+                $html .= '<span class="fm-dev-role">' . $role_badge . '</span>';
+                $html .= '</div>';
+                $html .= '</div>';
+                $html .= '<div class="fm-dev-stats">';
+                $html .= '<div class="fm-dev-stat"><span class="fm-dev-stat-num">' . esc_html( $dev['total'] ) . '</span><span class="fm-dev-stat-label">Assigned</span></div>';
+                $html .= '<div class="fm-dev-stat"><span class="fm-dev-stat-num">' . esc_html( $dev['open'] ) . '</span><span class="fm-dev-stat-label">Open</span></div>';
+                $html .= '<div class="fm-dev-stat"><span class="fm-dev-stat-num">' . esc_html( $dev['completed'] ) . '</span><span class="fm-dev-stat-label">Done</span></div>';
+                $html .= '<span class="fm-dev-arrow dashicons dashicons-arrow-right-alt2"></span>';
+                $html .= '</div>';
+                $html .= '</div>';
+            }
+        }
+
+        wp_send_json_success( [
+            'html'           => $html,
+            'total_devs'     => $total_devs,
+            'total_tickets'  => $total_tickets,
+        ] );
+    }
+
+    /**
+     * Get developers (WP users with certain roles) and their assigned ticket counts.
+     *
+     * @param string $search Search query.
+     * @return array<int, array{id: int, display_name: string, email: string, role: string, total: int, open: int, completed: int}>
+     */
+    private function get_developers( string $search = '' ): array {
+        $developer_roles = [ 'administrator', 'editor', 'author', 'contributor' ];
+
+        $args = [
+            'role__in'       => $developer_roles,
+            'fields'         => [ 'ID', 'user_email', 'display_name', 'user_login' ],
+            'orderby'        => 'display_name',
+            'order'          => 'ASC',
+            'number'         => 200,
+            'hide_empty'     => true,
+        ];
+
+        if ( $search ) {
+            $args['search']         = '*' . $search . '*';
+            $args['search_columns'] = [ 'display_name', 'user_email', 'user_login' ];
+        }
+
+        $wp_users = get_users( $args );
+
+        // Fetch all tickets once.
+        $all_query = new \WP_Query( [
+            'post_type'      => 'maintenance_request',
+            'post_status'    => 'any',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+        ] );
+
+        // Group ticket IDs by _fm_assigned_dev.
+        $tickets_by_dev = [];
+
+        foreach ( $all_query->posts as $post_id ) {
+            $dev_id = absint( get_post_meta( $post_id, '_fm_assigned_dev', true ) );
+            if ( $dev_id > 0 ) {
+                if ( ! isset( $tickets_by_dev[ $dev_id ] ) ) {
+                    $tickets_by_dev[ $dev_id ] = [];
+                }
+                $tickets_by_dev[ $dev_id ][] = $post_id;
+            }
+        }
+
+        $developers = [];
+
+        foreach ( $wp_users as $user ) {
+            $dev_id = $user->ID;
+            $user_tickets = $tickets_by_dev[ $dev_id ] ?? [];
+            $total     = count( $user_tickets );
+            $open      = 0;
+            $completed = 0;
+
+            foreach ( $user_tickets as $tid ) {
+                $status = get_post_meta( $tid, '_fm_status', true );
+                if ( in_array( $status, [ 'new', 'open', 'in-progress', 'waiting-client' ], true ) ) {
+                    $open++;
+                } elseif ( 'completed' === $status ) {
+                    $completed++;
+                }
+            }
+
+            $roles = get_userdata( $dev_id );
+            $role  = '';
+            if ( $roles && ! empty( $roles->roles ) ) {
+                $role = array_values( $roles->roles )[0];
+            }
+
+            $developers[] = [
+                'id'           => $dev_id,
+                'display_name' => $user->display_name,
+                'email'        => $user->user_email,
+                'role'         => $role ?: 'developer',
+                'total'        => $total,
+                'open'         => $open,
+                'completed'    => $completed,
+            ];
+        }
+
+        // Sort by total desc.
+        usort( $developers, function ( $a, $b ) {
+            return $b['total'] - $a['total'];
+        } );
+
+        return $developers;
+    }
+
+    /**
+     * AJAX: Get tickets for a specific developer.
+     *
+     * @return void
+     */
+    public function ajax_get_developer_tickets(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+
+        $user_id = absint( $_POST['user_id'] ?? 0 );
+
+        if ( ! $user_id ) {
+            wp_send_json_error( [ 'message' => 'Invalid developer' ] );
+        }
+
+        $user_data = get_userdata( $user_id );
+        $display_name = $user_data ? $user_data->display_name : 'Unknown';
+        $email = $user_data ? $user_data->user_email : '';
+
+        $query = new \WP_Query( [
+            'post_type'      => 'maintenance_request',
+            'post_status'    => 'any',
+            'posts_per_page' => -1,
+            'meta_query'     => [
+                [
+                    'key'   => '_fm_assigned_dev',
+                    'value' => $user_id,
+                ],
+            ],
+            'orderby' => 'date',
+            'order'   => 'DESC',
+        ] );
+
+        $total     = 0;
+        $open      = 0;
+        $completed = 0;
+
+        $status_colors = [
+            'new'            => 'fm-badge-primary',
+            'open'           => 'fm-badge-warning',
+            'in-progress'    => 'fm-badge-success',
+            'waiting-client' => 'fm-badge-warning',
+            'completed'      => 'fm-badge-success',
+            'cancelled'      => 'fm-badge-danger',
+        ];
+
+        $tickets_html = '';
+        foreach ( $query->posts as $post ) {
+            $post_id = is_object( $post ) ? $post->ID : $post;
+            $total++;
+            $status      = get_post_meta( $post_id, '_fm_status', true );
+            $full_number = get_post_meta( $post_id, '_fm_full_number', true );
+            $subject     = get_the_title( $post_id );
+
+            if ( in_array( $status, [ 'new', 'open', 'in-progress', 'waiting-client' ], true ) ) {
+                $open++;
+            } elseif ( 'completed' === $status ) {
+                $completed++;
+            }
+
+            $sc       = $status_colors[ $status ] ?? 'fm-badge-default';
+            $view_url = admin_url( 'admin.php?page=fm-requests&action=view&id=' . $post_id );
+
+            $tickets_html .= '<div class="fm-modal-ticket-row">';
+            $tickets_html .= '<a href="' . esc_url( $view_url ) . '" class="fm-modal-ticket-num">' . esc_html( $full_number ) . '</a>';
+            $tickets_html .= '<span class="fm-modal-ticket-subject">' . esc_html( $subject ) . '</span>';
+            $tickets_html .= '<span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( ucfirst( str_replace( '-', ' ', $status ) ) ) . '</span>';
+            $tickets_html .= '</div>';
+        }
+
+        if ( empty( $tickets_html ) ) {
+            $tickets_html = '<div style="text-align:center;padding:20px;color:#8c8f94;">No tickets assigned yet.</div>';
+        }
+
+        $role = '';
+        if ( $user_data && ! empty( $user_data->roles ) ) {
+            $role = array_values( $user_data->roles )[0];
+        }
+
+        $info_html  = '<div class="fm-modal-info-item"><strong>' . esc_html( $display_name ) . '</strong>Name</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $email ) . '</strong>Email</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( ucfirst( str_replace( '_', ' ', $role ) ) ) . '</strong>Role</div>';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $total ) . '</strong>Total Assigned</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $open ) . '</strong>Open</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $completed ) . '</strong>Completed</div>';
 

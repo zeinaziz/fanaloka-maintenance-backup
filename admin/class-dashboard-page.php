@@ -34,7 +34,7 @@ class DashboardPage {
         <div class="wrap fm-page-wrap">
             <!-- Page Header -->
             <div class="fm-page-header">
-                <h1 class="fm-page-title"><span class="dashicons dashicons-dashboard"></span> <?php esc_html_e( 'Dashboard', 'fanaloka-maintenance' ); ?></h1>
+                <h1 class="fm-page-title"><span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'dashboard' ); ?></span> <?php esc_html_e( 'Dashboard', 'fanaloka-maintenance' ); ?></h1>
             </div>
 
             <!-- Stats Row -->
@@ -170,6 +170,14 @@ class DashboardPage {
                             <div class="fm-info-row">
                                 <span class="fm-info-label"><?php esc_html_e( 'Replies', 'fanaloka-maintenance' ); ?></span>
                                 <span class="fm-info-value"><?php echo esc_html( $last_sync['replies'] ); ?></span>
+                            </div>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Ignored', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value"><?php echo esc_html( $last_sync['ignored'] ?? 0 ); ?></span>
+                            </div>
+                            <div class="fm-info-row">
+                                <span class="fm-info-label"><?php esc_html_e( 'Sent Synced', 'fanaloka-maintenance' ); ?></span>
+                                <span class="fm-info-value"><?php echo esc_html( $last_sync['sent_synced'] ?? 0 ); ?></span>
                             </div>
                             <div class="fm-info-row">
                                 <span class="fm-info-label"><?php esc_html_e( 'Errors', 'fanaloka-maintenance' ); ?></span>

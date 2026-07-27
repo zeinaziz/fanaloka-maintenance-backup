@@ -16,6 +16,8 @@
 
 namespace Fanaloka\Maintenance;
 
+use Fanaloka\Maintenance\Email\EmailParser;
+
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -125,6 +127,21 @@ final class Plugin {
             if ( false === get_option( 'fm_' . $key ) ) {
                 update_option( 'fm_' . $key, $value );
             }
+        }
+
+        // Set default ignore settings (only if not already set).
+        if ( false === get_option( 'fm_ignore_local_domain' ) ) {
+            update_option( 'fm_ignore_local_domain', 'fanaloka.co' );
+        }
+
+        if ( false === get_option( 'fm_ignore_domains' ) ) {
+            $default_domains = implode( "\n", EmailParser::DEFAULT_IGNORED_DOMAINS );
+            update_option( 'fm_ignore_domains', $default_domains );
+        }
+
+        if ( false === get_option( 'fm_ignore_sender_prefixes' ) ) {
+            $default_prefixes = implode( "\n", EmailParser::DEFAULT_IGNORED_PREFIXES );
+            update_option( 'fm_ignore_sender_prefixes', $default_prefixes );
         }
 
         // Create database tables.

@@ -19,6 +19,7 @@ class Logger {
     /**
      * Log levels.
      */
+    const LEVEL_DEBUG  = 'debug';
     const LEVEL_INFO    = 'info';
     const LEVEL_WARNING = 'warning';
     const LEVEL_ERROR   = 'error';
@@ -39,7 +40,13 @@ class Logger {
             'context' => $context,
         ];
 
-        $logs   = get_option( 'fm_logs', [] );
+        $logs = get_option( 'fm_logs', [] );
+
+        if ( is_string( $logs ) ) {
+            $decoded = json_decode( $logs, true );
+            $logs    = is_array( $decoded ) ? $decoded : [];
+        }
+
         $logs[] = $entry;
 
         // Keep only last 1000 entries.
@@ -58,6 +65,12 @@ class Logger {
      */
     public static function get_logs( int $limit = 100 ): array {
         $logs = get_option( 'fm_logs', [] );
+
+        if ( is_string( $logs ) ) {
+            $decoded = json_decode( $logs, true );
+            $logs    = is_array( $decoded ) ? $decoded : [];
+        }
+
         return array_slice( array_reverse( $logs ), 0, $limit );
     }
 

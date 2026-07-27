@@ -19,16 +19,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EmailParser {
 
     /**
-     * Domains to ignore (system notifications, not client requests).
+     * Default ignored domains (used on first activation).
      *
      * @var array<int, string>
      */
-    private const IGNORED_DOMAINS = [
+    public const DEFAULT_IGNORED_DOMAINS = [
         'niftypm.com',
         'slackhq.com',
         'slack.com',
         'google.com',
-        'gmail.com',
         'docs.google.com',
         'accounts.google.com',
         'drive-shares-noreply.google.com',
@@ -63,18 +62,11 @@ class EmailParser {
     ];
 
     /**
-     * Local domain (team emails, not client requests).
-     *
-     * @var string
-     */
-    private const LOCAL_DOMAIN = 'fanaloka.co';
-
-    /**
-     * Prefixes that indicate automated/system emails.
+     * Default ignored sender prefixes.
      *
      * @var array<int, string>
      */
-    private const IGNORED_SENDER_PREFIXES = [
+    public const DEFAULT_IGNORED_PREFIXES = [
         'noreply',
         'no-reply',
         'donotreply',
@@ -93,7 +85,6 @@ class EmailParser {
         'hello',
         'newsletter',
         'marketing',
-        'hello',
         'team',
         'feedback',
         'sales',
@@ -102,10 +93,6 @@ class EmailParser {
         'workspace-noreply',
         'drive-shares-noreply',
         'comments-noreply',
-        'strawberryjam',
-        'drew',
-        'lora',
-        'maxime',
     ];
 
     /**
@@ -242,18 +229,22 @@ class EmailParser {
         // Decode MIME encoded subjects.
         $subject = mb_decode_mimeheader( $subject );
 
-        // Remove ticket number prefix [REQ-XXX].
-        $prefix = get_option( 'fm_ticket_prefix', 'REQ' );
-        $subject = preg_replace( '/^\[' . preg_quote( $prefix, '/' ) . '-\d+\]\s*/i', '', $subject );
+        // Remove multiple levels of reply/forward prefixes FIRST.
+        do {
+            $subject = preg_replace(
+                '/^\s*(?:Re|RE|Fw|FW|Fwd|FWD|Aw|Jawab|Balasan)\s*:\s*/i',
+                '',
+                $subject
+            );
+        } while ( preg_match( '/^\s*(?:Re|RE|Fw|FW|Fwd|FWD|Aw|Jawab|Balasan)\s*:\s*/i', $subject ) );
 
-        // Remove multiple levels of reply/forward prefixes.
-        // Pattern: (Re|RE|Fw|FW|Fwd|FWD|Aw|Jawab|Balasan):\s* repeated
-        $prefix_pattern = implode( '|', self::REPLY_PREFIXES );
-        $subject = preg_replace(
-            '/^(?:' . $prefix_pattern . ')(?:\:\s*(?:' . $prefix_pattern . ')(?:\:\s*)*)*\s*/i',
-            '',
-            $subject
-        );
+        // Remove ticket number prefix [PREFIX-XXX] or [-XXX].
+        $prefix = get_option( 'fm_ticket_prefix', 'REQ' );
+        if ( ! empty( $prefix ) ) {
+            $subject = preg_replace( '/^\[' . preg_quote( $prefix, '/' ) . '-\d+\]\s*/i', '', $subject );
+        }
+        // Also handle legacy empty-prefix format [-XXX].
+        $subject = preg_replace( '/^\[-\d+\]\s*/', '', $subject );
 
         return trim( $subject );
     }
@@ -327,20 +318,39 @@ class EmailParser {
         $domain      = substr( strrchr( $email_lower, '@' ), 1 );
         $local_part  = explode( '@', $email_lower )[0];
 
-        if ( self::LOCAL_DOMAIN === $domain ) {
+        // Check local domain.
+        $local_domain = get_option( 'fm_ignore_local_domain', 'fanaloka.co' );
+        if ( $local_domain && $domain === $local_domain ) {
             return true;
         }
 
-        if ( in_array( $domain, self::IGNORED_DOMAINS, true ) ) {
+        // Check domains (hardcoded defaults + configurable).
+        $custom_domains = get_option( 'fm_ignore_domains', '' );
+        $extra_domains  = ! empty( $custom_domains )
+            ? array_map( 'trim', explode( "\n", $custom_domains ) )
+            : [];
+        $extra_domains  = array_filter( $extra_domains );
+        $all_domains    = array_unique( array_merge( self::DEFAULT_IGNORED_DOMAINS, $extra_domains ) );
+
+        if ( in_array( $domain, $all_domains, true ) ) {
             return true;
         }
 
-        foreach ( self::IGNORED_SENDER_PREFIXES as $prefix ) {
+        // Check sender prefixes (hardcoded defaults + configurable).
+        $custom_prefixes = get_option( 'fm_ignore_sender_prefixes', '' );
+        $extra_prefixes  = ! empty( $custom_prefixes )
+            ? array_map( 'trim', explode( "\n", $custom_prefixes ) )
+            : [];
+        $extra_prefixes  = array_filter( $extra_prefixes );
+        $all_prefixes    = array_unique( array_merge( self::DEFAULT_IGNORED_PREFIXES, $extra_prefixes ) );
+
+        foreach ( $all_prefixes as $prefix ) {
             if ( 0 === strpos( $local_part, $prefix ) ) {
                 return true;
             }
         }
 
+        // Check configurable sender patterns (wildcards, exact emails).
         $custom_patterns = get_option( 'fm_ignore_sender_patterns', '' );
         if ( ! empty( $custom_patterns ) ) {
             $patterns = array_map( 'trim', explode( "\n", $custom_patterns ) );

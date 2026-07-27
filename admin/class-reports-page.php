@@ -1,6 +1,6 @@
 <?php
 /**
- * Reports Page - Display reports, charts, and CSV export.
+ * Reports Page - Display reports and charts.
  *
  * @package Fanaloka\Maintenance
  */
@@ -24,22 +24,19 @@ class ReportsPage {
      * @return void
      */
     public function render(): void {
-        // Handle CSV export.
-        $this->handle_export();
-
-        $report    = new ReportManager();
-        $period    = isset( $_GET['period'] ) ? sanitize_text_field( wp_unslash( $_GET['period'] ) ) : 'month'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $summary   = $report->get_summary();
-        $monthly   = $report->get_monthly_report( 12 );
-        $status    = $report->get_count_by_status( $period );
-        $priority  = $report->get_count_by_priority( $period );
-        $dev_perf  = $report->get_developer_performance();
+        $report   = new ReportManager();
+        $period   = isset( $_GET['period'] ) ? sanitize_text_field( wp_unslash( $_GET['period'] ) ) : 'month'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $summary  = $report->get_summary( $period );
+        $monthly  = $report->get_monthly_report( 12 );
+        $status   = $report->get_count_by_status( $period );
+        $priority = $report->get_count_by_priority( $period );
+        $dev_perf = $report->get_developer_performance( $period );
         ?>
 
         <div class="fm-page-wrap">
             <div class="fm-page-header">
                 <h1 class="fm-page-title">
-                    <span class="dashicons dashicons-chart-bar" style="color:#8c8f94"></span>
+                    <span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'reports', '#646970' ); ?></span>
                     <?php esc_html_e( 'Reports', 'fanaloka-maintenance' ); ?>
                 </h1>
                 <div class="fm-page-header-right">
@@ -51,9 +48,6 @@ class ReportsPage {
                         <a href="?page=fm-reports&period=month" class="fm-btn-filter <?php echo 'month' === $period ? 'active' : ''; ?>"><?php esc_html_e( 'This Month', 'fanaloka-maintenance' ); ?></a>
                         <a href="?page=fm-reports&period=year" class="fm-btn-filter <?php echo 'year' === $period ? 'active' : ''; ?>"><?php esc_html_e( 'This Year', 'fanaloka-maintenance' ); ?></a>
                     </div>
-                    <a href="?page=fm-reports&action=export&period=<?php echo esc_attr( $period ); ?>" class="fm-btn fm-btn-outline">
-                        <span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export CSV', 'fanaloka-maintenance' ); ?>
-                    </a>
                 </div>
             </div>
 
@@ -86,23 +80,6 @@ class ReportsPage {
                                     ?>
                                 </span>
                                 <span class="fm-stat-label"><?php esc_html_e( 'Avg Completion', 'fanaloka-maintenance' ); ?></span>
-                            </div>
-                        </div>
-                        <div class="fm-stat-card">
-                            <div class="fm-stat-icon" style="background:#fef3e2;color:#996800;">
-                                <span class="dashicons dashicons-email"></span>
-                            </div>
-                            <div class="fm-stat-content">
-                                <span class="fm-stat-number">
-                                    <?php
-                                    printf(
-                                        /* translators: %s: hours */
-                                        esc_html__( '%sh', 'fanaloka-maintenance' ),
-                                        esc_html( $summary['avg_response_h'] )
-                                    );
-                                    ?>
-                                </span>
-                                <span class="fm-stat-label"><?php esc_html_e( 'Avg Response', 'fanaloka-maintenance' ); ?></span>
                             </div>
                         </div>
                     </div>
@@ -209,7 +186,7 @@ class ReportsPage {
         .fm-page-columns { display: flex; gap: 20px; align-items: flex-start; }
         .fm-page-main { flex: 1; min-width: 0; }
         .fm-page-sidebar { width: 300px; flex-shrink: 0; }
-        .fm-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .fm-stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
         .fm-stat-card { display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-stat-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; }
         .fm-stat-icon .dashicons { font-size: 22px; width: 22px; height: 22px; }
@@ -234,10 +211,6 @@ class ReportsPage {
         .fm-dev-total { font-size: 14px; font-weight: 600; color: #1d2327; display: block; }
         .fm-dev-avg { font-size: 12px; color: #8c8f94; }
         .fm-no-data { text-align: center; padding: 20px; color: #8c8f94; font-size: 14px; }
-        .fm-btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-decoration: none; line-height: 1.4; }
-        .fm-btn-outline { background: #fff; color: #1d2327; border: 1px solid #ccc; }
-        .fm-btn-outline:hover { background: #f0f0f1; border-color: #8c8f94; }
-        .fm-btn .dashicons { font-size: 16px; top: 1px; }
         .fm-period-filters { display: flex; gap: 0; background: #f0f0f1; border-radius: 6px; padding: 2px; }
         .fm-btn-filter { padding: 6px 14px; border-radius: 5px; font-size: 13px; color: #646970; text-decoration: none; font-weight: 500; transition: all 0.15s; }
         .fm-btn-filter:hover { background: #fff; color: #1d2327; }
@@ -279,36 +252,5 @@ class ReportsPage {
         });
         </script>
         <?php
-    }
-
-    /**
-     * Handle CSV export.
-     *
-     * @return void
-     */
-    private function handle_export(): void {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( ! isset( $_GET['action'] ) || 'export' !== $_GET['action'] ) {
-            return;
-        }
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            return;
-        }
-
-        $period = isset( $_GET['period'] ) ? sanitize_text_field( wp_unslash( $_GET['period'] ) ) : 'all'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-
-        $report = new ReportManager();
-        $csv    = $report->export_csv( [ 'status' => '', 'priority' => '' ] );
-
-        $filename = sprintf( 'fm-report-%s-%s.csv', $period, date( 'Y-m-d' ) );
-
-        header( 'Content-Type: text/csv; charset=utf-8' );
-        header( 'Content-Disposition: attachment; filename=' . $filename );
-        header( 'Pragma: no-cache' );
-        header( 'Expires: 0' );
-
-        echo $csv; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-        exit;
     }
 }

@@ -135,7 +135,7 @@ class TicketDetailPage {
                                         if ( 'developer' === $entry['entry_type'] || 'internal' === $entry['entry_type'] ) {
                                             echo wp_kses_post( $entry['body'] );
                                         } elseif ( 'client' === $entry['entry_type'] && ! empty( $entry['body_html'] ) ) {
-                                            echo wp_kses_post( $entry['body_html'] );
+                                            echo $this->kses_html_body( $entry['body_html'] );
                                         } else {
                                             echo wp_kses_post( nl2br( esc_html( $entry['body'] ) ) );
                                         }
@@ -268,7 +268,7 @@ class TicketDetailPage {
                             </div>
                             <div class="fm-field-row">
                                 <label><?php esc_html_e( 'Updated', 'fanaloka-maintenance' ); ?></label>
-                                <span><?php echo esc_html( $ticket['last_updated'] ?? '' ); ?></span>
+                                <span><?php echo esc_html( ! empty( $ticket['last_updated'] ) ? wp_date( 'Y-m-d H:i', (int) $ticket['last_updated'] ) : '' ); ?></span>
                             </div>
                             <?php if ( ! empty( $ticket['completion_date'] ) ) : ?>
                             <div class="fm-field-row">
@@ -379,6 +379,31 @@ class TicketDetailPage {
         .fm-file-size { color: #8c8f94; font-size: 12px; }
         </style>
         <?php
+    }
+
+    /**
+     * Sanitize HTML body allowing data: URIs for embedded images.
+     *
+     * @param string $html Raw HTML content.
+     * @return string Sanitized HTML.
+     */
+    private function kses_html_body( string $html ): string {
+        // Allow data: URIs in img src by temporarily replacing them.
+        $data_uris = [];
+        $html = preg_replace_callback( '/src="(data:[^"]+)"/', function ( $m ) use ( &$data_uris ) {
+            $key = '___DATA_URI_' . count( $data_uris ) . '___';
+            $data_uris[ $key ] = $m[1];
+            return 'src="' . $key . '"';
+        }, $html );
+
+        $html = wp_kses_post( $html );
+
+        // Restore data: URIs.
+        foreach ( $data_uris as $key => $uri ) {
+            $html = str_replace( $key, $uri, $html );
+        }
+
+        return $html;
     }
 
     /**

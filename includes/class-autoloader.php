@@ -44,6 +44,8 @@ class Autoloader {
         'Fanaloka\Maintenance\Admin\DevelopersPage'       => 'admin/class-developers-page.php',
         'Fanaloka\Maintenance\Admin\ReportsPage'          => 'admin/class-reports-page.php',
         'Fanaloka\Maintenance\Admin\TicketDetailPage'     => 'admin/class-ticket-detail-page.php',
+        'Fanaloka\Maintenance\Admin\GuidePage'            => 'admin/class-guide-page.php',
+        'Fanaloka\Maintenance\Icons'                      => 'includes/class-icons.php',
         'Fanaloka\Maintenance\Cron\CronManager'           => 'includes/class-cron-manager.php',
         'Fanaloka\Maintenance\IMAP\IMAPReader'            => 'includes/class-imap-reader.php',
         'Fanaloka\Maintenance\Email\EmailParser'          => 'includes/class-email-parser.php',

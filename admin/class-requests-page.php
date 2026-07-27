@@ -38,11 +38,11 @@ class RequestsPage {
         <div class="fm-page-wrap">
             <div class="fm-page-header">
                 <h1 class="fm-page-title">
-                    <span class="dashicons dashicons-welcome-view-site" style="color:#2271b1"></span>
+                    <span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'requests' ); ?></span>
                     <?php esc_html_e( 'All Requests', 'fanaloka-maintenance' ); ?>
                 </h1>
                 <div class="fm-auto-refresh-info">
-                    <span class="dashicons dashicons-update" id="fm-refresh-icon"></span>
+                    <span class="fm-icon" id="fm-refresh-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'refresh', '#00a32a' ); ?></span>
                     <span id="fm-refresh-status"><?php esc_html_e( 'Auto-refresh enabled', 'fanaloka-maintenance' ); ?></span>
                     <span class="fm-refresh-dot" id="fm-refresh-dot"></span>
                 </div>
@@ -62,6 +62,15 @@ class RequestsPage {
                         <input type="button" id="fm-bulk-apply" class="button action" value="<?php esc_attr_e( 'Apply', 'fanaloka-maintenance' ); ?>" />
                     </div>
                     <div class="alignleft actions">
+                        <select id="fm-filter-client">
+                            <option value=""><?php esc_html_e( 'All Clients', 'fanaloka-maintenance' ); ?></option>
+                            <?php
+                            $clients = $this->get_unique_clients();
+                            foreach ( $clients as $email => $name ) :
+                                ?>
+                                <option value="<?php echo esc_attr( $email ); ?>"><?php echo esc_html( $name ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
                         <select id="fm-filter-status">
                             <option value=""><?php esc_html_e( 'All Statuses', 'fanaloka-maintenance' ); ?></option>
                             <?php foreach ( TicketManager::STATUSES as $key => $label ) : ?>
@@ -167,9 +176,10 @@ class RequestsPage {
         (function($) {
             var state = {
                 paged: 1,
+                client: '',
                 status: '',
                 priority: '',
-                orderby: 'date',
+                orderby: '_fm_last_updated',
                 order: 'DESC',
                 per_page: 20,
             };
@@ -184,6 +194,7 @@ class RequestsPage {
                     action: 'fm_list_requests',
                     nonce: fmRequestsAjax.nonce,
                     paged: state.paged,
+                    client: state.client,
                     status: state.status,
                     priority: state.priority,
                     orderby: state.orderby,
@@ -212,6 +223,7 @@ class RequestsPage {
 
             // Filter apply
             $('#fm-filter-apply').on('click', function() {
+                state.client = $('#fm-filter-client').val();
                 state.status = $('#fm-filter-status').val();
                 state.priority = $('#fm-filter-priority').val();
                 state.paged = 1;
@@ -220,8 +232,10 @@ class RequestsPage {
 
             // Filter clear
             $('#fm-filter-clear').on('click', function() {
+                $('#fm-filter-client').val('');
                 $('#fm-filter-status').val('');
                 $('#fm-filter-priority').val('');
+                state.client = '';
                 state.status = '';
                 state.priority = '';
                 state.paged = 1;
@@ -229,7 +243,8 @@ class RequestsPage {
             });
 
             // Auto-filter on select change
-            $('#fm-filter-status, #fm-filter-priority').on('change', function() {
+            $('#fm-filter-client, #fm-filter-status, #fm-filter-priority').on('change', function() {
+                state.client = $('#fm-filter-client').val();
                 state.status = $('#fm-filter-status').val();
                 state.priority = $('#fm-filter-priority').val();
                 state.paged = 1;
@@ -352,5 +367,31 @@ class RequestsPage {
             $devs[ $user->ID ] = $user->display_name;
         }
         return $devs;
+    }
+
+    /**
+     * Get unique clients from tickets.
+     *
+     * @return array<string, string> email => name.
+     */
+    private function get_unique_clients(): array {
+        $query = new \WP_Query( [
+            'post_type'      => 'maintenance_request',
+            'post_status'    => 'any',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+        ] );
+
+        $clients = [];
+        foreach ( $query->posts as $post_id ) {
+            $email = get_post_meta( $post_id, '_fm_client_email', true );
+            $name  = get_post_meta( $post_id, '_fm_client_name', true );
+            if ( $email && ! isset( $clients[ $email ] ) ) {
+                $clients[ $email ] = $name ?: $email;
+            }
+        }
+
+        asort( $clients );
+        return $clients;
     }
 }

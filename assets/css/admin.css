@@ -4,6 +4,37 @@
  * @package Fanaloka\Maintenance
  */
 
+/* Custom SVG Icons */
+.fm-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.fm-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.fm-icon-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.fm-icon-sm svg {
+    width: 16px;
+    height: 16px;
+}
+
 /* Notifications - Fixed toast style */
 .fm-notice {
     position: fixed;
@@ -88,4 +119,77 @@
 .fm-attachment-file:hover {
     background: #2271b1;
     color: #fff;
+}
+
+/* Email body list styles */
+.fm-entry-content ul,
+.fm-entry-body .fm-entry-content ul {
+    list-style-type: disc !important;
+    padding-left: 1.5em !important;
+    margin: 8px 0 !important;
+}
+
+.fm-entry-content ol,
+.fm-entry-body .fm-entry-content ol {
+    list-style-type: decimal !important;
+    padding-left: 1.5em !important;
+    margin: 8px 0 !important;
+}
+
+.fm-entry-content ul ul,
+.fm-entry-content ol ul {
+    list-style-type: circle !important;
+}
+
+.fm-entry-content ul ul ul,
+.fm-entry-content ol ol ul {
+    list-style-type: square !important;
+}
+
+.fm-entry-content li,
+.fm-entry-body .fm-entry-content li {
+    margin-bottom: 4px !important;
+}
+
+.fm-entry-content dl,
+.fm-entry-body .fm-entry-content dl {
+    margin: 8px 0 !important;
+    padding-left: 1.5em !important;
+}
+
+.fm-entry-content dt,
+.fm-entry-body .fm-entry-content dt {
+    font-weight: 700 !important;
+}
+
+.fm-entry-content dd,
+.fm-entry-body .fm-entry-content dd {
+    margin-left: 1.5em !important;
+    margin-bottom: 8px !important;
+}
+
+.fm-entry-content blockquote,
+.fm-entry-body .fm-entry-content blockquote {
+    border-left: 3px solid #ccc !important;
+    padding-left: 12px !important;
+    margin: 8px 0 !important;
+    color: #666 !important;
+}
+
+.fm-entry-content pre,
+.fm-entry-body .fm-entry-content pre {
+    background: #f6f7f7 !important;
+    padding: 10px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    overflow-x: auto !important;
+    white-space: pre-wrap !important;
+    font-size: 12px !important;
+}
+
+.fm-entry-content hr,
+.fm-entry-body .fm-entry-content hr {
+    border: none !important;
+    border-top: 1px solid #ddd !important;
+    margin: 12px 0 !important;
 }

@@ -20,6 +20,40 @@ if ( ! defined( 'ABSPATH' ) ) {
 class ConversationManager {
 
     /**
+     * Check if a similar developer reply already exists recently.
+     *
+     * Used for Sent folder deduplication: when admin sends email via website,
+     * the same email appears in Gmail Sent with a different Message-ID.
+     * Matches by ticket + sender email + time window.
+     *
+     * @param int    $ticket_id   Ticket post ID.
+     * @param string $from_email  Sender email.
+     * @param int    $window_minutes Time window in minutes (default 60).
+     * @return bool True if a similar entry exists.
+     */
+    public function has_recent_developer_reply( int $ticket_id, string $from_email, int $window_minutes = 60 ): bool {
+        global $wpdb;
+
+        $table = Database::table_name();
+        $since = gmdate( 'Y-m-d H:i:s', strtotime( "-{$window_minutes} minutes" ) );
+
+        $count = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table}
+                WHERE ticket_id = %d
+                AND entry_type = 'developer'
+                AND email = %s
+                AND created_at >= %s",
+                $ticket_id,
+                $from_email,
+                $since
+            )
+        );
+
+        return $count > 0;
+    }
+
+    /**
      * Add a conversation entry.
      *
      * @param int                    $ticket_id Ticket post ID.
@@ -437,26 +471,22 @@ class ConversationManager {
         // Decode MIME encoded subjects.
         $subject = mb_decode_mimeheader( $subject );
 
-        // Remove ticket number prefix [REQ-XXX].
-        $prefix = get_option( 'fm_ticket_prefix', 'REQ' );
-        $subject = preg_replace( '/^\[' . preg_quote( $prefix, '/' ) . '-\d+\]\s*/i', '', $subject );
+        // Remove multiple levels of Re:/Fwd: prefixes FIRST.
+        do {
+            $subject = preg_replace(
+                '/^\s*(?:Re|RE|Fw|FW|Fwd|FWD|Aw|Jawab|Balasan)\s*:\s*/i',
+                '',
+                $subject
+            );
+        } while ( preg_match( '/^\s*(?:Re|RE|Fw|FW|Fwd|FWD|Aw|Jawab|Balasan)\s*:\s*/i', $subject ) );
 
-        // Remove multiple levels of Re:/Fwd: prefixes.
-        $subject = preg_replace(
-            '/^(?:' .
-            'Re(?:\:\s*Re(?:\:\s*)*)*' . '|' .
-            'RE(?:\:\s*RE(?:\:\s*)*)*' . '|' .
-            'Fw(?:\:\s*Fw(?:\:\s*)*)*' . '|' .
-            'FW(?:\:\s*FW(?:\:\s*)*)*' . '|' .
-            'Fwd(?:\:\s*Fwd(?:\:\s*)*)*' . '|' .
-            'FWD(?:\:\s*FWD(?:\:\s*)*)*' . '|' .
-            'Aw(?:\:\s*Aw(?:\:\s*)*)*' . '|' .
-            'Jawab(?:\:\s*Jawab(?:\:\s*)*)*' . '|' .
-            'Balasan(?:\:\s*Balasan(?:\:\s*)*)*' .
-            ')\s*/i',
-            '',
-            $subject
-        );
+        // Remove ticket number prefix [PREFIX-XXX] or [-XXX].
+        $prefix = get_option( 'fm_ticket_prefix', 'REQ' );
+        if ( ! empty( $prefix ) ) {
+            $subject = preg_replace( '/^\[' . preg_quote( $prefix, '/' ) . '-\d+\]\s*/i', '', $subject );
+        }
+        // Also handle legacy empty-prefix format [-XXX].
+        $subject = preg_replace( '/^\[-\d+\]\s*/', '', $subject );
 
         // Trim whitespace.
         $subject = trim( $subject );

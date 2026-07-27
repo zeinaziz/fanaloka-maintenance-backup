@@ -204,9 +204,10 @@ class ReportManager {
     /**
      * Get developer performance stats.
      *
+     * @param string $period Period: all, today, week, month, year.
      * @return array<int, array{id: int, name: string, total: int, completed: int, avg_hours: float}>
      */
-    public function get_developer_performance(): array {
+    public function get_developer_performance( string $period = 'all' ): array {
         $args = [
             'post_type'      => 'maintenance_request',
             'post_status'    => 'any',
@@ -221,6 +222,8 @@ class ReportManager {
                 ],
             ],
         ];
+
+        $args = $this->apply_date_filter( $args, $period );
 
         $query = new \WP_Query( $args );
         $devs  = [];
@@ -303,8 +306,13 @@ class ReportManager {
                 'post_status'    => 'any',
                 'posts_per_page' => -1,
                 'fields'         => 'ids',
-                'date_query'     => [
-                    [ 'after' => $start, 'before' => $end, 'inclusive' => true ],
+                'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+                    [
+                        'key'     => '_fm_date_created',
+                        'value'   => [ $start, $end ],
+                        'compare' => 'BETWEEN',
+                        'type'    => 'DATE',
+                    ],
                 ],
             ] );
 
@@ -314,11 +322,18 @@ class ReportManager {
                 'post_status'    => 'any',
                 'posts_per_page' => -1,
                 'fields'         => 'ids',
-                'date_query'     => [
-                    [ 'after' => $start, 'before' => $end, 'inclusive' => true ],
-                ],
                 'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-                    [ 'key' => '_fm_status', 'value' => 'completed' ],
+                    'relation' => 'AND',
+                    [
+                        'key'     => '_fm_date_created',
+                        'value'   => [ $start, $end ],
+                        'compare' => 'BETWEEN',
+                        'type'    => 'DATE',
+                    ],
+                    [
+                        'key'   => '_fm_status',
+                        'value' => 'completed',
+                    ],
                 ],
             ] );
 
@@ -328,11 +343,18 @@ class ReportManager {
                 'post_status'    => 'any',
                 'posts_per_page' => -1,
                 'fields'         => 'ids',
-                'date_query'     => [
-                    [ 'after' => $start, 'before' => $end, 'inclusive' => true ],
-                ],
                 'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-                    [ 'key' => '_fm_status', 'value' => 'new' ],
+                    'relation' => 'AND',
+                    [
+                        'key'     => '_fm_date_created',
+                        'value'   => [ $start, $end ],
+                        'compare' => 'BETWEEN',
+                        'type'    => 'DATE',
+                    ],
+                    [
+                        'key'   => '_fm_status',
+                        'value' => 'new',
+                    ],
                 ],
             ] );
 
@@ -412,21 +434,27 @@ class ReportManager {
         }
 
         $date_map = [
-            'today' => '-1 day',
-            'week'  => '-7 days',
-            'month' => '-1 month',
-            'year'  => '-1 year',
+            'today' => current_time( 'Y-m-d' ),
+            'week'  => gmdate( 'Y-m-d', strtotime( '-6 days' ) ),
+            'month' => gmdate( 'Y-m-d', strtotime( '-1 month' ) ),
+            'year'  => gmdate( 'Y-m-d', strtotime( '-1 year' ) ),
         ];
 
         if ( ! isset( $date_map[ $period ] ) ) {
             return $args;
         }
 
-        $args['date_query'] = [
-            [
-                'after'     => $date_map[ $period ],
-                'inclusive' => true,
-            ],
+        $after_date = $date_map[ $period ];
+
+        if ( ! isset( $args['meta_query'] ) ) {
+            $args['meta_query'] = []; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+        }
+
+        $args['meta_query'][] = [
+            'key'     => $date_key,
+            'value'   => $after_date,
+            'compare' => '>=',
+            'type'    => 'DATE',
         ];
 
         return $args;
@@ -435,18 +463,28 @@ class ReportManager {
     /**
      * Get summary stats.
      *
+     * @param string $period Period: all, today, week, month, year.
      * @return array<string, mixed>
      */
-    public function get_summary(): array {
-        $total_tickets = wp_count_posts( 'maintenance_request' );
+    public function get_summary( string $period = 'all' ): array {
+        $args = [
+            'post_type'      => 'maintenance_request',
+            'post_status'    => 'any',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+        ];
+
+        $args    = $this->apply_date_filter( $args, $period );
+        $query   = new \WP_Query( $args );
+        $total   = $query->found_posts;
 
         return [
-            'total'              => $total_tickets->publish + ( $total_tickets->draft ?? 0 ),
-            'avg_completion_h'   => $this->get_avg_completion_time( 'all' ),
-            'avg_response_h'     => $this->get_avg_response_time( 'all' ),
-            'by_status'          => $this->get_count_by_status( 'all' ),
-            'by_priority'        => $this->get_count_by_priority( 'all' ),
-            'developers'         => $this->get_developer_performance(),
+            'total'            => $total,
+            'avg_completion_h' => $this->get_avg_completion_time( $period ),
+            'avg_response_h'   => $this->get_avg_response_time( $period ),
+            'by_status'        => $this->get_count_by_status( $period ),
+            'by_priority'      => $this->get_count_by_priority( $period ),
+            'developers'       => $this->get_developer_performance( $period ),
         ];
     }
 }

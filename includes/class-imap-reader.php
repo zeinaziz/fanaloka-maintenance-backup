@@ -113,7 +113,8 @@ class IMAPReader {
             $this->settings['username'],
             $this->settings['password'],
             0,
-            1
+            1,
+            [ 'DISABLE_AUTHENTICATOR' => 'GSSAPI' ]
         );
 
         if ( false === $this->connection ) {
@@ -175,6 +176,87 @@ class IMAPReader {
             imap_close( $this->connection );
             $this->connection = null;
         }
+    }
+
+    /**
+     * Build IMAP mailbox string for a specific folder.
+     *
+     * @param string $folder Folder name (e.g., '[Gmail]/Sent Mail').
+     * @return string Mailbox string.
+     */
+    private function build_mailbox_for_folder( string $folder ): string {
+        $ssl_map = [
+            'ssl'    => '/imap/ssl/novalidate-cert',
+            'tls'    => '/imap/ssl/tls/novalidate-cert',
+            'notls'  => '/imap/notls',
+        ];
+
+        $flags = $ssl_map[ $this->settings['ssl'] ] ?? '/imap/ssl/novalidate-cert';
+
+        return sprintf(
+            '{%s:%s%s}%s',
+            $this->settings['host'],
+            $this->settings['port'],
+            $flags,
+            $folder
+        );
+    }
+
+    /**
+     * Open a specific folder without disconnecting the main connection.
+     *
+     * Uses imap_reopen to switch to another folder on the same connection.
+     *
+     * @param string $folder Folder name (e.g., '[Gmail]/Sent Mail').
+     * @return bool True on success.
+     */
+    public function open_folder( string $folder ): bool {
+        if ( ! $this->is_connected() ) {
+            return false;
+        }
+
+        $result = @imap_reopen( $this->connection, $this->build_mailbox_for_folder( $folder ) );
+
+        if ( false === $result ) {
+            Logger::log(
+                sprintf( 'Failed to open folder: %s', $folder ),
+                Logger::LEVEL_WARNING
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Get all emails (including seen) since a date from current folder.
+     *
+     * @param string $since_date Date string in IMAP format (e.g., "01-Jan-2024").
+     * @return array<int, array<string, mixed>> Array of email data.
+     */
+    public function get_all_emails_since( string $since_date ): array {
+        if ( ! $this->is_connected() ) {
+            $connect_result = $this->connect();
+            if ( ! $connect_result['success'] ) {
+                return [];
+            }
+        }
+
+        $search = @imap_search( $this->connection, 'SINCE "' . $since_date . '"' );
+
+        if ( false === $search || ! is_array( $search ) ) {
+            return [];
+        }
+
+        $emails = [];
+        foreach ( $search as $msg_number ) {
+            $email = $this->get_email( $msg_number );
+            if ( false !== $email ) {
+                $emails[] = $email;
+            }
+        }
+
+        return $emails;
     }
 
     /**

@@ -38,7 +38,53 @@ class SettingsPage {
      */
     public function __construct() {
         add_action( 'admin_init', [ $this, 'register_settings' ] );
-        add_action( 'wp_ajax_fm_test_connection', [ $this, 'ajax_test_connection' ] );
+    }
+
+    /**
+     * Sanitize value as text.
+     *
+     * @param mixed $value Input value.
+     * @return string
+     */
+    public static function sanitize_text( $value ): string {
+        return is_string( $value ) ? sanitize_text_field( $value ) : '';
+    }
+
+    /**
+     * Sanitize textarea value (preserve newlines).
+     *
+     * @param mixed $value Input value.
+     * @return string
+     */
+    public static function sanitize_textarea( $value ): string {
+        if ( ! is_string( $value ) ) {
+            return '';
+        }
+        $value = wp_unslash( $value );
+        $lines = explode( "\n", $value );
+        $lines = array_map( 'sanitize_text_field', $lines );
+        return implode( "\n", $lines );
+    }
+
+    /**
+     * Sanitize value as email.
+     *
+     * @param mixed $value Input value.
+     * @return string
+     */
+    public static function sanitize_email_val( $value ): string {
+        $email = is_string( $value ) ? sanitize_email( $value ) : '';
+        return is_email( $email ) ? $email : '';
+    }
+
+    /**
+     * Sanitize value as integer.
+     *
+     * @param mixed $value Input value.
+     * @return int
+     */
+    public static function sanitize_int( $value ): int {
+        return absint( $value );
     }
 
     /**
@@ -61,21 +107,21 @@ class SettingsPage {
      */
     private function register_imap_settings(): void {
         $fields = [
-            'imap_host'     => [ 'type' => 'string', 'default' => '' ],
-            'imap_port'     => [ 'type' => 'string', 'default' => '993' ],
-            'imap_ssl'      => [ 'type' => 'string', 'default' => 'ssl' ],
-            'imap_username' => [ 'type' => 'string', 'default' => '' ],
-            'imap_password' => [ 'type' => 'string', 'default' => '' ],
-            'imap_folder'   => [ 'type' => 'string', 'default' => 'INBOX' ],
+            'fm_imap_host'     => [ 'type' => 'string', 'default' => '' ],
+            'fm_imap_port'     => [ 'type' => 'string', 'default' => '993' ],
+            'fm_imap_ssl'      => [ 'type' => 'string', 'default' => 'ssl' ],
+            'fm_imap_username' => [ 'type' => 'string', 'default' => '' ],
+            'fm_imap_password' => [ 'type' => 'string', 'default' => '' ],
+            'fm_imap_folder'   => [ 'type' => 'string', 'default' => 'INBOX' ],
         ];
 
         foreach ( $fields as $name => $config ) {
             register_setting(
                 self::OPTION_GROUP,
-                self::OPTION_PREFIX . $name,
+                $name,
                 [
                     'type'              => $config['type'],
-                    'sanitize_callback' => 'sanitize_text_field',
+                    'sanitize_callback' => [ self::class, 'sanitize_text' ],
                     'default'           => $config['default'],
                 ]
             );
@@ -90,20 +136,20 @@ class SettingsPage {
     private function register_sync_settings(): void {
         register_setting(
             self::OPTION_GROUP,
-            self::OPTION_PREFIX . 'sync_interval',
+            'fm_sync_interval',
             [
                 'type'              => 'integer',
-                'sanitize_callback' => 'absint',
+                'sanitize_callback' => [ self::class, 'sanitize_int' ],
                 'default'           => 5,
             ]
         );
 
         register_setting(
             self::OPTION_GROUP,
-            self::OPTION_PREFIX . 'auto_sync',
+            'fm_auto_sync',
             [
                 'type'              => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
+                'sanitize_callback' => [ self::class, 'sanitize_text' ],
                 'default'           => 'yes',
             ]
         );
@@ -117,31 +163,71 @@ class SettingsPage {
     private function register_ticket_settings(): void {
         register_setting(
             self::OPTION_GROUP,
-            self::OPTION_PREFIX . 'ticket_prefix',
+            'fm_ticket_prefix',
             [
                 'type'              => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
+                'sanitize_callback' => [ self::class, 'sanitize_text' ],
                 'default'           => 'REQ',
             ]
         );
 
         register_setting(
             self::OPTION_GROUP,
-            self::OPTION_PREFIX . 'default_status',
+            'fm_default_status',
             [
                 'type'              => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
+                'sanitize_callback' => [ self::class, 'sanitize_text' ],
                 'default'           => 'new',
             ]
         );
 
         register_setting(
             self::OPTION_GROUP,
-            self::OPTION_PREFIX . 'default_priority',
+            'fm_default_priority',
             [
                 'type'              => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
+                'sanitize_callback' => [ self::class, 'sanitize_text' ],
                 'default'           => 'medium',
+            ]
+        );
+
+        register_setting(
+            self::OPTION_GROUP,
+            'fm_ignore_sender_patterns',
+            [
+                'type'              => 'string',
+                'sanitize_callback' => [ self::class, 'sanitize_textarea' ],
+                'default'           => '',
+            ]
+        );
+
+        register_setting(
+            self::OPTION_GROUP,
+            'fm_ignore_domains',
+            [
+                'type'              => 'string',
+                'sanitize_callback' => [ self::class, 'sanitize_textarea' ],
+                'default'           => '',
+            ]
+        );
+
+        register_setting(
+            self::OPTION_GROUP,
+            'fm_ignore_sender_prefixes',
+            [
+                'type'              => 'string',
+                'sanitize_callback' => [ self::class, 'sanitize_textarea' ],
+                'default'           => '',
+            ]
+        );
+
+        register_setting(
+            self::OPTION_GROUP,
+            'fm_ignore_local_domain',
+            [
+                'type'              => 'string',
+                'sanitize_callback' => [ self::class, 'sanitize_text' ],
+                'default'           => 'fanaloka.co',
             ]
         );
     }
@@ -162,10 +248,10 @@ class SettingsPage {
         foreach ( $notifs as $name => $default ) {
             register_setting(
                 self::OPTION_GROUP,
-                self::OPTION_PREFIX . $name,
+                'fm_' . $name,
                 [
                     'type'              => 'string',
-                    'sanitize_callback' => 'sanitize_text_field',
+                    'sanitize_callback' => [ self::class, 'sanitize_text' ],
                     'default'           => $default,
                 ]
             );
@@ -173,10 +259,10 @@ class SettingsPage {
 
         register_setting(
             self::OPTION_GROUP,
-            self::OPTION_PREFIX . 'admin_email',
+            'fm_admin_email',
             [
                 'type'              => 'string',
-                'sanitize_callback' => 'sanitize_email',
+                'sanitize_callback' => [ self::class, 'sanitize_email_val' ],
                 'default'           => get_option( 'admin_email' ),
             ]
         );
@@ -337,6 +423,55 @@ class SettingsPage {
             ]
         );
 
+        add_settings_field(
+            'fm_ignore_sender_patterns',
+            __( 'Ignore Sender Patterns', 'fanaloka-maintenance' ),
+            [ $this, 'render_textarea_field' ],
+            'fm-settings',
+            'fm_ticket_section',
+            [
+                'id'    => 'fm_ignore_sender_patterns',
+                'label' => __( 'Email addresses or patterns to ignore (one per line). Supports: exact email, @domain.com, or *wildcard*', 'fanaloka-maintenance' ),
+            ]
+        );
+
+        add_settings_field(
+            'fm_ignore_domains',
+            __( 'Ignore Domains', 'fanaloka-maintenance' ),
+            [ $this, 'render_textarea_field' ],
+            'fm-settings',
+            'fm_ticket_section',
+            [
+                'id'    => 'fm_ignore_domains',
+                'label' => __( 'Additional domains to ignore (one per line, without @). Example: github.com', 'fanaloka-maintenance' ),
+            ]
+        );
+
+        add_settings_field(
+            'fm_ignore_sender_prefixes',
+            __( 'Ignore Sender Prefixes', 'fanaloka-maintenance' ),
+            [ $this, 'render_textarea_field' ],
+            'fm-settings',
+            'fm_ticket_section',
+            [
+                'id'    => 'fm_ignore_sender_prefixes',
+                'label' => __( 'Sender local part prefixes to ignore (one per line). Example: noreply, notifications', 'fanaloka-maintenance' ),
+            ]
+        );
+
+        add_settings_field(
+            'fm_ignore_local_domain',
+            __( 'Local Domain', 'fanaloka-maintenance' ),
+            [ $this, 'render_text_field' ],
+            'fm-settings',
+            'fm_ticket_section',
+            [
+                'id'    => 'fm_ignore_local_domain',
+                'label' => __( 'Your company domain to ignore internal emails (e.g., fanaloka.co)', 'fanaloka-maintenance' ),
+                'type'  => 'text',
+            ]
+        );
+
         // Notification Section.
         add_settings_section(
             'fm_notification_section',
@@ -457,12 +592,15 @@ class SettingsPage {
         $type  = $args['type'] ?? 'text';
         $value = get_option( $id, '' );
 
+        $autocomplete = 'password' === $type ? ' autocomplete="current-password"' : '';
+
         printf(
-            '<input type="%s" id="%s" name="%s" value="%s" class="regular-text" />',
+            '<input type="%s" id="%s" name="%s" value="%s" class="regular-text"%s />',
             esc_attr( $type ),
             esc_attr( $id ),
             esc_attr( $id ),
-            esc_attr( $value )
+            esc_attr( $value ),
+            $autocomplete
         );
 
         if ( $label ) {
@@ -501,6 +639,29 @@ class SettingsPage {
     }
 
     /**
+     * Render textarea field.
+     *
+     * @param array<string, string> $args Field args.
+     * @return void
+     */
+    public function render_textarea_field( array $args ): void {
+        $id    = $args['id'] ?? '';
+        $label = $args['label'] ?? '';
+        $value = get_option( $id, '' );
+
+        printf(
+            '<textarea id="%s" name="%s" rows="5" class="large-text">%s</textarea>',
+            esc_attr( $id ),
+            esc_attr( $id ),
+            esc_textarea( $value )
+        );
+
+        if ( $label ) {
+            printf( '<p class="description">%s</p>', esc_html( $label ) );
+        }
+    }
+
+    /**
      * Render test connection button.
      *
      * @return void
@@ -510,7 +671,13 @@ class SettingsPage {
             '<button type="button" class="button fm-btn-test-connection" id="fm-test-connection">%s</button> ',
             esc_html__( 'Test Connection', 'fanaloka-maintenance' )
         );
-        echo '<span id="fm-test-result"></span>';
+        echo '<span id="fm-test-result" style="margin-left:10px;font-size:13px;font-weight:600;"></span>';
+        ?>
+        <style>
+        .fm-test-success { color: #00a32a; }
+        .fm-test-error { color: #d63638; }
+        </style>
+        <?php
     }
 
     /**
@@ -527,8 +694,16 @@ class SettingsPage {
             ] );
         }
 
-        $reader = new IMAPReader();
-        $result = $reader->test_connection();
+        try {
+            $reader = new IMAPReader();
+            $result = $reader->test_connection();
+        } catch ( \Exception $e ) {
+            Logger::log( 'Test connection exception: ' . $e->getMessage(), Logger::LEVEL_ERROR );
+            wp_send_json_error( [
+                'message' => $e->getMessage(),
+            ] );
+            return;
+        }
 
         if ( $result['success'] ) {
             Logger::log( 'IMAP connection test successful' );
@@ -561,7 +736,7 @@ class SettingsPage {
         <div class="fm-page-wrap">
             <div class="fm-page-header">
                 <h1 class="fm-page-title">
-                    <span class="dashicons dashicons-admin-settings" style="color:#8c8f94"></span>
+                    <span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'settings', '#646970' ); ?></span>
                     <?php echo esc_html( get_admin_page_title() ); ?>
                 </h1>
             </div>
@@ -577,19 +752,19 @@ class SettingsPage {
                 <nav class="nav-tab-wrapper fm-nav-tabs">
                     <a href="?page=fm-settings&tab=general"
                        class="nav-tab <?php echo 'general' === $tab ? 'nav-tab-active' : ''; ?>">
-                        <span class="dashicons dashicons-email-alt"></span> <?php esc_html_e( 'IMAP', 'fanaloka-maintenance' ); ?>
+                        <span class="fm-icon-sm"><?php echo \Fanaloka\Maintenance\Icons::get( 'clients', '#646970' ); ?></span> <?php esc_html_e( 'IMAP', 'fanaloka-maintenance' ); ?>
                     </a>
                     <a href="?page=fm-settings&tab=sync"
                        class="nav-tab <?php echo 'sync' === $tab ? 'nav-tab-active' : ''; ?>">
-                        <span class="dashicons dashicons-update"></span> <?php esc_html_e( 'Sync', 'fanaloka-maintenance' ); ?>
+                        <span class="fm-icon-sm"><?php echo \Fanaloka\Maintenance\Icons::get( 'refresh', '#646970' ); ?></span> <?php esc_html_e( 'Sync', 'fanaloka-maintenance' ); ?>
                     </a>
                     <a href="?page=fm-settings&tab=ticket"
                        class="nav-tab <?php echo 'ticket' === $tab ? 'nav-tab-active' : ''; ?>">
-                        <span class="dashicons dashicons-welcome-view-site"></span> <?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?>
+                        <span class="fm-icon-sm"><?php echo \Fanaloka\Maintenance\Icons::get( 'requests', '#646970' ); ?></span> <?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?>
                     </a>
                     <a href="?page=fm-settings&tab=notification"
                        class="nav-tab <?php echo 'notification' === $tab ? 'nav-tab-active' : ''; ?>">
-                        <span class="dashicons dashicons-bell"></span> <?php esc_html_e( 'Notifications', 'fanaloka-maintenance' ); ?>
+                        <span class="fm-icon-sm"><?php echo \Fanaloka\Maintenance\Icons::get( 'bell', '#646970' ); ?></span> <?php esc_html_e( 'Notifications', 'fanaloka-maintenance' ); ?>
                     </a>
                 </nav>
 
@@ -598,8 +773,11 @@ class SettingsPage {
                         <?php
                         settings_fields( self::OPTION_GROUP );
 
+                        // Hidden fields to preserve values from other tabs.
+                        $this->render_hidden_fields( $tab );
+
                         if ( 'general' === $tab ) {
-                            do_settings_sections( 'fm-settings' );
+                            $this->render_tab_sections( [ 'fm_imap_section' ] );
                         } elseif ( 'sync' === $tab ) {
                             $this->render_tab_sections( [ 'fm_sync_section' ] );
                         } elseif ( 'ticket' === $tab ) {
@@ -675,6 +853,46 @@ class SettingsPage {
             }
 
             echo '</table>';
+        }
+    }
+
+    /**
+     * Render hidden fields to preserve values from other tabs.
+     *
+     * @param string $current_tab Current active tab.
+     * @return void
+     */
+    private function render_hidden_fields( string $current_tab ): void {
+        $all_options = [
+            'fm_imap_host', 'fm_imap_port', 'fm_imap_ssl', 'fm_imap_username',
+            'fm_imap_password', 'fm_imap_folder', 'fm_sync_interval', 'fm_auto_sync',
+            'fm_ticket_prefix', 'fm_default_status', 'fm_default_priority',
+            'fm_ignore_sender_patterns', 'fm_ignore_domains', 'fm_ignore_sender_prefixes', 'fm_ignore_local_domain',
+            'fm_notif_new_ticket', 'fm_notif_status_change', 'fm_notif_assignment',
+            'fm_notif_ticket_completed', 'fm_admin_email',
+        ];
+
+        // Determine which fields are visible on current tab.
+        $visible = [];
+        if ( 'general' === $current_tab ) {
+            $visible = [ 'fm_imap_host', 'fm_imap_port', 'fm_imap_ssl', 'fm_imap_username', 'fm_imap_password', 'fm_imap_folder' ];
+        } elseif ( 'sync' === $current_tab ) {
+            $visible = [ 'fm_sync_interval', 'fm_auto_sync' ];
+        } elseif ( 'ticket' === $current_tab ) {
+            $visible = [ 'fm_ticket_prefix', 'fm_default_status', 'fm_default_priority', 'fm_ignore_sender_patterns', 'fm_ignore_domains', 'fm_ignore_sender_prefixes', 'fm_ignore_local_domain' ];
+        } elseif ( 'notification' === $current_tab ) {
+            $visible = [ 'fm_notif_new_ticket', 'fm_notif_status_change', 'fm_notif_assignment', 'fm_notif_ticket_completed', 'fm_admin_email' ];
+        }
+
+        foreach ( $all_options as $option ) {
+            if ( ! in_array( $option, $visible, true ) ) {
+                $value = get_option( $option, '' );
+                printf(
+                    '<input type="hidden" name="%s" value="%s" />',
+                    esc_attr( $option ),
+                    esc_attr( $value )
+                );
+            }
         }
     }
 }

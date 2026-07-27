@@ -28,7 +28,7 @@ class ClientsPage {
         <div class="fm-page-wrap">
             <div class="fm-page-header">
                 <h1 class="fm-page-title">
-                    <span class="dashicons dashicons-businessperson" style="color:#8c8f94"></span>
+                    <span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'clients', '#646970' ); ?></span>
                     <?php esc_html_e( 'Clients', 'fanaloka-maintenance' ); ?>
                 </h1>
                 <div class="fm-clients-search">

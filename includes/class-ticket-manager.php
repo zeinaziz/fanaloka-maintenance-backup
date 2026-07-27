@@ -169,7 +169,7 @@ class TicketManager {
             '_fm_priority'        => $this->detect_priority( $parsed ),
             '_fm_assigned_dev'    => 0,
             '_fm_date_created'    => $parsed['date'] ?? current_time( 'mysql' ),
-            '_fm_last_updated'    => current_time( 'mysql' ),
+            '_fm_last_updated'    => time(),
             '_fm_sla'             => '',
             '_fm_completion_date' => '',
             '_fm_message_id'      => $parsed['message_id'] ?? '',
@@ -231,7 +231,7 @@ class TicketManager {
         }
 
         // Update last updated timestamp.
-        update_post_meta( $ticket_id, '_fm_last_updated', current_time( 'mysql' ) );
+        update_post_meta( $ticket_id, '_fm_last_updated', time() );
 
         // If status is completed or cancelled, reopen.
         $current_status = get_post_meta( $ticket_id, '_fm_status', true );
@@ -428,10 +428,6 @@ class TicketManager {
         $notification = new NotificationManager();
         $notification->notify_status_change( $ticket_id, $old_status, $new_status );
 
-        if ( 'completed' === $new_status ) {
-            $notification->notify_ticket_completed( $ticket_id );
-        }
-
         return true;
     }
 
@@ -599,11 +595,13 @@ class TicketManager {
         $paged    = $args['paged'] ?? 1;
         $status   = $args['status'] ?? '';
         $priority = $args['priority'] ?? '';
+        $client   = $args['client'] ?? '';
         $dev      = $args['developer'] ?? 0;
         $search   = $args['search'] ?? '';
-        $orderby  = $args['orderby'] ?? 'date';
+        $orderby  = $args['orderby'] ?? '_fm_last_updated';
         $order    = $args['order'] ?? 'DESC';
 
+        // Build meta_query for filters + ordering.
         $meta_query = [];
 
         if ( $status ) {
@@ -620,6 +618,13 @@ class TicketManager {
             ];
         }
 
+        if ( $client ) {
+            $meta_query[] = [
+                'key'   => '_fm_client_email',
+                'value' => $client,
+            ];
+        }
+
         if ( $dev ) {
             $meta_query[] = [
                 'key'     => '_fm_assigned_dev',
@@ -633,9 +638,19 @@ class TicketManager {
             'post_status'    => 'any',
             'posts_per_page' => $per_page,
             'paged'          => $paged,
-            'orderby'        => $orderby,
             'order'          => $order,
         ];
+
+        // Ordering by _fm_last_updated with NUMERIC type.
+        if ( '_fm_last_updated' === $orderby ) {
+            $meta_query['last_updated_clause'] = [
+                'key' => '_fm_last_updated',
+                'type' => 'NUMERIC',
+            ];
+            $query_args['orderby'] = 'last_updated_clause';
+        } else {
+            $query_args['orderby'] = $orderby;
+        }
 
         if ( ! empty( $meta_query ) ) {
             $query_args['meta_query'] = $meta_query;
