@@ -115,12 +115,18 @@ class TicketDetailPage {
                             <span class="dashicons dashicons-format-chat"></span>
                             <p><?php esc_html_e( 'No conversation entries yet.', 'fanaloka-maintenance' ); ?></p>
                         </div>
-                    <?php else : ?>
-                        <?php foreach ( $entries as $entry ) :
+                    <?php else :
+                        $entry_count = count( $entries );
+                        $has_collapse = $entry_count > 2;
+                        $entry_index = 0;
+                        foreach ( $entries as $entry ) :
                             $initials = strtoupper( substr( $entry['sender'], 0, 1 ) );
                             $entry_color = 'developer' === $entry['entry_type'] ? '#2271b1' : ( 'client' === $entry['entry_type'] ? '#00a32a' : '#646970' );
+                            $is_first = ( 0 === $entry_index );
+                            $is_last = ( $entry_index === $entry_count - 1 );
+                            $is_middle = ! $is_first && ! $is_last;
                         ?>
-                            <div class="fm-entry fm-entry-<?php echo esc_attr( $entry['entry_type'] ); ?>" data-entry-id="<?php echo esc_attr( $entry['id'] ); ?>">
+                            <div class="fm-entry fm-entry-<?php echo esc_attr( $entry['entry_type'] ); ?><?php echo ( $has_collapse && $is_middle ) ? ' fm-entry-collapsed' : ''; ?>" data-entry-id="<?php echo esc_attr( $entry['id'] ); ?>">
                                 <div class="fm-entry-avatar" style="background:<?php echo esc_attr( $entry_color ); ?>;">
                                     <?php echo esc_html( $initials ); ?>
                                 </div>
@@ -169,8 +175,16 @@ class TicketDetailPage {
                                     <?php endif; ?>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                            <?php if ( $has_collapse && $is_first ) : ?>
+                                <div class="fm-entry-collapse-toggle" id="fm-collapse-toggle" onclick="fmToggleCollapsed()">
+                                    <span class="dashicons dashicons-arrow-down-alt2"></span>
+                                    <span class="fm-collapse-text"><?php echo esc_html( sprintf( __( 'Show %d earlier messages', 'fanaloka-maintenance' ), $entry_count - 2 ) ); ?></span>
+                                </div>
+                            <?php endif; ?>
+                        <?php
+                            $entry_index++;
+                        endforeach;
+                    endif; ?>
 
                     <!-- Reply Form -->
                     <div class="fm-reply-box">
@@ -329,6 +343,11 @@ class TicketDetailPage {
         /* Entry */
         .fm-entry { display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px solid #f0f0f1; }
         .fm-entry:last-child { border-bottom: none; }
+        .fm-entry-collapsed { display: none !important; }
+        .fm-entry-collapse-toggle { display: flex; align-items: center; gap: 6px; padding: 8px 16px; margin: 4px 0; cursor: pointer; color: #2271b1; font-size: 13px; font-weight: 500; border-radius: 6px; transition: background 0.15s; user-select: none; }
+        .fm-entry-collapse-toggle:hover { background: #f0f6fc; }
+        .fm-entry-collapse-toggle .dashicons { font-size: 18px; width: 18px; height: 18px; transition: transform 0.2s; }
+        .fm-entry-collapse-toggle.fm-expanded .dashicons { transform: rotate(180deg); }
         .fm-entry-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; flex-shrink: 0; }
         .fm-entry-body { flex: 1; min-width: 0; }
         .fm-entry-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
@@ -378,6 +397,27 @@ class TicketDetailPage {
         .fm-file-link:hover { color: #135e96; }
         .fm-file-size { color: #8c8f94; font-size: 12px; }
         </style>
+
+        <script>
+        function fmToggleCollapsed() {
+            var toggle = document.getElementById('fm-collapse-toggle');
+            var collapsed = document.querySelectorAll('.fm-entry-collapsed');
+            var isExpanded = toggle.classList.contains('fm-expanded');
+
+            if (isExpanded) {
+                // Collapse
+                toggle.classList.remove('fm-expanded');
+                toggle.querySelector('.fm-collapse-text').textContent = toggle.querySelector('.fm-collapse-text').textContent.replace('Hide', 'Show');
+                collapsed.forEach(function(el) { el.classList.add('fm-entry-collapsed'); });
+            } else {
+                // Expand
+                toggle.classList.add('fm-expanded');
+                var text = toggle.querySelector('.fm-collapse-text');
+                text.textContent = text.textContent.replace('Show', 'Hide');
+                collapsed.forEach(function(el) { el.classList.remove('fm-entry-collapsed'); });
+            }
+        }
+        </script>
         <?php
     }
 
