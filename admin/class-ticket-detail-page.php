@@ -57,6 +57,18 @@ class TicketDetailPage {
         wp_enqueue_media();
         wp_enqueue_style( 'editor-style' );
 
+        // Ensure fmAdmin is available for inline scripts.
+        ?>
+        <script>
+        if ( typeof fmAdmin === 'undefined' ) {
+            var fmAdmin = {
+                ajaxUrl: '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>',
+                nonce: '<?php echo esc_js( wp_create_nonce( 'fm_admin_nonce' ) ); ?>'
+            };
+        }
+        </script>
+        <?php
+
         $ticket_manager = new TicketManager();
         $ticket         = $ticket_manager->get_ticket_meta( $this->ticket_id );
 
@@ -101,9 +113,6 @@ class TicketDetailPage {
                         <span class="fm-ticket-number"><?php echo esc_html( $ticket['full_number'] ?? '' ); ?></span>
                     </div>
                 </div>
-                <div class="fm-ticket-header-right">
-                    <span class="fm-badge" style="background:<?php echo esc_attr( $status_color ); ?>;"><?php echo esc_html( ucfirst( str_replace( '-', ' ', $ticket['status'] ?? '' ) ) ); ?></span>
-                    <span class="fm-badge fm-badge-outline" style="color:<?php echo esc_attr( $priority_color ); ?>; border-color:<?php echo esc_attr( $priority_color ); ?>;"><?php echo esc_html( ucfirst( $ticket['priority'] ?? '' ) ); ?></span>
                 </div>
             </div>
 
@@ -121,21 +130,52 @@ class TicketDetailPage {
                         $entry_index = 0;
                         foreach ( $entries as $entry ) :
                             $initials = strtoupper( substr( $entry['sender'], 0, 1 ) );
-                            $entry_color = 'developer' === $entry['entry_type'] ? '#2271b1' : ( 'client' === $entry['entry_type'] ? '#00a32a' : '#646970' );
+                            $entry_color = 'developer' === $entry['entry_type'] ? '#2271b1' : ( 'client' === $entry['entry_type' ] ? '#00a32a' : ( 'internal' === $entry['entry_type'] ? '#856404' : '#646970' ) );
                             $is_first = ( 0 === $entry_index );
                             $is_last = ( $entry_index === $entry_count - 1 );
                             $is_middle = ! $is_first && ! $is_last;
+                            $type = $entry['entry_type'] ?? 'client';
+                            if ( 'internal' === $type ) {
+                                $action_text = 'added an internal note';
+                            } elseif ( 'client' === $type ) {
+                                $action_text = 'sent a message';
+                            } else {
+                                $action_text = 'replied';
+                            }
                         ?>
-                            <div class="fm-entry fm-entry-<?php echo esc_attr( $entry['entry_type'] ); ?><?php echo ( $has_collapse && $is_middle ) ? ' fm-entry-collapsed' : ''; ?>" data-entry-id="<?php echo esc_attr( $entry['id'] ); ?>">
+                            <div class="fm-entry fm-entry-<?php echo esc_attr( $entry['entry_type'] ); ?><?php echo ( $has_collapse && $is_middle ) ? ' fm-entry-collapsed' : ''; ?>" data-entry-id="<?php echo esc_attr( $entry['id'] ); ?>"<?php echo ( $has_collapse && $is_middle ) ? ' data-collapse-target="1"' : ''; ?>>
                                 <div class="fm-entry-avatar" style="background:<?php echo esc_attr( $entry_color ); ?>;">
                                     <?php echo esc_html( $initials ); ?>
                                 </div>
                                 <div class="fm-entry-body">
                                     <div class="fm-entry-meta">
-                                        <strong class="fm-entry-sender"><?php echo esc_html( $entry['sender'] ); ?></strong>
-                                        <span class="fm-entry-type-badge" style="background:<?php echo esc_attr( $entry_color ); ?>15;color:<?php echo esc_attr( $entry_color ); ?>;"><?php echo esc_html( ucfirst( $entry['entry_type'] ) ); ?></span>
-                                        <span class="fm-entry-date"><?php echo esc_html( $entry['created_at'] ); ?></span>
+                                        <strong class="fm-entry-sender" style="color:<?php echo esc_attr( $entry_color ); ?>;"><?php echo esc_html( $entry['sender'] ); ?></strong>
+                                        <span class="fm-entry-action"><?php echo esc_html( $action_text ); ?></span>
+                                        <span class="fm-entry-date">- <?php echo esc_html( $this->get_relative_time( $entry['created_at'] ) ); ?> (<?php echo esc_html( wp_date( 'D, d M Y \a\t g:i A', strtotime( $entry['created_at'] ) ) ); ?>)</span>
+                                        <?php if ( 'internal' === $type ) : ?>
+                                            <span class="fm-entry-badge-internal">Internal</span>
+                                        <?php endif; ?>
                                     </div>
+                                    <?php if ( 'internal' !== $type ) :
+                                    $entry_meta_data = ! empty( $entry['meta'] ) ? json_decode( $entry['meta'], true ) : [];
+                                    $ticket_client_email = $ticket['client_email'] ?? '';
+                                    $has_to  = ! empty( $ticket_client_email );
+                                    $has_cc  = ! empty( $entry_meta_data['cc'] );
+                                    $has_bcc = ! empty( $entry_meta_data['bcc'] );
+                                    if ( $has_to || $has_cc || $has_bcc ) :
+                                    ?>
+                                    <div class="fm-entry-recipients">
+                                        <?php if ( $has_to ) : ?>
+                                            <span class="fm-entry-to"><strong>To:</strong> <?php echo esc_html( $ticket_client_email ); ?></span>
+                                        <?php endif; ?>
+                                        <?php if ( $has_cc ) : ?>
+                                            <span class="fm-entry-cc"><strong>Cc:</strong> <?php echo esc_html( $entry_meta_data['cc'] ); ?></span>
+                                        <?php endif; ?>
+                                        <?php if ( $has_bcc ) : ?>
+                                            <span class="fm-entry-bcc"><strong>Bcc:</strong> <?php echo esc_html( $entry_meta_data['bcc'] ); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php endif; endif; ?>
                                     <div class="fm-entry-content">
                                         <?php
                                         if ( 'developer' === $entry['entry_type'] || 'internal' === $entry['entry_type'] ) {
@@ -176,7 +216,7 @@ class TicketDetailPage {
                                 </div>
                             </div>
                             <?php if ( $has_collapse && $is_first ) : ?>
-                                <div class="fm-entry-collapse-toggle" id="fm-collapse-toggle" onclick="fmToggleCollapsed()">
+                                <div class="fm-entry-collapse-toggle" id="fm-collapse-toggle">
                                     <span class="dashicons dashicons-arrow-down-alt2"></span>
                                     <span class="fm-collapse-text"><?php echo esc_html( sprintf( __( 'Show %d earlier messages', 'fanaloka-maintenance' ), $entry_count - 2 ) ); ?></span>
                                 </div>
@@ -211,16 +251,66 @@ class TicketDetailPage {
                                 ] );
                                 ?>
                             </div>
+                            <div class="fm-reply-cc-bcc-toggle">
+                                <a href="#" id="fm-toggle-cc-bcc"><span class="dashicons dashicons-email-alt"></span> <?php esc_html_e( 'CC / BCC', 'fanaloka-maintenance' ); ?></a>
+                            </div>
+                            <div class="fm-reply-cc-bcc-fields" id="fm-cc-bcc-fields" style="display:none;">
+                                <div class="fm-cc-bcc-row">
+                                    <label for="fm-reply-cc">CC</label>
+                                    <input type="text" id="fm-reply-cc" name="reply_cc" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
+                                </div>
+                                <div class="fm-cc-bcc-row">
+                                    <label for="fm-reply-bcc">BCC</label>
+                                    <input type="text" id="fm-reply-bcc" name="reply_bcc" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
+                                </div>
+                            </div>
                             <div class="fm-reply-footer">
                                 <div class="fm-reply-attach">
                                     <label class="fm-attach-btn">
                                         <span class="dashicons dashicons-paperclip"></span>
                                         <?php esc_html_e( 'Attach files', 'fanaloka-maintenance' ); ?>
-                                        <input type="file" name="reply_attachments[]" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.zip" style="display:none;" />
+                                        <input type="file" name="reply_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z" style="display:none;" />
                                     </label>
-                                    <span class="description"><?php esc_html_e( 'JPG, PNG, PDF, DOC, DOCX, ZIP', 'fanaloka-maintenance' ); ?></span>
+                                    <span class="description"><?php esc_html_e( 'Max 10MB per file', 'fanaloka-maintenance' ); ?></span>
+                                </div>
+                                <div class="fm-file-list" id="fm-file-list"></div>
+                                <div class="fm-upload-status" id="fm-upload-status" style="display:none;">
+                                    <span class="spinner is-active"></span>
+                                    <span class="fm-upload-status-text"></span>
                                 </div>
                                 <?php submit_button( __( 'Send Reply', 'fanaloka-maintenance' ), 'primary', 'submit', false, [ 'class' => 'fm-reply-submit' ] ); ?>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Internal Note Form -->
+                    <div class="fm-internal-note-box" id="fm-internal-note-box">
+                        <div class="fm-note-header">
+                            <span class="dashicons dashicons-lock"></span>
+                            <strong><?php esc_html_e( 'Internal Note', 'fanaloka-maintenance' ); ?></strong>
+                            <a href="#" id="fm-toggle-note" class="fm-note-toggle-link"><?php esc_html_e( 'Add note', 'fanaloka-maintenance' ); ?></a>
+                        </div>
+                        <form method="post" id="fm-note-form" style="display:none;">
+                            <input type="hidden" name="ticket_id" value="<?php echo esc_attr( $this->ticket_id ); ?>" />
+                            <?php wp_nonce_field( 'fm_add_internal_note' ); ?>
+                            <div id="note-editor-wrap">
+                                <?php
+                                wp_editor( '', 'note_content', [
+                                    'textarea_name' => 'note_content',
+                                    'textarea_rows' => 4,
+                                    'media_buttons' => false,
+                                    'teeny'         => true,
+                                    'quicktags'     => false,
+                                    'tinymce'       => [
+                                        'toolbar1' => 'bold,italic,underline',
+                                        'toolbar2' => '',
+                                    ],
+                                ] );
+                                ?>
+                            </div>
+                            <div class="fm-reply-footer">
+                                <div></div>
+                                <button type="submit" class="button button-primary fm-note-submit"><?php esc_html_e( 'Add Internal Note', 'fanaloka-maintenance' ); ?></button>
                             </div>
                         </form>
                     </div>
@@ -228,6 +318,10 @@ class TicketDetailPage {
 
                 <!-- Sidebar -->
                 <div class="fm-ticket-sidebar">
+                    <div class="fm-sidebar-badges">
+                        <span class="fm-badge" style="background:<?php echo esc_attr( $status_color ); ?>;"><?php echo esc_html( ucfirst( str_replace( '-', ' ', $ticket['status'] ?? '' ) ) ); ?></span>
+                        <span class="fm-badge fm-badge-outline" style="color:<?php echo esc_attr( $priority_color ); ?>; border-color:<?php echo esc_attr( $priority_color ); ?>;"><?php echo esc_html( ucfirst( $ticket['priority'] ?? '' ) ); ?></span>
+                    </div>
                     <div class="fm-sidebar-section">
                         <h3 class="fm-sidebar-title"><span class="dashicons dashicons-info-outline"></span> <?php esc_html_e( 'Details', 'fanaloka-maintenance' ); ?></h3>
                         <div class="fm-sidebar-content">
@@ -273,21 +367,37 @@ class TicketDetailPage {
                         </div>
                     </div>
 
-                    <div class="fm-sidebar-section">
+                    <div class="fm-sidebar-section fm-sidebar-dates">
                         <h3 class="fm-sidebar-title"><span class="dashicons dashicons-calendar-alt"></span> <?php esc_html_e( 'Dates', 'fanaloka-maintenance' ); ?></h3>
                         <div class="fm-sidebar-content">
+                            <?php
+                            $created_date = $ticket['date_created'] ?? '';
+                            if ( $created_date ) :
+                                $created_rel = $this->get_relative_time( $created_date );
+                                $created_full = wp_date( 'D, d M Y \a\t g:i A', strtotime( $created_date ) );
+                            ?>
                             <div class="fm-field-row">
                                 <label><?php esc_html_e( 'Created', 'fanaloka-maintenance' ); ?></label>
-                                <span><?php echo esc_html( $ticket['date_created'] ?? '' ); ?></span>
+                                <span title="<?php echo esc_attr( $created_full ); ?>"><?php echo esc_html( $created_rel ); ?> (<?php echo esc_html( $created_full ); ?>)</span>
                             </div>
+                            <?php endif; ?>
+                            <?php if ( ! empty( $ticket['last_updated'] ) ) :
+                                $updated_dt = wp_date( 'Y-m-d H:i:s', (int) $ticket['last_updated'] );
+                                $updated_rel = $this->get_relative_time( $updated_dt );
+                                $updated_full = wp_date( 'D, d M Y \a\t g:i A', (int) $ticket['last_updated'] );
+                            ?>
                             <div class="fm-field-row">
                                 <label><?php esc_html_e( 'Updated', 'fanaloka-maintenance' ); ?></label>
-                                <span><?php echo esc_html( ! empty( $ticket['last_updated'] ) ? wp_date( 'Y-m-d H:i', (int) $ticket['last_updated'] ) : '' ); ?></span>
+                                <span title="<?php echo esc_attr( $updated_full ); ?>"><?php echo esc_html( $updated_rel ); ?> (<?php echo esc_html( $updated_full ); ?>)</span>
                             </div>
-                            <?php if ( ! empty( $ticket['completion_date'] ) ) : ?>
+                            <?php endif; ?>
+                            <?php if ( ! empty( $ticket['completion_date'] ) ) :
+                                $completed_rel = $this->get_relative_time( $ticket['completion_date'] );
+                                $completed_full = wp_date( 'D, d M Y \a\t g:i A', strtotime( $ticket['completion_date'] ) );
+                            ?>
                             <div class="fm-field-row">
                                 <label><?php esc_html_e( 'Completed', 'fanaloka-maintenance' ); ?></label>
-                                <span><?php echo esc_html( $ticket['completion_date'] ); ?></span>
+                                <span title="<?php echo esc_attr( $completed_full ); ?>"><?php echo esc_html( $completed_rel ); ?> (<?php echo esc_html( $completed_full ); ?>)</span>
                             </div>
                             <?php endif; ?>
                         </div>
@@ -308,8 +418,6 @@ class TicketDetailPage {
                     </div>
                     <?php endif; ?>
                 </div>
-            </div>
-        </div>
 
         <style>
         /* Shared Design System */
@@ -321,12 +429,12 @@ class TicketDetailPage {
         .fm-page-sidebar { width: 300px; flex-shrink: 0; }
 
         /* Ticket Header */
-        .fm-ticket-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-ticket-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); position: fixed; top: 32px; left: 180px; right: 20px; z-index: 100; }
         .fm-ticket-header-left { display: flex; align-items: center; gap: 15px; }
-        .fm-ticket-back { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 6px; background: #f0f0f1; color: #1d2327; text-decoration: none; transition: background 0.15s; }
+        .fm-ticket-back { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: #f0f0f1; color: #1d2327; text-decoration: none; transition: background 0.15s; }
         .fm-ticket-back:hover { background: #ddd; color: #1d2327; }
-        .fm-ticket-title { margin: 0; font-size: 20px; line-height: 1.3; }
-        .fm-ticket-number { font-size: 13px; color: #646970; }
+        .fm-ticket-title { margin: 0; font-size: 14px; line-height: 1.3; }
+        .fm-ticket-number { font-size: 11px; color: #646970; }
         .fm-ticket-header-right { display: flex; gap: 8px; align-items: center; }
 
         /* Badges */
@@ -336,32 +444,41 @@ class TicketDetailPage {
         .fm-badge-danger { background: #d63638; }
 
         /* Conversation & Sidebar */
-        .fm-ticket-body { display: flex; gap: 20px; align-items: flex-start; }
+        .fm-ticket-body { display: flex; gap: 20px; align-items: flex-start; margin-top: 100px; }
         .fm-ticket-conversation { flex: 1; min-width: 0; }
-        .fm-ticket-sidebar { width: 300px; flex-shrink: 0; }
+        .fm-ticket-sidebar { width: 300px; flex-shrink: 0; position: sticky; top: 120px; align-self: flex-start; max-height: calc(100vh - 130px); overflow-y: auto; }
+        .fm-sidebar-badges { display: flex; gap: 8px; padding: 12px 16px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .fm-sidebar-dates .fm-field-row { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+        .fm-sidebar-dates .fm-field-row span { text-align: left; }
 
         /* Entry */
-        .fm-entry { display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px solid #f0f0f1; }
+        .fm-entry { display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px dashed #3858e9; }
         .fm-entry:last-child { border-bottom: none; }
         .fm-entry-collapsed { display: none !important; }
-        .fm-entry-collapse-toggle { display: flex; align-items: center; gap: 6px; padding: 8px 16px; margin: 4px 0; cursor: pointer; color: #2271b1; font-size: 13px; font-weight: 500; border-radius: 6px; transition: background 0.15s; user-select: none; }
-        .fm-entry-collapse-toggle:hover { background: #f0f6fc; }
+        .fm-entry-collapse-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 0; margin: 8px 0; width: 100%; cursor: pointer; color: #2271b1; font-size: 13px; font-weight: 600; background: #f0f6fc; border: 1px solid #c3e4ff; border-radius: 8px; transition: all 0.15s; user-select: none; text-align: center; position: relative; z-index: 1; }
+        .fm-entry-collapse-toggle:hover { background: #dbebf9; border-color: #2271b1; }
         .fm-entry-collapse-toggle .dashicons { font-size: 18px; width: 18px; height: 18px; transition: transform 0.2s; }
         .fm-entry-collapse-toggle.fm-expanded .dashicons { transform: rotate(180deg); }
         .fm-entry-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; flex-shrink: 0; }
         .fm-entry-body { flex: 1; min-width: 0; }
         .fm-entry-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-        .fm-entry-sender { font-size: 14px; color: #1d2327; }
+        .fm-entry-sender { font-size: 15px; font-weight: 500; color: #1d2327; }
+        .fm-entry-action { font-size: 14px; color: #1d2327; font-weight: 400; }
         .fm-entry-type-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
         .fm-entry-date { font-size: 12px; color: #8c8f94; }
+        .fm-entry-recipients { margin-bottom: 6px; font-size: 12px; color: #646970; display: flex; flex-wrap: wrap; gap: 12px; }
+        .fm-entry-recipients strong { color: #646970; }
         .fm-entry-content { font-size: 14px; line-height: 1.6; color: #1d2327; }
+        .fm-entry-cc-bcc { margin-bottom: 6px; font-size: 12px; color: #646970; display: flex; flex-wrap: wrap; gap: 12px; }
+        .fm-entry-cc-bcc strong { color: #1d2327; }
         .fm-entry-content p { margin: 0 0 8px; }
         .fm-entry-content p:last-child { margin-bottom: 0; }
-        .fm-entry-attachments { margin-top: 10px; }
-        .fm-entry-attachments .fm-attachment-item { display: inline-block; margin-right: 8px; margin-bottom: 8px; }
-        .fm-entry-attachments img { max-width: 280px; max-height: 180px; border-radius: 6px; border: 1px solid #e2e4e7; }
-        .fm-attachment-file { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: #f0f0f1; border-radius: 6px; font-size: 13px; color: #2271b1; text-decoration: none; }
-        .fm-attachment-file:hover { background: #e0e0e1; color: #135e96; }
+        .fm-entry-attachments { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee; }
+        .fm-attachment-item img { margin-bottom: 8px; width: 10rem; height: 10rem; overflow: hidden; transition: all .3s ease; object-fit: cover; object-position: top; margin: 0; }
+        .fm-attachment-item { margin: 0; }
+        .fm-attachment-item a { width: 10rem; height: 10rem; padding: 0; transition: all .3s ease; overflow: hidden; }
+        .fm-attachment-file { font-size: 12px; }
+        .fm-attachment-item a:hover *, .fm-attachment-item a:hover { transform: scale(1.05); }
 
         /* Empty State */
         .fm-empty-state { text-align: center; padding: 60px 20px; color: #8c8f94; }
@@ -376,7 +493,36 @@ class TicketDetailPage {
         .fm-reply-attach { display: flex; align-items: center; gap: 10px; }
         .fm-attach-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 13px; color: #1d2327; transition: background 0.15s; }
         .fm-attach-btn:hover { background: #f0f0f1; }
+        .fm-reply-footer { flex-wrap: wrap; gap: 8px 0; }
+        .fm-file-list { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; order: 3; }
+        .fm-file-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #f0f6fc; border: 1px solid #c3e4ff; border-radius: 4px; font-size: 12px; color: #2271b1; }
+        .fm-file-item.fm-file-error { background: #fcf0f1; border-color: #d63638; color: #d63638; }
+        .fm-file-item.fm-file-ok { background: #edfaef; border-color: #00a32a; color: #00a32a; }
+        .fm-file-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .fm-file-size { color: #646970; font-size: 11px; }
+        .fm-file-remove { cursor: pointer; color: #d63638; font-size: 16px; line-height: 1; margin-left: 2px; }
+        .fm-file-remove:hover { color: #a00; }
+        .fm-upload-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #646970; width: 100%; order: 4; }
+        .fm-upload-status .spinner { margin: 0; }
         .fm-reply-submit { margin: 0 !important; }
+        .fm-reply-cc-bcc-toggle { padding: 8px 16px; border-top: 1px solid #f0f0f1; }
+        .fm-reply-cc-bcc-toggle a { font-size: 13px; color: #2271b1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+        .fm-reply-cc-bcc-toggle a:hover { color: #135e96; }
+        .fm-reply-cc-bcc-toggle a .dashicons { font-size: 14px; width: 14px; height: 14px; }
+        .fm-reply-cc-bcc-fields { padding: 0 16px 12px; border-top: 1px solid #f0f0f1; background: #fafafa; }
+        .fm-cc-bcc-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+        .fm-cc-bcc-row:first-child { padding-top: 12px; }
+        .fm-cc-bcc-row:last-child { padding-bottom: 0; }
+
+        .fm-internal-note-box { background: #fff; border: 1px solid #ffc107; border-radius: 8px; margin-top: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; }
+        .fm-note-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fef3cd; border-bottom: 1px solid #ffc107; font-size: 13px; }
+        .fm-note-header .dashicons { color: #856404; }
+        .fm-note-header strong { color: #856404; }
+        .fm-note-toggle-link { margin-left: auto; font-size: 12px; color: #856404; text-decoration: underline; cursor: pointer; }
+        .fm-entry-badge-internal { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3cd; color: #856404; }
+        .fm-cc-bcc-row label { font-size: 13px; font-weight: 600; color: #646970; min-width: 35px; }
+        .fm-cc-bcc-row input { flex: 1; padding: 6px 10px; border: 1px solid #c3c4c7; border-radius: 4px; font-size: 13px; }
+        .fm-cc-bcc-row input:focus { border-color: #2271b1; outline: none; box-shadow: 0 0 0 1px #2271b1; }
 
         /* Sidebar Sections */
         .fm-sidebar-section { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
@@ -397,27 +543,6 @@ class TicketDetailPage {
         .fm-file-link:hover { color: #135e96; }
         .fm-file-size { color: #8c8f94; font-size: 12px; }
         </style>
-
-        <script>
-        function fmToggleCollapsed() {
-            var toggle = document.getElementById('fm-collapse-toggle');
-            var collapsed = document.querySelectorAll('.fm-entry-collapsed');
-            var isExpanded = toggle.classList.contains('fm-expanded');
-
-            if (isExpanded) {
-                // Collapse
-                toggle.classList.remove('fm-expanded');
-                toggle.querySelector('.fm-collapse-text').textContent = toggle.querySelector('.fm-collapse-text').textContent.replace('Hide', 'Show');
-                collapsed.forEach(function(el) { el.classList.add('fm-entry-collapsed'); });
-            } else {
-                // Expand
-                toggle.classList.add('fm-expanded');
-                var text = toggle.querySelector('.fm-collapse-text');
-                text.textContent = text.textContent.replace('Show', 'Hide');
-                collapsed.forEach(function(el) { el.classList.remove('fm-entry-collapsed'); });
-            }
-        }
-        </script>
         <?php
     }
 
@@ -428,22 +553,90 @@ class TicketDetailPage {
      * @return string Sanitized HTML.
      */
     private function kses_html_body( string $html ): string {
+        // Strip quoted reply/forward text to avoid showing old inline images.
+        $parser = new \Fanaloka\Maintenance\Email\EmailParser();
+        $html = $parser->strip_quoted_html( $html );
+
         // Allow data: URIs in img src by temporarily replacing them.
         $data_uris = [];
         $html = preg_replace_callback( '/src="(data:[^"]+)"/', function ( $m ) use ( &$data_uris ) {
             $key = '___DATA_URI_' . count( $data_uris ) . '___';
-            $data_uris[ $key ] = $m[1];
+            $data_uris[] = $m[1];
             return 'src="' . $key . '"';
         }, $html );
 
+        // Fix malformed HTML with DOMDocument.
+        $doc = new \DOMDocument( LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
+        $doc->preserveWhiteSpace = false;
+        $doc->formatOutput = false;
+        // Suppress warnings from malformed HTML.
+        @$doc->loadHTML( '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' . $html . '</body></html>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
+
+        // Remove inline images with non-resolvable CID refs.
+        $this->strip_bare_cid_images( $doc );
+
+        $body = $doc->saveHTML( $doc->getElementsByTagName( 'body' )->item( 0 ) );
+        // Remove wrapping <body> tags.
+        $body = preg_replace( '/^<body>(.*)<\/body>$/s', '$1', $body );
+        $html = $body;
+
         $html = wp_kses_post( $html );
 
-        // Restore data: URIs.
-        foreach ( $data_uris as $key => $uri ) {
-            $html = str_replace( $key, $uri, $html );
-        }
+        // Restore data: URIs only in img src attributes (safe context).
+        $html = preg_replace_callback( '/src="(___DATA_URI_\d+___)"/', function ( $m ) use ( $data_uris ) {
+            $idx = (int) preg_replace( '/^___DATA_URI_(\d+)___$/', '$1', $m[1] );
+            if ( isset( $data_uris[ $idx ] ) ) {
+                // Validate: only allow safe data URI schemes (images only).
+                $uri = $data_uris[ $idx ];
+                if ( preg_match( '/^data:image\/(jpeg|png|gif|webp|svg\+xml);base64,/', $uri ) ) {
+                    return 'src="' . esc_attr( $uri ) . '"';
+                }
+            }
+            return 'src=""';
+        }, $html );
 
         return $html;
+    }
+
+    /**
+     * Remove inline images with non-resolvable CID references from DOMDocument.
+     *
+     * @param \DOMDocument $doc DOM document to clean.
+     * @return void
+     */
+    private function strip_bare_cid_images( \DOMDocument $doc ): void {
+        $img_tags = $doc->getElementsByTagName( 'img' );
+        $to_remove = [];
+
+        for ( $i = 0; $i < $img_tags->length; $i++ ) {
+            $img = $img_tags->item( $i );
+            $src = trim( $img->getAttribute( 'src' ) );
+            if ( ! empty( $src ) && ! preg_match( '/^(https?|cid|data):/i', $src ) ) {
+                $to_remove[] = $img;
+            }
+        }
+
+        foreach ( $to_remove as $img ) {
+            $parent = $img->parentNode;
+            if ( $parent ) {
+                if ( 'div' === $parent->nodeName && $this->is_emptyish_container( $parent ) ) {
+                    $parent->parentNode->removeChild( $parent );
+                } else {
+                    $parent->removeChild( $img );
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a node is an empty-ish container.
+     *
+     * @param \DOMNode $node Node to check.
+     * @return bool
+     */
+    private function is_emptyish_container( \DOMNode $node ): bool {
+        $content = trim( $node->textContent );
+        return '' === $content || ctype_space( $content );
     }
 
     /**
@@ -542,6 +735,14 @@ class TicketDetailPage {
             return;
         }
 
+        // Allowed MIME types and max file size (10MB).
+        $allowed_mimes = [
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg',
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+            'txt', 'csv', 'zip', 'rar', '7z',
+        ];
+        $max_size = 10 * 1024 * 1024; // 10MB.
+
         $upload_dir = wp_upload_dir();
         $ticket_dir = $upload_dir['path'] . '/fm_tickets/' . $ticket_id;
 
@@ -554,6 +755,37 @@ class TicketDetailPage {
         for ( $i = 0; $i < count( $files['name'] ); $i++ ) {
             if ( empty( $files['name'][ $i ] ) || UPLOAD_ERR_OK !== $files['error'][ $i ] ) {
                 \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment skip: name=%s error=%d', $files['name'][ $i ] ?? '', $files['error'][ $i ] ?? -1 ) );
+                continue;
+            }
+
+            // File size check.
+            if ( $files['size'][ $i ] > $max_size ) {
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment skip (too large): %s (%d bytes)', $files['name'][ $i ], $files['size'][ $i ] ) );
+                continue;
+            }
+
+            // MIME type check — verify extension + real file type.
+            $ext = strtolower( pathinfo( $files['name'][ $i ], PATHINFO_EXTENSION ) );
+            if ( ! in_array( $ext, $allowed_mimes, true ) ) {
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment skip (disallowed type): %s', $files['name'][ $i ] ) );
+                continue;
+            }
+            $finfo = finfo_open( FILEINFO_MIME_TYPE );
+            $real_mime = finfo_file( $finfo, $files['tmp_name'][ $i ] );
+            finfo_close( $finfo );
+            $ext_to_mime = [
+                'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+                'gif' => 'image/gif', 'webp' => 'image/webp', 'svg' => 'image/svg+xml',
+                'pdf' => 'application/pdf',
+                'doc' => 'application/msword', 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls' => 'application/vnd.ms-excel', 'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'ppt' => 'application/vnd.ms-powerpoint', 'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'txt' => 'text/plain', 'csv' => 'text/csv',
+                'zip' => 'application/zip', 'rar' => 'application/x-rar-compressed', '7z' => 'application/x-7z-compressed',
+            ];
+            $expected = $ext_to_mime[ $ext ] ?? '';
+            if ( $expected && $real_mime !== $expected ) {
+                \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Attachment skip (mime mismatch): %s real=%s expected=%s', $files['name'][ $i ], $real_mime, $expected ) );
                 continue;
             }
 
@@ -674,6 +906,13 @@ class TicketDetailPage {
 
         $body_plain = wp_strip_all_tags( $content );
 
+        // Append email signature.
+        $signature = get_option( 'fm_email_signature', '' );
+        if ( ! empty( $signature ) ) {
+            $body_html  .= '<br><br>' . $signature;
+            $body_plain .= "\n\n" . wp_strip_all_tags( $signature );
+        }
+
         // Store data for phpmailer callback.
         $admin = Admin::instance();
         $admin->set_reply_headers( $message_id, $last_client_msg_id ?? '', $references, $attachment_files );
@@ -710,5 +949,42 @@ class TicketDetailPage {
         }
 
         return $options;
+    }
+
+    /**
+     * Get relative time string (e.g. "5 minutes ago", "a day ago").
+     *
+     * @param string $datetime MySQL datetime string.
+     * @return string Human-readable relative time.
+     */
+    private function get_relative_time( string $datetime ): string {
+        $now  = new \DateTime();
+        $past = new \DateTime( $datetime );
+        $diff = $now->diff( $past );
+
+        if ( $diff->y > 0 ) {
+            return $diff->y === 1 ? 'a year ago' : sprintf( '%d years ago', $diff->y );
+        }
+        if ( $diff->m > 0 && $diff->d === 0 ) {
+            return $diff->m === 1 ? 'a month ago' : sprintf( '%d months ago', $diff->m );
+        }
+        if ( $diff->d > 0 ) {
+            if ( $diff->d === 1 ) {
+                return 'yesterday';
+            }
+            if ( $diff->d < 7 ) {
+                return sprintf( '%d days ago', $diff->d );
+            }
+            $weeks = (int) floor( $diff->d / 7 );
+            return $weeks === 1 ? 'a week ago' : sprintf( '%d weeks ago', $weeks );
+        }
+        if ( $diff->h > 0 ) {
+            return $diff->h === 1 ? 'an hour ago' : sprintf( '%d hours ago', $diff->h );
+        }
+        if ( $diff->i > 0 ) {
+            return $diff->i === 1 ? 'a minute ago' : sprintf( '%d minutes ago', $diff->i );
+        }
+
+        return 'just now';
     }
 }

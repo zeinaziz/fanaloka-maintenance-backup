@@ -134,6 +134,16 @@ class EmailParser {
         $in_reply_to  = trim( $headers['in_reply_to'] ?? '' );
         $references   = trim( $headers['references'] ?? '' );
 
+        // Extract CC addresses.
+        $cc_emails = [];
+        if ( ! empty( $headers['cc'] ) && is_array( $headers['cc'] ) ) {
+            foreach ( $headers['cc'] as $cc ) {
+                if ( ! empty( $cc['email'] ) ) {
+                    $cc_emails[] = $cc['email'];
+                }
+            }
+        }
+
         if ( empty( $sender_email ) ) {
             Logger::log( 'Email parse failed: missing sender email', Logger::LEVEL_WARNING );
             return false;
@@ -160,6 +170,7 @@ class EmailParser {
             $body_html = wp_kses_post( $body_html );
             $body_html = str_replace( [ "\r\n", "\r" ], "\n", $body_html );
             $body_html = preg_replace( "/\n{3,}/", "\n\n", $body_html );
+            $body_html = $this->strip_quoted_html( $body_html );
             $body_html = trim( $body_html );
         }
 
@@ -175,6 +186,7 @@ class EmailParser {
             'message_id'         => $message_id,
             'in_reply_to'        => $in_reply_to,
             'references'         => $references,
+            'cc'                 => implode( ', ', $cc_emails ),
             'attachments'        => $filtered_attachments,
             'msg_number'         => $email_data['msg_number'] ?? 0,
             'uid'                => $email_data['headers']['uid'] ?? 0,
@@ -294,6 +306,13 @@ class EmailParser {
         $body = wp_strip_all_tags( $body, true );
         $body = html_entity_decode( $body );
         $body = str_replace( [ "\r\n", "\r" ], "\n", $body );
+
+        // Strip quoted reply chains from plain text body.
+        // Indonesian: "Pada ... menulis:"
+        $body = preg_replace( '/Pada\s+[\s\S]*?menulis\s*:\s*[\s\S]*$/i', '', $body );
+        // English: "On ... wrote:"
+        $body = preg_replace( '/On\s+[\s\S]*?\bwrote\s*:\s*[\s\S]*$/i', '', $body );
+
         $body = preg_replace( "/\n{3,}/", "\n\n", $body );
         $body = trim( $body );
 
@@ -383,6 +402,9 @@ class EmailParser {
         $allowed_types = [
             'image/jpeg',
             'image/png',
+            'image/gif',
+            'image/webp',
+            'image/svg+xml',
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -395,6 +417,9 @@ class EmailParser {
             'jpg',
             'jpeg',
             'png',
+            'gif',
+            'webp',
+            'svg',
             'pdf',
             'doc',
             'docx',
@@ -440,5 +465,54 @@ class EmailParser {
      */
     public function get_ticket_number_from_subject( string $subject ) {
         return $this->extract_ticket_id_from_subject( $subject );
+    }
+
+    /**
+     * Strip quoted text from HTML body.
+     *
+     * Removes "On...wrote:" and "Pada...menulis:" reply chains, blockquotes,
+     * and trailing quoted sections from email HTML.
+     *
+     * @param string $html HTML body.
+     * @return string Cleaned HTML.
+     */
+    public function strip_quoted_html( string $html ): string {
+        if ( empty( $html ) ) {
+            return $html;
+        }
+
+        // Strip Gmail quote containers: <div class="gmail_quote">...</div>
+        $html = preg_replace( '/<div\s+class="gmail_quote[\s\S]*$/i', '', $html );
+
+        // Strip Indonesian reply header: "Pada ... menulis:" (with optional HTML tags).
+        $html = preg_replace(
+            '/<[^>]*>\s*Pada\s+[\s\S]*?menulis\s*:\s*[\s\S]*$/i',
+            '',
+            $html
+        );
+        // Plain text variant.
+        $html = preg_replace( '/Pada\s+[\s\S]*?menulis\s*:\s*[\s\S]*$/i', '', $html );
+
+        // Strip English reply header: "On ... wrote:" (with optional HTML tags).
+        $html = preg_replace(
+            '/<[^>]*>\s*On\s+[\s\S]*?\bwrote\s*:\s*[\s\S]*$/i',
+            '',
+            $html
+        );
+        // Plain text variant.
+        $html = preg_replace( '/On\s+[\s\S]*?\bwrote\s*:\s*[\s\S]*$/i', '', $html );
+
+        // Strip forwarded message headers.
+        $html = preg_replace( '/----------\s*Forwarded message\s*----------[\s\S]*$/i', '', $html );
+
+        // Remove <blockquote> elements (keep content if needed, but usually quoted).
+        $html = preg_replace( '/<blockquote\b[^>]*>[\s\S]*?<\/blockquote\s*>/is', '', $html );
+
+        // Clean up empty paragraphs and extra whitespace.
+        $html = preg_replace( '/<p>\s*<\/p>/i', '', $html );
+        $html = preg_replace( '/\n{3,}/', "\n\n", $html );
+        $html = trim( $html );
+
+        return $html;
     }
 }

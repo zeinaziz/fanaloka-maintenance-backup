@@ -84,10 +84,14 @@ class Admin {
         add_action( 'admin_menu', [ $this, 'register_menus' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
         add_action( 'init', [ $this, 'handle_ticket_actions' ], 1 );
+        add_action( 'admin_bar_menu', [ $this, 'add_admin_bar_badge' ], 999 );
+        add_action( 'admin_head', [ $this, 'admin_bar_css' ] );
         add_action( 'wp_ajax_fm_update_ticket', [ $this, 'ajax_update_ticket' ] );
         add_action( 'wp_ajax_fm_reply_ticket', [ $this, 'ajax_reply_ticket' ] );
+        add_action( 'wp_ajax_fm_add_internal_note', [ $this, 'ajax_add_internal_note' ] );
         add_action( 'wp_ajax_fm_list_requests', [ $this, 'ajax_list_requests' ] );
         add_action( 'wp_ajax_fm_bulk_delete_requests', [ $this, 'ajax_bulk_delete_requests' ] );
+        add_action( 'wp_ajax_fm_bulk_update_requests', [ $this, 'ajax_bulk_update_requests' ] );
         add_action( 'wp_ajax_fm_get_entries', [ $this, 'ajax_get_entries' ] );
         add_action( 'wp_ajax_fm_list_clients', [ $this, 'ajax_list_clients' ] );
         add_action( 'wp_ajax_fm_get_client_tickets', [ $this, 'ajax_get_client_tickets' ] );
@@ -103,6 +107,10 @@ class Admin {
      */
     public function handle_ticket_actions(): void {
         if ( ! is_admin() ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
@@ -133,6 +141,101 @@ class Admin {
      * Register admin menus.
      *
      * @return void
+     */
+    public function admin_bar_css(): void {
+        if ( ! is_admin_bar_showing() ) {
+            return;
+        }
+        ?>
+        <style>
+        .fm-admin-bar-count { display: inline-flex !important; align-items: center !important; justify-content: center !important; min-width: 18px !important; height: 18px !important; padding: 0 5px !important; margin-left: 4px !important; margin-right: 2px !important; border-radius: 9px !important; background: #d63638 !important; color: #fff !important; font-size: 11px !important; font-weight: 600 !important; line-height: 1 !important; vertical-align: middle !important; }
+        #wp-admin-bar-fm-maintenance .ab-icon { margin-right: 2px; }
+        </style>
+        <?php
+    }
+
+    /**
+     * Add admin bar badge for open tickets.
+     *
+     * @param \WP_Admin_Bar $admin_bar Admin bar object.
+     * @return void
+     */
+    public function add_admin_bar_badge( \WP_Admin_Bar $admin_bar ): void {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        global $wpdb;
+
+        // Count tickets with _fm_status = new or open from postmeta.
+        $new_count = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->postmeta}
+                 WHERE meta_key = '_fm_status' AND meta_value = %s",
+                'new'
+            )
+        );
+        $open_count = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->postmeta}
+                 WHERE meta_key = '_fm_status' AND meta_value = %s",
+                'open'
+            )
+        );
+        $pending = $new_count + $open_count;
+
+        if ( $pending === 0 ) {
+            return;
+        }
+
+        $admin_bar->add_node( [
+            'id'    => 'fm-maintenance',
+            'title' => '<span class="ab-icon dashicons dashicons-admin-tools"></span>' .
+                        '<span class="fm-admin-bar-count">' . esc_html( $pending ) . '</span>' .
+                        '<span class="ab-label">' . esc_html__( 'Tickets', 'fanaloka-maintenance' ) . '</span>',
+            'href'  => admin_url( 'admin.php?page=fm-requests' ),
+            'meta'  => [
+                'title' => esc_attr( sprintf(
+                    /* translators: %d: number of open tickets */
+                    __( '%d open ticket(s)', 'fanaloka-maintenance' ),
+                    $pending
+                ) ),
+            ],
+        ] );
+
+        // Sub-items for quick access.
+        $admin_bar->add_node( [
+            'id'     => 'fm-new',
+            'parent' => 'fm-maintenance',
+            'title'  => sprintf(
+                /* translators: %d: number of new tickets */
+                esc_html__( 'New: %d', 'fanaloka-maintenance' ),
+                $new_count
+            ),
+            'href'   => admin_url( 'admin.php?page=fm-requests&status=new' ),
+        ] );
+
+        $admin_bar->add_node( [
+            'id'     => 'fm-open',
+            'parent' => 'fm-maintenance',
+            'title'  => sprintf(
+                /* translators: %d: number of open tickets */
+                esc_html__( 'Open: %d', 'fanaloka-maintenance' ),
+                $open_count
+            ),
+            'href'   => admin_url( 'admin.php?page=fm-requests&status=open' ),
+        ] );
+
+        $admin_bar->add_node( [
+            'id'     => 'fm-all',
+            'parent' => 'fm-maintenance',
+            'title'  => esc_html__( 'View All Requests', 'fanaloka-maintenance' ),
+            'href'   => admin_url( 'admin.php?page=fm-requests' ),
+        ] );
+    }
+
+    /**
+     * Register admin menus.
      */
     public function register_menus(): void {
         add_menu_page(
@@ -198,6 +301,15 @@ class Admin {
             'fm-guide',
             [ new GuidePage(), 'render' ]
         );
+
+        add_submenu_page(
+            'fm-dashboard',
+            __( 'Activity Log', 'fanaloka-maintenance' ),
+            __( 'Activity Log', 'fanaloka-maintenance' ),
+            'manage_options',
+            'fm-activity-log',
+            [ new \Fanaloka\Maintenance\Admin\ActivityLogPage(), 'render' ]
+        );
     }
 
     /**
@@ -251,6 +363,8 @@ class Admin {
     public function ajax_update_ticket(): void {
         check_ajax_referer( 'fm_admin_nonce', 'nonce' );
 
+        require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
+
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( [ 'message' => 'Unauthorized' ] );
         }
@@ -279,6 +393,16 @@ class Admin {
 
         // Update last activity on any field change.
         update_post_meta( $ticket_id, '_fm_last_updated', time() );
+
+        // Log the change.
+        $log_action = 'ticket_' . str_replace( 'developer_id', 'assigned', $field ) . '_changed';
+        if ( 'developer_id' === $field ) {
+            $log_action = 'ticket_assigned';
+            $dev_name = get_the_title( absint( $value ) ) ?: 'Unassigned';
+            \Fanaloka\Maintenance\Log\ActivityLog::log( $log_action, 'ticket', $ticket_id, sprintf( 'Ticket #%d assigned to %s', $ticket_id, $dev_name ) );
+        } else {
+            \Fanaloka\Maintenance\Log\ActivityLog::log( $log_action, 'ticket', $ticket_id, sprintf( 'Ticket #%d %s changed to %s', $ticket_id, $field, $value ) );
+        }
 
         // Re-fetch ticket to get updated data.
         $ticket = $ticket_manager->get_ticket_meta( $ticket_id );
@@ -328,12 +452,21 @@ class Admin {
     public function ajax_reply_ticket(): void {
         check_ajax_referer( 'fm_admin_nonce', 'nonce' );
 
+        require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
+
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( [ 'message' => 'Unauthorized' ] );
         }
 
         $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
         $content   = wp_kses_post( wp_unslash( $_POST['content'] ?? '' ) );
+        $cc        = sanitize_text_field( wp_unslash( $_POST['reply_cc'] ?? '' ) );
+        $bcc       = sanitize_text_field( wp_unslash( $_POST['reply_bcc'] ?? '' ) );
+
+        // Convert raw newlines to <br> when content has HTML tags but bare \r\n.
+        if ( $content && preg_match( '/<[^>]+>/', $content ) && preg_match( '/\r?\n/', $content ) && strpos( $content, '<p>' ) === false ) {
+            $content = str_replace( [ "\r\n", "\n" ], '<br>', $content );
+        }
 
         if ( ! $ticket_id || empty( $content ) ) {
             wp_send_json_error( [ 'message' => 'Empty content' ] );
@@ -342,7 +475,7 @@ class Admin {
         $user = wp_get_current_user();
 
         $conversation = new \Fanaloka\Maintenance\Ticket\ConversationManager();
-        $entry_id = $conversation->add_reply_from_developer( $ticket_id, $content );
+        $entry_id = $conversation->add_reply_from_developer( $ticket_id, $content, $cc, $bcc );
 
         // Update last activity.
         update_post_meta( $ticket_id, '_fm_last_updated', time() );
@@ -352,15 +485,20 @@ class Admin {
             $this->handle_reply_attachments( $ticket_id, $entry_id );
         }
 
-        // Send email to client.
-        $this->send_reply_email( $ticket_id, $content );
+        // Send email to client (with CC/BCC).
+        $this->send_reply_email( $ticket_id, $content, $cc, $bcc );
 
         // Build entry HTML for timeline.
+        $new_entry = $conversation->get_entry( $entry_id );
         $entry_html = $this->render_entry_html( [
-            'sender'     => $user->display_name,
-            'entry_type' => 'developer',
-            'body'       => $content,
-            'created_at' => wp_date( 'Y-m-d H:i:s' ),
+            'id'          => $entry_id,
+            'ticket_id'   => $ticket_id,
+            'sender'      => $user->display_name,
+            'entry_type'  => 'developer',
+            'body'        => $content,
+            'attachments' => $new_entry ? $new_entry['attachments'] ?? '' : '',
+            'created_at'  => wp_date( 'Y-m-d H:i:s' ),
+            'meta'        => $new_entry ? $new_entry['meta'] ?? '' : '',
         ] );
 
         // Get updated badges.
@@ -368,11 +506,106 @@ class Admin {
         $ticket = $ticket_manager->get_ticket_meta( $ticket_id );
         $badges = $this->render_ticket_badges( $ticket );
 
+        \Fanaloka\Maintenance\Log\ActivityLog::log( 'reply_sent', 'ticket', $ticket_id, sprintf( 'Reply to ticket #%d', $ticket_id ) );
+
         wp_send_json_success( [
             'message' => 'Reply sent!',
             'entry'   => $entry_html,
             'badges'  => $badges,
         ] );
+    }
+
+    /**
+     * AJAX handler: Add internal note.
+     */
+    public function ajax_add_internal_note(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ] );
+        }
+
+        $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
+        $content   = wp_kses_post( wp_unslash( $_POST['note_content'] ?? '' ) );
+
+        if ( ! $ticket_id || empty( trim( $content ) ) ) {
+            wp_send_json_error( [ 'message' => 'Empty content' ] );
+        }
+
+        $user = wp_get_current_user();
+        $conversation = new \Fanaloka\Maintenance\Ticket\ConversationManager();
+        $entry_id = $conversation->add_internal_note( $ticket_id, $content );
+
+        update_post_meta( $ticket_id, '_fm_last_updated', time() );
+
+        $entry_html = $this->render_entry_html( [
+            'id'         => $entry_id,
+            'ticket_id'  => $ticket_id,
+            'sender'     => $user->display_name,
+            'entry_type' => 'internal',
+            'body'       => $content,
+            'created_at' => wp_date( 'Y-m-d H:i:s' ),
+        ] );
+
+        $ticket_manager = new \Fanaloka\Maintenance\Ticket\TicketManager();
+        $ticket = $ticket_manager->get_ticket_meta( $ticket_id );
+        $badges = $this->render_ticket_badges( $ticket );
+
+        \Fanaloka\Maintenance\Log\ActivityLog::log( 'internal_note_added', 'ticket', $ticket_id, sprintf( 'Internal note on ticket #%d', $ticket_id ) );
+
+        wp_send_json_success( [
+            'message' => 'Internal note added!',
+            'entry'   => $entry_html,
+            'badges'  => $badges,
+        ] );
+    }
+
+    /**
+     * Remove inline images with non-resolvable CID references from DOMDocument.
+     *
+     * Gmail uses bare refs like "ii_xxx" instead of "cid:xxx@yyy". These images
+     * can't be displayed inline. The actual image is saved as attachment.
+     *
+     * @param \DOMDocument $doc DOM document to clean.
+     * @return void
+     */
+    private function strip_bare_cid_images( \DOMDocument $doc ): void {
+        $img_tags = $doc->getElementsByTagName( 'img' );
+        $to_remove = [];
+
+        for ( $i = 0; $i < $img_tags->length; $i++ ) {
+            $img = $img_tags->item( $i );
+            $src = trim( $img->getAttribute( 'src' ) );
+            // Keep http/https/data: images. Remove bare CID refs (ii_xxx, inline refs).
+            if ( ! empty( $src ) && ! preg_match( '/^(https?|cid|data):/i', $src ) ) {
+                $to_remove[] = $img;
+            }
+        }
+
+        foreach ( $to_remove as $img ) {
+            $parent = $img->parentNode;
+            if ( $parent ) {
+                // Remove the parent <div> if it only contains this image + optional <br>.
+                if ( 'div' === $parent->nodeName && $this->is_emptyish_container( $parent ) ) {
+                    $parent->parentNode->removeChild( $parent );
+                } else {
+                    $parent->removeChild( $img );
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a node is an empty-ish container (only <br> or whitespace).
+     *
+     * @param \DOMNode $node Node to check.
+     * @return bool
+     */
+    private function is_emptyish_container( \DOMNode $node ): bool {
+        $content = trim( $node->textContent );
+        return '' === $content || ctype_space( $content );
     }
 
     /**
@@ -383,17 +616,107 @@ class Admin {
      */
     private function render_entry_html( array $entry ): string {
         $initials    = strtoupper( substr( $entry['sender'], 0, 1 ) );
-        $entry_color = 'developer' === $entry['entry_type'] ? '#2271b1' : ( 'client' === $entry['entry_type'] ? '#00a32a' : '#646970' );
+        $type        = $entry['entry_type'] ?? 'client';
+        $entry_color = 'developer' === $type ? '#2271b1' : ( 'client' === $type ? '#00a32a' : ( 'internal' === $type ? '#856404' : '#646970' ) );
 
-        $html  = '<div class="fm-entry fm-entry-' . esc_attr( $entry['entry_type'] ) . '">';
+        $entry_id = $entry['id'] ?? 0;
+        $created  = $entry['created_at'] ?? wp_date( 'Y-m-d H:i:s' );
+
+        // Action text.
+        if ( 'internal' === $type ) {
+            $action_text = 'added an internal note';
+        } elseif ( 'client' === $type ) {
+            $action_text = 'sent a message';
+        } else {
+            $action_text = 'replied';
+        }
+
+        // Get ticket client email for "To:" display (not for internal notes).
+        $ticket_id = $entry['ticket_id'] ?? 0;
+        $ticket_client_email = ( 'internal' !== $type && $ticket_id ) ? ( get_post_meta( $ticket_id, '_fm_client_email', true ) ?? '' ) : '';
+
+        $html  = '<div class="fm-entry fm-entry-' . esc_attr( $type ) . '" data-entry-id="' . esc_attr( $entry_id ) . '">';
         $html .= '<div class="fm-entry-avatar" style="background:' . esc_attr( $entry_color ) . ';">' . esc_html( $initials ) . '</div>';
         $html .= '<div class="fm-entry-body">';
+
+        // Sender + action + time (Freshdesk style).
         $html .= '<div class="fm-entry-meta">';
-        $html .= '<strong class="fm-entry-sender">' . esc_html( $entry['sender'] ) . '</strong>';
-        $html .= '<span class="fm-entry-type-badge" style="background:' . esc_attr( $entry_color ) . '15;color:' . esc_attr( $entry_color ) . ';">' . esc_html( ucfirst( $entry['entry_type'] ) ) . '</span>';
-        $html .= '<span class="fm-entry-date">' . esc_html( $entry['created_at'] ) . '</span>';
+        $html .= '<strong class="fm-entry-sender" style="color:' . esc_attr( $entry_color ) . ';">' . esc_html( $entry['sender'] ) . '</strong>';
+        $html .= '<span class="fm-entry-action">' . esc_html( $action_text ) . '</span>';
+        $html .= '<span class="fm-entry-date">- ' . esc_html( $this->get_relative_time( $created ) ) . ' (' . esc_html( wp_date( 'D, d M Y \a\t g:i A', strtotime( $created ) ) ) . ')</span>';
+        if ( 'internal' === $type ) {
+            $html .= '<span class="fm-entry-badge-internal">Internal</span>';
+        }
         $html .= '</div>';
-        $html .= '<div class="fm-entry-content">' . wp_kses_post( $entry['body'] ) . '</div>';
+
+        // To / CC / BCC line (only for non-internal entries).
+        if ( 'internal' !== $type ) {
+            $entry_meta = ! empty( $entry['meta'] ) ? json_decode( $entry['meta'], true ) : [];
+            $has_to   = ! empty( $ticket_client_email );
+            $has_cc   = ! empty( $entry_meta['cc'] );
+            $has_bcc  = ! empty( $entry_meta['bcc'] );
+
+            if ( $has_to || $has_cc || $has_bcc ) {
+                $html .= '<div class="fm-entry-recipients">';
+                if ( $has_to ) {
+                    $html .= '<span class="fm-entry-to"><strong>To:</strong> ' . esc_html( $ticket_client_email ) . '</span>';
+                }
+                if ( $has_cc ) {
+                    $html .= '<span class="fm-entry-cc"><strong>Cc:</strong> ' . esc_html( $entry_meta['cc'] ) . '</span>';
+                }
+                if ( $has_bcc ) {
+                    $html .= '<span class="fm-entry-bcc"><strong>Bcc:</strong> ' . esc_html( $entry_meta['bcc'] ) . '</span>';
+                }
+                $html .= '</div>';
+            }
+        }
+
+        // Entry content — use body_html for client entries if available.
+        $entry_body = $entry['body'] ?? '';
+        $entry_body_html = $entry['body_html'] ?? '';
+        if ( 'client' === $type && ! empty( $entry_body_html ) ) {
+            // Strip quoted reply/forward text to avoid showing old inline images.
+            $parser = new \Fanaloka\Maintenance\Email\EmailParser();
+            $entry_body_html = $parser->strip_quoted_html( $entry_body_html );
+
+            // Allow data: URIs in img src by temporarily replacing them.
+            $data_uris = [];
+            $entry_body_html = preg_replace_callback( '/src="(data:[^"]+)"/', function ( $m ) use ( &$data_uris ) {
+                $key = '___DATA_URI_' . count( $data_uris ) . '___';
+                $data_uris[] = $m[1];
+                return 'src="' . $key . '"';
+            }, $entry_body_html );
+
+            // Fix malformed HTML with DOMDocument.
+            $doc = new \DOMDocument( LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
+            $doc->preserveWhiteSpace = false;
+            $doc->formatOutput = false;
+            @$doc->loadHTML( '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' . $entry_body_html . '</body></html>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
+
+            // Remove inline images with non-resolvable CID refs (Gmail bare refs like "ii_xxx").
+            // The actual image is saved as attachment and shown in attachment section.
+            $this->strip_bare_cid_images( $doc );
+
+            $fixed_html = $doc->saveHTML( $doc->getElementsByTagName( 'body' )->item( 0 ) );
+            $fixed_html = preg_replace( '/^<body>(.*)<\/body>$/s', '$1', $fixed_html );
+            $entry_body_html = wp_kses_post( $fixed_html );
+
+            // Restore data: URIs only in img src (safe context, images only).
+            $entry_body_html = preg_replace_callback( '/src="(___DATA_URI_\d+___)"/', function ( $m ) use ( $data_uris ) {
+                $idx = (int) preg_replace( '/^___DATA_URI_(\d+)___$/', '$1', $m[1] );
+                if ( isset( $data_uris[ $idx ] ) ) {
+                    $uri = $data_uris[ $idx ];
+                    if ( preg_match( '/^data:image\/(jpeg|png|gif|webp|svg\+xml);base64,/', $uri ) ) {
+                        return 'src="' . esc_attr( $uri ) . '"';
+                    }
+                }
+                return 'src=""';
+            }, $entry_body_html );
+
+            $html .= '<div class="fm-entry-content">' . $entry_body_html . '</div>';
+        } else {
+            $html .= '<div class="fm-entry-content">' . wp_kses_post( $entry_body ) . '</div>';
+        }
 
         // Handle attachments.
         $att_ids = ! empty( $entry['attachments'] ) ? explode( ',', $entry['attachments'] ) : [];
@@ -403,13 +726,19 @@ class Admin {
             foreach ( $att_ids as $att_id ) {
                 $url  = wp_get_attachment_url( $att_id );
                 $name = get_the_title( $att_id );
-                if ( $url ) {
-                    if ( wp_attachment_is_image( $att_id ) ) {
-                        $html .= '<div class="fm-attachment-item"><a href="' . esc_url( $url ) . '" target="_blank"><img src="' . esc_url( $url ) . '" alt="' . esc_attr( $name ) . '" /></a></div>';
-                    } else {
-                        $html .= '<a href="' . esc_url( $url ) . '" target="_blank" class="fm-attachment-file"><span class="dashicons dashicons-media-default"></span> ' . esc_html( $name ) . '</a>';
-                    }
+                $mime = get_post_mime_type( $att_id );
+                if ( ! $url ) {
+                    continue;
                 }
+                $is_image = str_starts_with( $mime, 'image/' );
+                $ext = strtoupper( pathinfo( $name, PATHINFO_EXTENSION ) );
+                $html .= '<div class="fm-attachment-item"><a href="' . esc_url( $url ) . '" target="_blank">';
+                if ( $is_image ) {
+                    $html .= '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $name ) . '" />';
+                } else {
+                    $html .= '<span class="fm-attachment-file">' . esc_html( $ext ) . '</span>';
+                }
+                $html .= '</a></div>';
             }
             $html .= '</div>';
         }
@@ -426,7 +755,7 @@ class Admin {
      * @param string $content   Reply content.
      * @return void
      */
-    private function send_reply_email( int $ticket_id, string $content ): void {
+    private function send_reply_email( int $ticket_id, string $content, string $cc = '', string $bcc = '' ): void {
         $ticket  = ( new \Fanaloka\Maintenance\Ticket\TicketManager() )->get_ticket_meta( $ticket_id );
         $to      = $ticket['client_email'] ?? '';
         $subject = 'Re: ' . $ticket['subject'];
@@ -467,17 +796,33 @@ class Admin {
         $body_html  = wp_kses_post( $content );
         $body_plain = wp_strip_all_tags( $content );
 
+        // Append email signature.
+        $signature = get_option( 'fm_email_signature', '' );
+        if ( ! empty( $signature ) ) {
+            $body_html  .= '<br><br>' . $signature;
+            $body_plain .= "\n\n" . wp_strip_all_tags( $signature );
+        }
+
         $this->set_reply_body( $body_html, $body_plain );
+
+        // Build headers with CC/BCC.
+        $headers = "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0";
+        if ( ! empty( $cc ) ) {
+            $headers .= "\nCC: " . $cc;
+        }
+        if ( ! empty( $bcc ) ) {
+            $headers .= "\nBCC: " . $bcc;
+        }
 
         add_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ], 999 );
 
-        wp_mail( $to, $subject, $body_html, "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0" );
+        wp_mail( $to, $subject, $body_html, $headers );
 
         remove_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ], 999 );
 
         $this->set_reply_body( '', '' );
 
-        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply email sent to %s for ticket #%d', $to, $ticket_id ) );
+        \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply email sent to %s%s%s for ticket #%d', $to, ! empty( $cc ) ? ' CC: ' . $cc : '', ! empty( $bcc ) ? ' BCC: ' . $bcc : '', $ticket_id ) );
     }
 
     /**
@@ -497,6 +842,14 @@ class Admin {
             return;
         }
 
+        // Allowed MIME types and max file size (10MB).
+        $allowed_mimes = [
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg',
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+            'txt', 'csv', 'zip', 'rar', '7z',
+        ];
+        $max_size = 10 * 1024 * 1024; // 10MB.
+
         $upload_dir = wp_upload_dir();
         $ticket_dir = $upload_dir['path'] . '/fm_tickets/' . $ticket_id;
 
@@ -508,6 +861,34 @@ class Admin {
 
         for ( $i = 0; $i < count( $files['name'] ); $i++ ) {
             if ( empty( $files['name'][ $i ] ) || UPLOAD_ERR_OK !== $files['error'][ $i ] ) {
+                continue;
+            }
+
+            // File size check.
+            if ( $files['size'][ $i ] > $max_size ) {
+                continue;
+            }
+
+            // MIME type check — verify extension + real file type.
+            $ext = strtolower( pathinfo( $files['name'][ $i ], PATHINFO_EXTENSION ) );
+            if ( ! in_array( $ext, $allowed_mimes, true ) ) {
+                continue;
+            }
+            $finfo = finfo_open( FILEINFO_MIME_TYPE );
+            $real_mime = finfo_file( $finfo, $files['tmp_name'][ $i ] );
+            finfo_close( $finfo );
+            $ext_to_mime = [
+                'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+                'gif' => 'image/gif', 'webp' => 'image/webp', 'svg' => 'image/svg+xml',
+                'pdf' => 'application/pdf',
+                'doc' => 'application/msword', 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls' => 'application/vnd.ms-excel', 'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'ppt' => 'application/vnd.ms-powerpoint', 'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'txt' => 'text/plain', 'csv' => 'text/csv',
+                'zip' => 'application/zip', 'rar' => 'application/x-rar-compressed', '7z' => 'application/x-7z-compressed',
+            ];
+            $expected = $ext_to_mime[ $ext ] ?? '';
+            if ( $expected && $real_mime !== $expected ) {
                 continue;
             }
 
@@ -695,8 +1076,16 @@ class Admin {
         $client   = isset( $_POST['client'] ) ? sanitize_email( wp_unslash( $_POST['client'] ) ) : '';
         $status   = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
         $priority = isset( $_POST['priority'] ) ? sanitize_text_field( wp_unslash( $_POST['priority'] ) ) : '';
+        $search   = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+        $allowed_orderby = [ 'ticket_number', 'status', 'priority', 'date', '_fm_last_updated' ];
         $orderby  = isset( $_POST['orderby'] ) ? sanitize_text_field( wp_unslash( $_POST['orderby'] ) ) : '_fm_last_updated';
+        if ( ! in_array( $orderby, $allowed_orderby, true ) ) {
+            $orderby = '_fm_last_updated';
+        }
         $order    = isset( $_POST['order'] ) ? sanitize_text_field( wp_unslash( $_POST['order'] ) ) : 'DESC';
+        if ( ! in_array( strtoupper( $order ), [ 'ASC', 'DESC' ], true ) ) {
+            $order = 'DESC';
+        }
         $per_page = isset( $_POST['per_page'] ) ? max( 1, absint( $_POST['per_page'] ) ) : 20;
 
         $ticket_manager = new \Fanaloka\Maintenance\Ticket\TicketManager();
@@ -706,6 +1095,7 @@ class Admin {
             'client'   => $client,
             'status'   => $status,
             'priority' => $priority,
+            'search'   => $search,
             'orderby'  => $orderby,
             'order'    => $order,
         ] );
@@ -760,9 +1150,9 @@ class Admin {
 
         $pagination = '';
         if ( $pages > 1 ) {
-            $pagination .= '<a class="button" data-page="' . max( 1, $paged - 1 ) . '"' . ( $paged <= 1 ? ' disabled' : '' ) . '>&laquo;</a> ';
-            $pagination .= '<span class="paging-input">' . $paged . ' of ' . $pages . '</span> ';
-            $pagination .= '<a class="button" data-page="' . min( $pages, $paged + 1 ) . '"' . ( $paged >= $pages ? ' disabled' : '' ) . '>&raquo;</a>';
+            $pagination .= '<a class="button" data-page="' . esc_attr( max( 1, $paged - 1 ) ) . '"' . ( $paged <= 1 ? ' disabled' : '' ) . '>&laquo;</a> ';
+            $pagination .= '<span class="paging-input">' . esc_html( $paged ) . ' of ' . esc_html( $pages ) . '</span> ';
+            $pagination .= '<a class="button" data-page="' . esc_attr( min( $pages, $paged + 1 ) ) . '"' . ( $paged >= $pages ? ' disabled' : '' ) . '>&raquo;</a>';
         }
 
         wp_send_json_success( [
@@ -781,6 +1171,8 @@ class Admin {
      */
     public function ajax_bulk_delete_requests(): void {
         check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
 
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( [ 'message' => 'Permission denied.' ] );
@@ -802,6 +1194,8 @@ class Admin {
             }
         }
 
+        \Fanaloka\Maintenance\Log\ActivityLog::log( 'bulk_deleted', 'ticket', 0, sprintf( 'Bulk deleted %d tickets: IDs %s', $deleted, implode( ', ', $ids ) ) );
+
         wp_send_json_success( [
             'message' => sprintf(
                 /* translators: %d: number of deleted tickets */
@@ -809,6 +1203,64 @@ class Admin {
                 $deleted
             ),
             'deleted' => $deleted,
+        ] );
+    }
+
+    /**
+     * AJAX: Bulk update tickets (status, priority, developer).
+     *
+     * @return void
+     */
+    public function ajax_bulk_update_requests(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+
+        $ids    = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : [];
+        $ids    = array_filter( $ids );
+        $field  = sanitize_text_field( wp_unslash( $_POST['bulk_field'] ?? '' ) );
+        $value  = sanitize_text_field( wp_unslash( $_POST['bulk_value'] ?? '' ) );
+
+        if ( empty( $ids ) ) {
+            wp_send_json_error( [ 'message' => 'No tickets selected.' ] );
+        }
+
+        if ( ! in_array( $field, [ 'status', 'priority', 'developer_id' ], true ) || empty( $value ) ) {
+            wp_send_json_error( [ 'message' => 'Invalid bulk action.' ] );
+        }
+
+        $ticket_manager = new \Fanaloka\Maintenance\Ticket\TicketManager();
+        $updated = 0;
+
+        foreach ( $ids as $id ) {
+            switch ( $field ) {
+                case 'status':
+                    $ticket_manager->update_status( $id, $value );
+                    break;
+                case 'priority':
+                    $ticket_manager->update_priority( $id, $value );
+                    break;
+                case 'developer_id':
+                    $ticket_manager->assign_developer( $id, absint( $value ) );
+                    break;
+            }
+            update_post_meta( $id, '_fm_last_updated', time() );
+            ++$updated;
+        }
+
+        \Fanaloka\Maintenance\Log\ActivityLog::log( 'bulk_updated', 'ticket', 0, sprintf( 'Bulk updated %d tickets: %s = %s', $updated, $field, $value ) );
+
+        wp_send_json_success( [
+            'message' => sprintf(
+                /* translators: %d: number of updated tickets */
+                __( '%d ticket(s) updated.', 'fanaloka-maintenance' ),
+                $updated
+            ),
+            'updated' => $updated,
         ] );
     }
 
@@ -1272,5 +1724,42 @@ class Admin {
             'info_html'    => $info_html,
             'tickets_html' => $tickets_html,
         ] );
+    }
+
+    /**
+     * Get relative time string (e.g. "5 minutes ago", "a day ago").
+     *
+     * @param string $datetime MySQL datetime string.
+     * @return string Human-readable relative time.
+     */
+    private function get_relative_time( string $datetime ): string {
+        $now  = new \DateTime();
+        $past = new \DateTime( $datetime );
+        $diff = $now->diff( $past );
+
+        if ( $diff->y > 0 ) {
+            return $diff->y === 1 ? 'a year ago' : sprintf( '%d years ago', $diff->y );
+        }
+        if ( $diff->m > 0 && $diff->d === 0 ) {
+            return $diff->m === 1 ? 'a month ago' : sprintf( '%d months ago', $diff->m );
+        }
+        if ( $diff->d > 0 ) {
+            if ( $diff->d === 1 ) {
+                return 'yesterday';
+            }
+            if ( $diff->d < 7 ) {
+                return sprintf( '%d days ago', $diff->d );
+            }
+            $weeks = (int) floor( $diff->d / 7 );
+            return $weeks === 1 ? 'a week ago' : sprintf( '%d weeks ago', $weeks );
+        }
+        if ( $diff->h > 0 ) {
+            return $diff->h === 1 ? 'an hour ago' : sprintf( '%d hours ago', $diff->h );
+        }
+        if ( $diff->i > 0 ) {
+            return $diff->i === 1 ? 'a minute ago' : sprintf( '%d minutes ago', $diff->i );
+        }
+
+        return 'just now';
     }
 }
