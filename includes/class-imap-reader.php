@@ -50,7 +50,7 @@ class IMAPReader {
             'port'     => get_option( 'fm_imap_port', '993' ),
             'ssl'      => get_option( 'fm_imap_ssl', 'ssl' ),
             'username' => get_option( 'fm_imap_username', '' ),
-            'password' => get_option( 'fm_imap_password', '' ),
+            'password' => \Fanaloka\Maintenance\Admin\SettingsPage::decrypt_password( get_option( 'fm_imap_password', '' ) ),
             'folder'   => get_option( 'fm_imap_folder', 'INBOX' ),
         ];
     }
@@ -128,10 +128,7 @@ class IMAPReader {
 
             return [
                 'success' => false,
-                'message' => sprintf(
-                    __( 'Connection failed: %s', 'fanaloka-maintenance' ),
-                    $error_msg
-                ),
+                'message' => __( 'Failed to connect to IMAP server. Check your host, port, and credentials.', 'fanaloka-maintenance' ),
             ];
         }
 
@@ -514,12 +511,23 @@ class IMAPReader {
             }
         }
 
+        $cc = [];
+        if ( ! empty( $header->cc ) && is_array( $header->cc ) ) {
+            foreach ( $header->cc as $recipient ) {
+                $cc[] = [
+                    'name'  => $recipient->personal ?? $recipient->mailbox . '@' . $recipient->host,
+                    'email' => $recipient->mailbox . '@' . $recipient->host,
+                ];
+            }
+        }
+
         return [
             'message_id' => $header->message_id ?? '',
             'subject'    => isset( $header->subject ) ? mb_decode_mimeheader( $header->subject ) : '',
             'date'       => $header->date ?? '',
             'from'       => $from,
             'to'         => $to,
+            'cc'         => $cc,
             'in_reply_to' => $header->in_reply_to ?? '',
             'references' => $header->references ?? '',
             'uid'        => $header->Uid ?? 0,
@@ -754,10 +762,12 @@ class IMAPReader {
      *
      * @param int    $msg_number Message number.
      * @param object $structure Email structure.
+     * @param string $prefix     Parent part prefix (e.g. "2." for nested under part 2).
      * @return array<int, array{name: string, type: string, size: int, part: int}>
      */
-    private function extract_attachments( int $msg_number, object $structure ): array {
+    private function extract_attachments( int $msg_number, object $structure, string $prefix = '' ): array {
         $attachments = [];
+        $seen_files  = []; // Dedup by filename (Gmail sends same image in multiple parts).
 
         if ( empty( $structure->parts ) ) {
             return $attachments;
@@ -769,9 +779,23 @@ class IMAPReader {
                 continue;
             }
 
-            // Inline parts with content-id are usually embedded images.
-            $disposition = $part->disposition ?? 'inline';
-            $is_attachment = 'attachment' === $disposition || ( ! empty( $part->parameters ) && $this->has_attachment_filename( $part ) );
+            $part_number_index = $prefix . ( $part_number + 1 );
+
+            // Always recurse into nested multiparts (multipart/RELATED, etc.).
+            if ( ! empty( $part->parts ) ) {
+                $nested = $this->extract_attachments( $msg_number, $part, $part_number_index . '.' );
+                $attachments = array_merge( $attachments, $nested );
+                continue;
+            }
+
+            $disposition = $part->disposition ?? '';
+            // Extract as attachment only if:
+            // 1. Explicit 'attachment' disposition, OR
+            // 2. Has filename AND is NOT inline with a Content-ID (inline + Content-ID = body image, not attachment).
+            $has_cid     = ! empty( $part->id );
+            $is_inline_body = ( 'inline' === $disposition && $has_cid );
+            $is_attachment  = ( 'attachment' === $disposition )
+                || ( ! $is_inline_body && $this->has_attachment_filename( $part ) );
 
             if ( ! $is_attachment ) {
                 continue;
@@ -779,17 +803,16 @@ class IMAPReader {
 
             $filename = $this->get_attachment_filename( $part );
             $mime_type = $this->get_mime_type( $part );
-            $part_number_index = $part_number + 1;
 
-            // Handle nested multipart.
-            if ( ! empty( $part->parts ) ) {
-                $nested = $this->extract_attachments( $msg_number, $part );
-                $attachments = array_merge( $attachments, $nested );
+            // Dedup: skip duplicate filenames (Gmail sends same image in multiple parts).
+            $file_key = $filename ?: $part_number_index;
+            if ( isset( $seen_files[ $file_key ] ) ) {
                 continue;
             }
+            $seen_files[ $file_key ] = true;
 
             $attachments[] = [
-                'name'     => $filename ?: sprintf( 'attachment_%d', $part_number_index ),
+                'name'     => $filename ?: sprintf( 'attachment_%s', $part_number_index ),
                 'type'     => $mime_type,
                 'size'     => $part->bytes ?? 0,
                 'part'     => $part_number_index,
@@ -830,6 +853,8 @@ class IMAPReader {
                 'jpeg' => 'image/jpeg',
                 'png'  => 'image/png',
                 'gif'  => 'image/gif',
+                'webp' => 'image/webp',
+                'svg'  => 'image/svg+xml',
                 'pdf'  => 'application/pdf',
                 'doc'  => 'application/msword',
                 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -915,16 +940,17 @@ class IMAPReader {
      * @param int    $part       Part number.
      * @return string|false Raw attachment data or false on failure.
      */
-    public function get_attachment_data( int $msg_number, int $part ) {
+    public function get_attachment_data( int $msg_number, $part ) {
         if ( ! $this->is_connected() ) {
             return false;
         }
 
-        $data = @imap_fetchbody( $this->connection, $msg_number, (string) $part, FT_PEEK );
+        $part_str = (string) $part;
+        $data = @imap_fetchbody( $this->connection, $msg_number, $part_str, FT_PEEK );
 
         if ( false === $data ) {
             Logger::log(
-                sprintf( 'Failed to get attachment data for message #%d part %d', $msg_number, $part ),
+                sprintf( 'Failed to get attachment data for message #%d part %s', $msg_number, $part_str ),
                 Logger::LEVEL_WARNING
             );
             return false;
@@ -933,14 +959,29 @@ class IMAPReader {
         // Get structure to check encoding.
         $structure = @imap_fetchstructure( $this->connection, $msg_number );
 
-        if ( false !== $structure && ! empty( $structure->parts[ $part - 1 ] ) ) {
-            $encoding = $structure->parts[ $part - 1 ]->encoding ?? 0;
+        if ( false !== $structure ) {
+            // Navigate to the correct part in nested structure.
+            $part_parts = explode( '.', $part_str );
+            $current_parts = $structure->parts ?? [];
+            $target_part = null;
 
-            if ( 3 === $encoding ) {
-                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
-                $data = @imap_base64( $data ) ?: '';
-            } elseif ( 4 === $encoding ) {
-                $data = @imap_qprint( $data ) ?: '';
+            foreach ( $part_parts as $idx ) {
+                $part_int = (int) $idx;
+                if ( isset( $current_parts[ $part_int - 1 ] ) ) {
+                    $target_part = $current_parts[ $part_int - 1 ];
+                    $current_parts = $target_part->parts ?? [];
+                }
+            }
+
+            if ( null !== $target_part ) {
+                $encoding = $target_part->encoding ?? 0;
+
+                if ( 3 === $encoding ) {
+                    // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+                    $data = @imap_base64( $data ) ?: '';
+                } elseif ( 4 === $encoding ) {
+                    $data = @imap_qprint( $data ) ?: '';
+                }
             }
         }
 
