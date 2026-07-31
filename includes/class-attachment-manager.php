@@ -27,6 +27,9 @@ class AttachmentManager {
     private const ALLOWED_TYPES = [
         'image/jpeg',
         'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -58,7 +61,8 @@ class AttachmentManager {
             return [];
         }
 
-        $saved_ids = [];
+        $saved_ids   = [];
+        $inline_ids  = [];
 
         foreach ( $attachments as $attachment ) {
             $data = $reader->get_attachment_data( $msg_number, $attachment['part'] );
@@ -71,6 +75,9 @@ class AttachmentManager {
 
             if ( $attachment_id ) {
                 $saved_ids[] = $attachment_id;
+                if ( ! empty( $attachment['inline'] ) ) {
+                    $inline_ids[] = $attachment_id;
+                }
             }
         }
 
@@ -78,10 +85,13 @@ class AttachmentManager {
 
         if ( ! empty( $saved_ids ) ) {
             update_post_meta( $ticket_id, '_fm_attachment_ids', $saved_ids );
-            Logger::log( sprintf( 'Saved %d attachments to ticket #%d', count( $saved_ids ), $ticket_id ) );
+            Logger::log( sprintf( 'Saved %d attachments to ticket #%d (%d inline)', count( $saved_ids ), $ticket_id, count( $inline_ids ) ) );
         }
 
-        return $saved_ids;
+        return [
+            'all'    => $saved_ids,
+            'inline' => $inline_ids,
+        ];
     }
 
     /**

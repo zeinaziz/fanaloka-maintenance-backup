@@ -170,6 +170,10 @@ class EmailParser {
             $body_html = wp_kses_post( $body_html );
             $body_html = str_replace( [ "\r\n", "\r" ], "\n", $body_html );
             $body_html = preg_replace( "/\n{3,}/", "\n\n", $body_html );
+
+            // Convert bare CID refs (ii_xxx) to proper cid: URLs so they aren't stripped later.
+            $body_html = preg_replace( '/src="(ii_[a-z0-9]+)"/i', 'src="cid:$1"', $body_html );
+
             $body_html = $this->strip_quoted_html( $body_html );
             $body_html = trim( $body_html );
         }

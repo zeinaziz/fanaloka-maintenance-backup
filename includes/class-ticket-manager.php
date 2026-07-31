@@ -170,7 +170,6 @@ class TicketManager {
             '_fm_assigned_dev'    => 0,
             '_fm_date_created'    => $parsed['date'] ?? current_time( 'mysql' ),
             '_fm_last_updated'    => time(),
-            '_fm_sla'             => '',
             '_fm_completion_date' => '',
             '_fm_message_id'      => $parsed['message_id'] ?? '',
             '_fm_in_reply_to'     => $parsed['in_reply_to'] ?? '',
@@ -188,19 +187,32 @@ class TicketManager {
             'message_id' => $parsed['message_id'] ?? '',
             'body_html'  => $parsed['body_html'] ?? '',
             'imap_uid'   => $parsed['msg_number'] ?? 0,
+            'db_meta'    => ! empty( $parsed['cc'] ) ? [ 'cc' => $parsed['cc'] ] : [],
         ] );
 
         // Save attachments and store IDs in conversation entry.
         if ( ! empty( $parsed['attachments'] ) ) {
             $attachment_manager = new AttachmentManager();
-            $saved_ids = $attachment_manager->save_attachments_from_email( $post_id, $parsed );
+            $result = $attachment_manager->save_attachments_from_email( $post_id, $parsed );
+            $saved_ids  = $result['all'] ?? [];
+            $inline_ids = $result['inline'] ?? [];
             if ( ! empty( $saved_ids ) ) {
                 // Update the latest conversation entry with attachment IDs.
                 $last_entry = $conversation->get_last_entry( $post_id );
                 if ( $last_entry ) {
                     global $wpdb;
                     $table = \Fanaloka\Maintenance\Database::table_name();
-                    $wpdb->update( $table, [ 'attachments' => implode( ',', $saved_ids ) ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
+
+                    // Replace bare CID image refs in body_html with attachment URLs.
+                    $body_html = $parsed['body_html'] ?? '';
+                    if ( ! empty( $body_html ) && preg_match( '/src="(cid:)?ii_[^"]+/', $body_html ) ) {
+                        $body_html = $this->replace_cid_refs_with_attachments( $body_html, $saved_ids, $post_id );
+                        $wpdb->update( $table, [ 'body_html' => $body_html ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
+                    }
+
+                    // Store only non-inline attachments in the attachments column.
+                    $display_ids = array_diff( $saved_ids, $inline_ids );
+                    $wpdb->update( $table, [ 'attachments' => implode( ',', $display_ids ) ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
                 }
             }
         }
@@ -250,18 +262,65 @@ class TicketManager {
             'references'  => $parsed['references'] ?? '',
             'body_html'  => $parsed['body_html'] ?? '',
             'imap_uid'   => $parsed['msg_number'] ?? 0,
+            'db_meta'    => ! empty( $parsed['cc'] ) ? [ 'cc' => $parsed['cc'] ] : [],
         ] );
 
-        // Save new attachments and store IDs in conversation entry.
+        // Save new attachments — filter out duplicates from Gmail re-attaching previous images.
         if ( ! empty( $parsed['attachments'] ) ) {
-            $attachment_manager = new AttachmentManager();
-            $saved_ids = $attachment_manager->save_attachments_from_email( $ticket_id, $parsed );
+            // Collect filenames from all previous entries for this ticket.
+            global $wpdb;
+            $table        = \Fanaloka\Maintenance\Database::table_name();
+            $prev_entries = $wpdb->get_col(
+                $wpdb->prepare( "SELECT attachments FROM {$table} WHERE ticket_id = %d AND attachments != ''", $ticket_id )
+            );
+            $existing_names = [];
+            foreach ( $prev_entries as $prev_atts ) {
+                foreach ( explode( ',', $prev_atts ) as $pid ) {
+                    $pid = absint( trim( $pid ) );
+                    if ( $pid ) {
+                        $existing_names[] = sanitize_file_name( get_the_title( $pid ) );
+                    }
+                }
+            }
+
+            // Filter: skip attachments whose filenames already exist.
+            $filtered_attachments = [];
+            foreach ( $parsed['attachments'] as $att ) {
+                $sanitized_name = sanitize_file_name( $att['name'] );
+                if ( in_array( $sanitized_name, $existing_names, true ) ) {
+                    Logger::log( sprintf( 'Skipped duplicate attachment: %s (already in ticket #%d)', $att['name'], $ticket_id ) );
+                    continue;
+                }
+                $filtered_attachments[] = $att;
+            }
+
+            if ( ! empty( $filtered_attachments ) ) {
+                $parsed_filtered          = $parsed;
+                $parsed_filtered['attachments'] = $filtered_attachments;
+                $attachment_manager = new AttachmentManager();
+                $result = $attachment_manager->save_attachments_from_email( $ticket_id, $parsed_filtered );
+                $saved_ids  = $result['all'] ?? [];
+                $inline_ids = $result['inline'] ?? [];
+            } else {
+                $saved_ids  = [];
+                $inline_ids = [];
+            }
             if ( ! empty( $saved_ids ) ) {
                 $last_entry = $conversation->get_last_entry( $ticket_id );
                 if ( $last_entry ) {
                     global $wpdb;
                     $table = \Fanaloka\Maintenance\Database::table_name();
-                    $wpdb->update( $table, [ 'attachments' => implode( ',', $saved_ids ) ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
+
+                    // Replace bare CID image refs in body_html with attachment URLs.
+                    $body_html = $parsed['body_html'] ?? '';
+                    if ( ! empty( $body_html ) && preg_match( '/src="(cid:)?ii_[^"]+/', $body_html ) ) {
+                        $body_html = $this->replace_cid_refs_with_attachments( $body_html, $saved_ids, $ticket_id );
+                        $wpdb->update( $table, [ 'body_html' => $body_html ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
+                    }
+
+                    // Store only non-inline attachments in the attachments column.
+                    $display_ids = array_diff( $saved_ids, $inline_ids );
+                    $wpdb->update( $table, [ 'attachments' => implode( ',', $display_ids ) ], [ 'id' => $last_entry['id'] ], [ '%s' ], [ '%d' ] );
                 }
             }
         }
@@ -348,6 +407,39 @@ class TicketManager {
      * @param array<string, mixed> $parsed Parsed email data.
      * @return string Detected priority.
      */
+    private function replace_cid_refs_with_attachments( string $body_html, array $saved_ids, int $ticket_id ): string {
+        // Map attachment names to their URLs.
+        $att_urls = [];
+        foreach ( $saved_ids as $att_id ) {
+            $url  = wp_get_attachment_url( $att_id );
+            $name = get_the_title( $att_id );
+            if ( $url && $name ) {
+                $att_urls[ $name ] = $url;
+            }
+        }
+
+        if ( empty( $att_urls ) ) {
+            return $body_html;
+        }
+
+        // Replace <img src="ii_xxx" alt="filename.ext"> with actual attachment URL.
+        $body_html = preg_replace_callback( '/<img\s[^>]*src="(ii_[^"]+)"[^>]*alt="([^"]*)"[^>]*>/i', function ( $m ) use ( $att_urls ) {
+            $alt = $m[2];
+            if ( isset( $att_urls[ $alt ] ) ) {
+                return '<img src="' . esc_url( $att_urls[ $alt ] ) . '" alt="' . esc_attr( $alt ) . '">';
+            }
+            // Try matching by filename without path.
+            foreach ( $att_urls as $name => $url ) {
+                if ( $name === $alt ) {
+                    return '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt ) . '">';
+                }
+            }
+            return $m[0]; // Keep original if no match.
+        }, $body_html );
+
+        return $body_html;
+    }
+
     private function detect_priority( array $parsed ): string {
         $text = strtolower(
             ( $parsed['subject'] ?? '' ) . ' ' . ( $parsed['body'] ?? '' )
@@ -512,7 +604,6 @@ class TicketManager {
             'assigned_dev_name' => $dev_user ? $dev_user->display_name : '-',
             'date_created'     => get_post_meta( $ticket_id, '_fm_date_created', true ),
             'last_updated'     => get_post_meta( $ticket_id, '_fm_last_updated', true ),
-            'sla'              => get_post_meta( $ticket_id, '_fm_sla', true ),
             'completion_date'  => get_post_meta( $ticket_id, '_fm_completion_date', true ),
             'source'           => get_post_meta( $ticket_id, '_fm_source', true ),
             'message_id'       => get_post_meta( $ticket_id, '_fm_message_id', true ),
@@ -591,6 +682,8 @@ class TicketManager {
      * @return array{tickets: array<int, array<string, mixed>>, total: int, pages: int}
      */
     public function get_tickets( array $args = [] ): array {
+        global $wpdb;
+
         $per_page = $args['per_page'] ?? 20;
         $paged    = $args['paged'] ?? 1;
         $status   = $args['status'] ?? '';
@@ -600,6 +693,15 @@ class TicketManager {
         $search   = $args['search'] ?? '';
         $orderby  = $args['orderby'] ?? '_fm_last_updated';
         $order    = $args['order'] ?? 'DESC';
+
+        // Whitelist orderby to prevent SQL injection.
+        $allowed_orderby = [ 'ticket_number', 'status', 'priority', 'date', '_fm_last_updated' ];
+        if ( ! in_array( $orderby, $allowed_orderby, true ) ) {
+            $orderby = '_fm_last_updated';
+        }
+        if ( ! in_array( strtoupper( $order ), [ 'ASC', 'DESC' ], true ) ) {
+            $order = 'DESC';
+        }
 
         // Build meta_query for filters + ordering.
         $meta_query = [];
@@ -641,23 +743,69 @@ class TicketManager {
             'order'          => $order,
         ];
 
-        // Ordering by _fm_last_updated with NUMERIC type.
+        // Ordering.
         if ( '_fm_last_updated' === $orderby ) {
             $meta_query['last_updated_clause'] = [
                 'key' => '_fm_last_updated',
                 'type' => 'NUMERIC',
             ];
             $query_args['orderby'] = 'last_updated_clause';
+        } elseif ( 'ticket_number' === $orderby ) {
+            $meta_query['ticket_number_clause'] = [
+                'key' => '_fm_ticket_number',
+                'type' => 'NUMERIC',
+            ];
+            $query_args['orderby'] = 'ticket_number_clause';
+        } elseif ( in_array( $orderby, [ 'status', 'priority' ], true ) ) {
+            $meta_query[ $orderby . '_clause' ] = [
+                'key' => '_fm_' . $orderby,
+            ];
+            $query_args['orderby'] = $orderby . '_clause';
         } else {
-            $query_args['orderby'] = $orderby;
+            // 'date' is a valid WP_Query orderby.
+            $query_args['orderby'] = 'date';
+        }
+
+        // Search: also query conversation body and client meta for matches.
+        if ( $search ) {
+            $like  = '%' . $wpdb->esc_like( $search ) . '%';
+            $table = \Fanaloka\Maintenance\Database::table_name();
+
+            // Search conversation body.
+            $body_ids = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT DISTINCT ticket_id FROM {$table} WHERE body LIKE %s",
+                    $like
+                )
+            );
+
+            // Search client name, email, and subject meta.
+            $meta_ids = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT post_id FROM {$wpdb->postmeta}
+                    WHERE (meta_key = '_fm_client_name' OR meta_key = '_fm_client_email' OR meta_key = '_fm_subject')
+                    AND meta_value LIKE %s",
+                    $like
+                )
+            );
+
+            // Merge all search results.
+            $all_ids = array_unique( array_merge(
+                array_map( 'absint', $body_ids ?: [] ),
+                array_map( 'absint', $meta_ids ?: [] )
+            ) );
+
+            if ( ! empty( $all_ids ) ) {
+                $query_args['post__in'] = $all_ids;
+                $query_args['orderby']  = 'post__in';
+            } else {
+                // No matches — return empty.
+                $query_args['post__in'] = [ 0 ];
+            }
         }
 
         if ( ! empty( $meta_query ) ) {
             $query_args['meta_query'] = $meta_query;
-        }
-
-        if ( $search ) {
-            $query_args['s'] = $search;
         }
 
         $query    = new \WP_Query( $query_args );

@@ -789,13 +789,12 @@ class IMAPReader {
             }
 
             $disposition = strtolower( $part->disposition ?? '' );
-            // Extract as attachment only if:
-            // 1. Explicit 'attachment' disposition, OR
-            // 2. Has filename AND is NOT inline with a Content-ID (inline + Content-ID = body image, not attachment).
             $has_cid     = ! empty( $part->id );
+            // Inline images with Content-ID are body images — save them (for CID mapping) but mark as inline.
             $is_inline_body = ( 'inline' === $disposition && $has_cid );
             $is_attachment  = ( 'attachment' === $disposition )
-                || ( ! $is_inline_body && $this->has_attachment_filename( $part ) );
+                || ( ! $is_inline_body && $this->has_attachment_filename( $part ) )
+                || $is_inline_body; // Include inline images so they can be saved for CID mapping.
 
             if ( ! $is_attachment ) {
                 continue;
@@ -816,6 +815,7 @@ class IMAPReader {
                 'type'     => $mime_type,
                 'size'     => $part->bytes ?? 0,
                 'part'     => $part_number_index,
+                'inline'   => $is_inline_body,
             ];
         }
 
