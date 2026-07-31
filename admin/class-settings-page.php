@@ -38,6 +38,27 @@ class SettingsPage {
      */
     public function __construct() {
         add_action( 'admin_init', [ $this, 'register_settings' ] );
+
+        // Track all fm_ individual option changes for activity log.
+        $options = [
+            'fm_imap_host', 'fm_imap_port', 'fm_imap_ssl', 'fm_imap_username',
+            'fm_imap_password', 'fm_imap_folder', 'fm_sync_interval', 'fm_auto_sync',
+            'fm_ticket_prefix', 'fm_default_status', 'fm_default_priority',
+            'fm_ignore_sender_patterns', 'fm_ignore_domains', 'fm_ignore_sender_prefixes',
+            'fm_ignore_local_domain', 'fm_notif_new_ticket', 'fm_notif_status_change',
+            'fm_notif_assignment', 'fm_notif_ticket_completed', 'fm_admin_email', 'fm_email_signature',
+        ];
+        foreach ( $options as $opt ) {
+            add_action( "update_option_{$opt}", [ $this, 'log_single_option_change' ], 10, 3 );
+        }
+    }
+
+    public function log_single_option_change( $old, $new, $key ): void {
+        if ( $old === $new ) {
+            return;
+        }
+        $short = str_replace( 'fm_', '', $key );
+        \Fanaloka\Maintenance\Log\ActivityLog::log( 'settings_changed', 'settings', 0, sprintf( 'Changed: %s', $short ) );
     }
 
     /**
@@ -88,6 +109,111 @@ class SettingsPage {
     }
 
     /**
+     * Encrypt IMAP password before storing.
+     *
+     * @param mixed $value Input value.
+     * @return string Encrypted value.
+     */
+    public static function sanitize_password_encrypt( $value ): string {
+        if ( ! is_string( $value ) || '' === $value ) {
+            return '';
+        }
+        $value = sanitize_text_field( $value );
+        // Skip if already encrypted (IV:ciphertext format).
+        $parts = explode( ':', $value, 2 );
+        if ( count( $parts ) === 2 ) {
+            $iv = base64_decode( $parts[0], true );
+            $data = base64_decode( $parts[1], true );
+            if ( false !== $iv && false !== $data && 16 === strlen( $iv ) ) {
+                // Already encrypted — don't double-encrypt.
+                return $value;
+            }
+        }
+        $key   = self::get_encryption_key();
+        $iv    = openssl_random_pseudo_bytes( 16 );
+        $encrypted = openssl_encrypt( $value, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
+        if ( false === $encrypted ) {
+            return '';
+        }
+        // Prepend IV (base64) + : + ciphertext (base64).
+        return base64_encode( $iv ) . ':' . base64_encode( $encrypted );
+    }
+
+    /**
+     * Get encryption key derived from WordPress keys.
+     *
+     * @return string 32-byte key.
+     */
+    public static function get_encryption_key(): string {
+        return hash( 'sha256', AUTH_KEY . SECURE_AUTH_KEY, true );
+    }
+
+    /**
+     * Decrypt an encrypted password.
+     *
+     * @param string $encrypted Encrypted value.
+     * @return string Decrypted plain text.
+     */
+    public static function decrypt_password( string $encrypted ): string {
+        if ( '' === $encrypted ) {
+            return '';
+        }
+        $key = self::get_encryption_key();
+        $parts = explode( ':', $encrypted, 2 );
+        if ( count( $parts ) !== 2 ) {
+            // Not encrypted — plain text (legacy).
+            return $encrypted;
+        }
+        $iv = base64_decode( $parts[0], true );
+        $data = base64_decode( $parts[1], true );
+        if ( false === $iv || false === $data || 16 !== strlen( $iv ) ) {
+            return $encrypted;
+        }
+        $decrypted = openssl_decrypt( $data, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
+        return false === $decrypted ? $encrypted : $decrypted;
+    }
+
+    /**
+     * Sanitize email signature — allow common HTML tags for rich signatures.
+     *
+     * @param mixed $value Input value.
+     * @return string
+     */
+    public static function sanitize_signature( $value ): string {
+        if ( ! is_string( $value ) ) {
+            return '';
+        }
+        $value = wp_unslash( $value );
+        // Allow common HTML tags used in email signatures.
+        $allowed = [
+            'table'    => [ 'border' => true, 'cellspacing' => true, 'cellpadding' => true, 'style' => true, 'width' => true, 'align' => true ],
+            'tbody'    => [],
+            'tr'       => [ 'style' => true, 'align' => true ],
+            'td'       => [ 'width' => true, 'valign' => true, 'style' => true, 'align' => true, 'colspan' => true ],
+            'th'       => [ 'width' => true, 'valign' => true, 'style' => true, 'align' => true ],
+            'div'      => [ 'style' => true, 'align' => true ],
+            'span'     => [ 'style' => true ],
+            'p'        => [ 'style' => true, 'align' => true ],
+            'br'       => [],
+            'strong'   => [],
+            'b'        => [],
+            'em'       => [],
+            'i'        => [],
+            'u'        => [],
+            's'        => [],
+            'a'        => [ 'href' => true, 'style' => true, 'target' => true, 'rel' => true, 'title' => true ],
+            'img'      => [ 'src' => true, 'width' => true, 'height' => true, 'alt' => true, 'style' => true, 'class' => true, 'border' => true ],
+            'hr'       => [ 'style' => true ],
+            'ul'       => [ 'style' => true ],
+            'ol'       => [ 'style' => true ],
+            'li'       => [ 'style' => true ],
+            'blockquote' => [ 'style' => true ],
+            'font'     => [ 'size' => true, 'color' => true, 'face' => true ],
+        ];
+        return wp_kses( $value, $allowed );
+    }
+
+    /**
      * Register all settings.
      *
      * @return void
@@ -111,17 +237,18 @@ class SettingsPage {
             'fm_imap_port'     => [ 'type' => 'string', 'default' => '993' ],
             'fm_imap_ssl'      => [ 'type' => 'string', 'default' => 'ssl' ],
             'fm_imap_username' => [ 'type' => 'string', 'default' => '' ],
-            'fm_imap_password' => [ 'type' => 'string', 'default' => '' ],
+            'fm_imap_password' => [ 'type' => 'string', 'default' => '', 'sanitize' => 'sanitize_password_encrypt' ],
             'fm_imap_folder'   => [ 'type' => 'string', 'default' => 'INBOX' ],
         ];
 
         foreach ( $fields as $name => $config ) {
+            $sanitize = $config['sanitize'] ?? 'sanitize_text';
             register_setting(
                 self::OPTION_GROUP,
                 $name,
                 [
                     'type'              => $config['type'],
-                    'sanitize_callback' => [ self::class, 'sanitize_text' ],
+                    'sanitize_callback' => [ self::class, $sanitize ],
                     'default'           => $config['default'],
                 ]
             );
@@ -264,6 +391,16 @@ class SettingsPage {
                 'type'              => 'string',
                 'sanitize_callback' => [ self::class, 'sanitize_email_val' ],
                 'default'           => get_option( 'admin_email' ),
+            ]
+        );
+
+        register_setting(
+            self::OPTION_GROUP,
+            'fm_email_signature',
+            [
+                'type'              => 'string',
+                'sanitize_callback' => [ self::class, 'sanitize_signature' ],
+                'default'           => '',
             ]
         );
     }
@@ -493,10 +630,23 @@ class SettingsPage {
             ]
         );
 
+        add_settings_field(
+            'fm_email_signature',
+            __( 'Email Signature', 'fanaloka-maintenance' ),
+            [ $this, 'render_signature_field' ],
+            'fm-settings',
+            'fm_notification_section',
+            [
+                'id'    => 'fm_email_signature',
+                'label' => __( 'HTML signature appended to every reply email. Supports images, tables, links, and styling.', 'fanaloka-maintenance' ),
+            ]
+        );
+
         $notif_fields = [
             'fm_notif_new_ticket'       => __( 'Notify when new ticket is created', 'fanaloka-maintenance' ),
             'fm_notif_status_change'    => __( 'Notify when ticket status changes', 'fanaloka-maintenance' ),
             'fm_notif_assignment'       => __( 'Notify when developer is assigned', 'fanaloka-maintenance' ),
+            'fm_notif_reply'            => __( 'Notify when developer replies to ticket', 'fanaloka-maintenance' ),
             'fm_notif_ticket_completed' => __( 'Notify when ticket is completed', 'fanaloka-maintenance' ),
         ];
 
@@ -538,6 +688,7 @@ class SettingsPage {
             'fm_notif_new_ticket'      => __( 'New Ticket', 'fanaloka-maintenance' ),
             'fm_notif_status_change'   => __( 'Status Change', 'fanaloka-maintenance' ),
             'fm_notif_assignment'      => __( 'Developer Assignment', 'fanaloka-maintenance' ),
+            'fm_notif_reply'           => __( 'Developer Reply', 'fanaloka-maintenance' ),
             'fm_notif_ticket_completed' => __( 'Ticket Completed', 'fanaloka-maintenance' ),
         ];
 
@@ -662,6 +813,34 @@ class SettingsPage {
     }
 
     /**
+     * Render email signature field with TinyMCE editor.
+     *
+     * @param array $args Field args.
+     * @return void
+     */
+    public function render_signature_field( array $args ): void {
+        $id    = $args['id'] ?? '';
+        $label = $args['label'] ?? '';
+        $value = get_option( $id, '' );
+
+        wp_editor( $value, $id, [
+            'textarea_name' => $id,
+            'textarea_rows' => 10,
+            'media_buttons' => true,
+            'teeny'         => false,
+            'quicktags'     => true,
+            'tinymce'       => [
+                'toolbar1' => 'bold,italic,underline,strikethrough,|,link,unlink,|,bullist,numlist,|,blockquote,hr,|,removeformat',
+                'toolbar2' => '',
+            ],
+        ] );
+
+        if ( $label ) {
+            printf( '<p class="description">%s</p>', esc_html( $label ) );
+        }
+    }
+
+    /**
      * Render test connection button.
      *
      * @return void
@@ -700,7 +879,7 @@ class SettingsPage {
         } catch ( \Exception $e ) {
             Logger::log( 'Test connection exception: ' . $e->getMessage(), Logger::LEVEL_ERROR );
             wp_send_json_error( [
-                'message' => $e->getMessage(),
+                'message' => __( 'Failed to connect to IMAP server. Check your host, port, and credentials.', 'fanaloka-maintenance' ),
             ] );
             return;
         }
