@@ -422,9 +422,9 @@ class TicketManager {
             return $body_html;
         }
 
-        // Replace <img src="ii_xxx" alt="filename.ext"> with actual attachment URL.
-        $body_html = preg_replace_callback( '/<img\s[^>]*src="(ii_[^"]+)"[^>]*alt="([^"]*)"[^>]*>/i', function ( $m ) use ( $att_urls ) {
-            $alt = $m[2];
+        // Replace <img src="(cid:)ii_xxx" alt="filename.ext"> with actual attachment URL.
+        $body_html = preg_replace_callback( '/<img\s[^>]*src="(cid:)?(ii_[^"]+)"[^>]*alt="([^"]*)"[^>]*>/i', function ( $m ) use ( $att_urls ) {
+            $alt = $m[3];
             if ( isset( $att_urls[ $alt ] ) ) {
                 return '<img src="' . esc_url( $att_urls[ $alt ] ) . '" alt="' . esc_attr( $alt ) . '">';
             }
