@@ -713,6 +713,9 @@ class Admin {
                 return 'src=""';
             }, $entry_body_html );
 
+            // Open all links in new tab.
+            $entry_body_html = preg_replace( '/<a\b(?! [^>]*target=)([^>]*)>/i', '<a$1 target="_blank" rel="noopener">', $entry_body_html );
+
             $html .= '<div class="fm-entry-content">' . $entry_body_html . '</div>';
         } else {
             $html .= '<div class="fm-entry-content">' . wp_kses_post( $entry_body ) . '</div>';
@@ -722,7 +725,11 @@ class Admin {
         $att_ids = ! empty( $entry['attachments'] ) ? explode( ',', $entry['attachments'] ) : [];
         $att_ids = array_filter( array_map( 'absint', $att_ids ) );
         if ( ! empty( $att_ids ) ) {
+            $att_count = count( $att_ids );
+            $label = 1 === $att_count ? 'Attachment' : 'Attachments';
             $html .= '<div class="fm-entry-attachments">';
+            $html .= '<div class="fm-attachments-label">' . esc_html( $label ) . '</div>';
+            $html .= '<div class="fm-attachments-grid">';
             foreach ( $att_ids as $att_id ) {
                 $url  = wp_get_attachment_url( $att_id );
                 $name = get_the_title( $att_id );
@@ -732,15 +739,19 @@ class Admin {
                 }
                 $is_image = str_starts_with( $mime, 'image/' );
                 $ext = strtoupper( pathinfo( $name, PATHINFO_EXTENSION ) );
-                $html .= '<div class="fm-attachment-item"><a href="' . esc_url( $url ) . '" target="_blank">';
+                $size = size_format( (int) get_post_field( 'post_mime_type', $att_id ) ? 0 : 0 );
                 if ( $is_image ) {
+                    $html .= '<div class="fm-attachment-item fm-attachment-thumb"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">';
                     $html .= '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $name ) . '" />';
+                    $html .= '</a></div>';
                 } else {
-                    $html .= '<span class="fm-attachment-file">' . esc_html( $ext ) . '</span>';
+                    $html .= '<a class="fm-attachment-file" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">';
+                    $html .= '<span class="fm-attachment-icon">' . esc_html( $ext ) . '</span>';
+                    $html .= '<span class="fm-attachment-name">' . esc_html( $name ) . '</span>';
+                    $html .= '</a>';
                 }
-                $html .= '</a></div>';
             }
-            $html .= '</div>';
+            $html .= '</div></div>';
         }
 
         $html .= '</div></div>';

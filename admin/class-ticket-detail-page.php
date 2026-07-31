@@ -189,28 +189,36 @@ class TicketDetailPage {
                                     </div>
                                     <?php
                                     $entry_attachments = ! empty( $entry['attachments'] ) ? explode( ',', $entry['attachments'] ) : [];
-                                    if ( ! empty( $entry_attachments ) ) : ?>
+                                    if ( ! empty( $entry_attachments ) ) :
+                                        $att_count = count( $entry_attachments );
+                                        $label = 1 === $att_count ? 'Attachment' : 'Attachments';
+                                    ?>
                                         <div class="fm-entry-attachments">
+                                            <div class="fm-attachments-label"><?php echo esc_html( $label ); ?></div>
+                                            <div class="fm-attachments-grid">
                                             <?php foreach ( $entry_attachments as $att_id ) :
                                                 $att_id = absint( $att_id );
                                                 $url    = wp_get_attachment_url( $att_id );
                                                 $name   = get_the_title( $att_id );
-                                                $is_image = wp_attachment_is_image( $att_id );
+                                                $mime   = get_post_mime_type( $att_id );
+                                                $is_image = str_starts_with( $mime, 'image/' );
                                                 if ( $url ) : ?>
-                                                    <div class="fm-attachment-item">
-                                                        <?php if ( $is_image ) : ?>
-                                                            <a href="<?php echo esc_url( $url ); ?>" target="_blank">
+                                                    <?php if ( $is_image ) : ?>
+                                                        <div class="fm-attachment-item fm-attachment-thumb">
+                                                            <a href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener">
                                                                 <img src="<?php echo esc_url( $url ); ?>" alt="<?php echo esc_attr( $name ); ?>" />
                                                             </a>
-                                                        <?php else : ?>
-                                                            <a href="<?php echo esc_url( $url ); ?>" target="_blank" class="fm-attachment-file">
-                                                                <span class="dashicons dashicons-media-default"></span>
-                                                                <?php echo esc_html( $name ); ?>
-                                                            </a>
-                                                        <?php endif; ?>
-                                                    </div>
+                                                        </div>
+                                                    <?php else :
+                                                        $ext = strtoupper( pathinfo( $name, PATHINFO_EXTENSION ) ); ?>
+                                                        <a class="fm-attachment-file" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener">
+                                                            <span class="fm-attachment-icon"><?php echo esc_html( $ext ); ?></span>
+                                                            <span class="fm-attachment-name"><?php echo esc_html( $name ); ?></span>
+                                                        </a>
+                                                    <?php endif; ?>
                                                 <?php endif;
                                             endforeach; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -473,12 +481,18 @@ class TicketDetailPage {
         .fm-entry-cc-bcc strong { color: #1d2327; }
         .fm-entry-content p { margin: 0 0 8px; }
         .fm-entry-content p:last-child { margin-bottom: 0; }
-        .fm-entry-attachments { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee; }
-        .fm-attachment-item img { margin-bottom: 8px; width: 10rem; height: 10rem; overflow: hidden; transition: all .3s ease; object-fit: cover; object-position: top; margin: 0; }
-        .fm-attachment-item { margin: 0; }
-        .fm-attachment-item a { width: 10rem; height: 10rem; padding: 0; transition: all .3s ease; overflow: hidden; }
-        .fm-attachment-file { font-size: 12px; }
-        .fm-attachment-item a:hover *, .fm-attachment-item a:hover { transform: scale(1.05); }
+        .fm-entry-attachments { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee; }
+        .fm-attachments-label { font-size: 11px; font-weight: 600; color: #646970; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .fm-attachments-grid { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+        .fm-attachment-thumb { margin: 0; }
+        .fm-attachment-thumb a { display: block; width: 10rem; height: 10rem; padding: 0; overflow: hidden; border-radius: 6px; border: 1px solid #ddd; transition: transform .2s ease; }
+        .fm-attachment-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+        .fm-attachment-thumb a:hover { transform: scale(1.05); }
+        .fm-attachment-file { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 6px; text-decoration: none; color: #1d2327; font-size: 13px; transition: all .2s ease; max-width: 280px; }
+        .fm-attachment-file:hover { background: #2271b1; border-color: #2271b1; color: #fff; }
+        .fm-attachment-icon { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 2px 6px; background: #fff; border: 1px solid #dcdcde; border-radius: 4px; font-size: 11px; font-weight: 700; color: #2271b1; text-transform: uppercase; flex-shrink: 0; }
+        .fm-attachment-file:hover .fm-attachment-icon { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: #fff; }
+        .fm-attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }
 
         /* Empty State */
         .fm-empty-state { text-align: center; padding: 60px 20px; color: #8c8f94; }
@@ -594,6 +608,9 @@ class TicketDetailPage {
             }
             return 'src=""';
         }, $html );
+
+        // Open all links in new tab.
+        $html = preg_replace( '/<a\b(?! [^>]*target=)([^>]*)>/i', '<a$1 target="_blank" rel="noopener">', $html );
 
         return $html;
     }
