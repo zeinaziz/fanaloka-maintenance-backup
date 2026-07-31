@@ -788,7 +788,7 @@ class IMAPReader {
                 continue;
             }
 
-            $disposition = $part->disposition ?? '';
+            $disposition = strtolower( $part->disposition ?? '' );
             // Extract as attachment only if:
             // 1. Explicit 'attachment' disposition, OR
             // 2. Has filename AND is NOT inline with a Content-ID (inline + Content-ID = body image, not attachment).
