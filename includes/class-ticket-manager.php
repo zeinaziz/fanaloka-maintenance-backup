@@ -425,12 +425,14 @@ class TicketManager {
         // Replace <img src="(cid:)ii_xxx" alt="filename.ext"> with actual attachment URL.
         $body_html = preg_replace_callback( '/<img\s[^>]*src="(cid:)?(ii_[^"]+)"[^>]*alt="([^"]*)"[^>]*>/i', function ( $m ) use ( $att_urls ) {
             $alt = $m[3];
+            // Direct match.
             if ( isset( $att_urls[ $alt ] ) ) {
                 return '<img src="' . esc_url( $att_urls[ $alt ] ) . '" alt="' . esc_attr( $alt ) . '">';
             }
-            // Try matching by filename without path.
+            // Sanitized match: normalize both sides (spaces/special chars → hyphens).
+            $alt_norm = sanitize_file_name( $alt );
             foreach ( $att_urls as $name => $url ) {
-                if ( $name === $alt ) {
+                if ( sanitize_file_name( $name ) === $alt_norm ) {
                     return '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt ) . '">';
                 }
             }
