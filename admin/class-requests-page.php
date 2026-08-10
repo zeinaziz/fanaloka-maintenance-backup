@@ -41,10 +41,12 @@ class RequestsPage {
                     <span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'requests' ); ?></span>
                     <?php esc_html_e( 'All Requests', 'fanaloka-maintenance' ); ?>
                 </h1>
-                <div class="fm-auto-refresh-info">
-                    <span class="fm-icon" id="fm-refresh-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'refresh', '#00a32a' ); ?></span>
-                    <span id="fm-refresh-status"><?php esc_html_e( 'Auto-refresh enabled', 'fanaloka-maintenance' ); ?></span>
-                    <span class="fm-refresh-dot" id="fm-refresh-dot"></span>
+                <div class="fm-page-header-right">
+                    <div class="fm-requests-search">
+                        <span class="dashicons dashicons-search"></span>
+                        <input type="text" id="fm-requests-search" placeholder="<?php esc_attr_e( 'Search tickets...', 'fanaloka-maintenance' ); ?>" />
+                    </div>
+
                 </div>
             </div>
 
@@ -58,6 +60,12 @@ class RequestsPage {
                         <select name="action" id="bulk-action-selector-top">
                             <option value="-1"><?php esc_html_e( 'Bulk actions', 'fanaloka-maintenance' ); ?></option>
                             <option value="delete"><?php esc_html_e( 'Delete', 'fanaloka-maintenance' ); ?></option>
+                            <option value="status"><?php esc_html_e( 'Change Status', 'fanaloka-maintenance' ); ?></option>
+                            <option value="priority"><?php esc_html_e( 'Change Priority', 'fanaloka-maintenance' ); ?></option>
+                            <option value="developer_id"><?php esc_html_e( 'Assign Developer', 'fanaloka-maintenance' ); ?></option>
+                        </select>
+                        <select name="bulk_value" id="bulk-value-selector" style="display:none;">
+                            <option value=""><?php esc_html_e( 'Select...', 'fanaloka-maintenance' ); ?></option>
                         </select>
                         <input type="button" id="fm-bulk-apply" class="button action" value="<?php esc_attr_e( 'Apply', 'fanaloka-maintenance' ); ?>" />
                     </div>
@@ -102,7 +110,6 @@ class RequestsPage {
                             </td>
                             <th scope="col" class="manage-column column-ticket_number column-primary"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-client"><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-subject"><?php esc_html_e( 'Subject', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-status"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-priority"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-assigned_dev"><?php esc_html_e( 'Developer', 'fanaloka-maintenance' ); ?></th>
@@ -110,7 +117,7 @@ class RequestsPage {
                         </tr>
                     </thead>
                     <tbody id="fm-requests-tbody">
-                        <tr><td colspan="8" style="text-align:center;padding:30px;color:#8c8f94;">
+                        <tr><td colspan="7" style="text-align:center;padding:30px;color:#8c8f94;">
                             <span class="spinner is-active"></span> <?php esc_html_e( 'Loading...', 'fanaloka-maintenance' ); ?>
                         </td></tr>
                     </tbody>
@@ -121,7 +128,6 @@ class RequestsPage {
                             </td>
                             <th scope="col" class="manage-column column-ticket_number column-primary"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-client"><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-subject"><?php esc_html_e( 'Subject', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-status"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-priority"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-assigned_dev"><?php esc_html_e( 'Developer', 'fanaloka-maintenance' ); ?></th>
@@ -158,8 +164,9 @@ class RequestsPage {
         .fm-sync-btn { white-space: nowrap; }
         .fm-auto-refresh-info { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #646970; }
         .fm-auto-refresh-info .dashicons { font-size: 16px; color: #00a32a; }
-        .fm-refresh-dot { width: 8px; height: 8px; border-radius: 50%; background: #00a32a; animation: fm-pulse 2s infinite; }
-        @keyframes fm-pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+        .fm-requests-search { display: flex; align-items: center; gap: 6px; background: #f0f0f1; border-radius: 6px; padding: 6px 12px; }
+        .fm-requests-search .dashicons { color: #8c8f94; font-size: 16px; }
+        .fm-requests-search input { border: none; background: transparent; font-size: 14px; outline: none; width: 220px; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .fm-notice { position: fixed; top: 50px; right: 20px; padding: 12px 20px; border-radius: 6px; z-index: 100000; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fm-slide-in 0.3s ease; max-width: 400px; }
         .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
@@ -174,11 +181,13 @@ class RequestsPage {
             interval: <?php echo esc_js( $interval ); ?>,
         };
         (function($) {
+            var STORAGE_KEY = 'fm_requests_filters';
             var state = {
                 paged: 1,
                 client: '',
                 status: '',
                 priority: '',
+                search: '',
                 orderby: '_fm_last_updated',
                 order: 'DESC',
                 per_page: 20,
@@ -186,9 +195,55 @@ class RequestsPage {
             var refreshTimer = null;
             var lastCount = 0;
 
+            // Restore filters from localStorage.
+            function restoreFilters() {
+                // URL params take priority over localStorage.
+                var urlParams = new URLSearchParams(window.location.search);
+                var urlStatus = urlParams.get('status') || '';
+                var urlClient = urlParams.get('client') || '';
+
+                try {
+                    var saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                    if (saved && typeof saved === 'object') {
+                        state.client = urlClient || saved.client || '';
+                        state.status = urlStatus || saved.status || '';
+                        state.priority = saved.priority || '';
+                        state.search = saved.search || '';
+                        $('#fm-filter-client').val(state.client);
+                        $('#fm-filter-status').val(state.status);
+                        $('#fm-filter-priority').val(state.priority);
+                        if (state.search) {
+                            $('#fm-requests-search').val(state.search);
+                        }
+                    }
+                } catch(e) {}
+
+                // If URL has params, apply them and clear URL.
+                if (urlStatus || urlClient) {
+                    if (urlStatus) state.status = urlStatus;
+                    if (urlClient) state.client = urlClient;
+                    $('#fm-filter-status').val(state.status);
+                    $('#fm-filter-client').val(state.client);
+                    // Clean URL without reload.
+                    window.history.replaceState({}, '', window.location.pathname + '?page=fm-requests');
+                }
+            }
+
+            // Save filters to localStorage.
+            function saveFilters() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        client: state.client,
+                        status: state.status,
+                        priority: state.priority,
+                        search: state.search,
+                    }));
+                } catch(e) {}
+            }
+
             function loadTickets() {
                 var $tbody = $('#fm-requests-tbody');
-                $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#8c8f94;"><span class="spinner is-active"></span> Loading...</td></tr>');
+                $tbody.html('<tr><td colspan="7" style="text-align:center;padding:30px;color:#8c8f94;"><span class="spinner is-active"></span> Loading...</td></tr>');
 
                 $.post(fmRequestsAjax.url, {
                     action: 'fm_list_requests',
@@ -197,6 +252,7 @@ class RequestsPage {
                     client: state.client,
                     status: state.status,
                     priority: state.priority,
+                    search: state.search,
                     orderby: state.orderby,
                     order: state.order,
                     per_page: state.per_page,
@@ -214,32 +270,55 @@ class RequestsPage {
                         }
                         lastCount = newCount;
                     } else {
-                        $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#d63638;">Error loading tickets.</td></tr>');
+                        $tbody.html('<tr><td colspan="7" style="text-align:center;padding:30px;color:#d63638;">Error loading tickets.</td></tr>');
                     }
                 }).fail(function() {
-                    $tbody.html('<tr><td colspan="8" style="text-align:center;padding:30px;color:#d63638;">Request failed.</td></tr>');
+                    $tbody.html('<tr><td colspan="7" style="text-align:center;padding:30px;color:#d63638;">Request failed.</td></tr>');
                 });
             }
 
             // Filter apply
             $('#fm-filter-apply').on('click', function() {
+                var $btn = $(this);
                 state.client = $('#fm-filter-client').val();
                 state.status = $('#fm-filter-status').val();
                 state.priority = $('#fm-filter-priority').val();
                 state.paged = 1;
+                saveFilters();
+                $btn.prop('disabled', true).val('<?php echo esc_js( __( 'Filtering...', 'fanaloka-maintenance' ) ); ?>');
                 loadTickets();
+                setTimeout(function(){ $btn.prop('disabled', false).val('<?php echo esc_js( __( 'Filter', 'fanaloka-maintenance' ) ); ?>'); }, 2000);
             });
 
             // Filter clear
             $('#fm-filter-clear').on('click', function() {
+                var $btn = $(this);
                 $('#fm-filter-client').val('');
                 $('#fm-filter-status').val('');
                 $('#fm-filter-priority').val('');
+                $('#fm-requests-search').val('');
                 state.client = '';
                 state.status = '';
                 state.priority = '';
+                state.search = '';
                 state.paged = 1;
+                try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+                $btn.prop('disabled', true);
                 loadTickets();
+                setTimeout(function(){ $btn.prop('disabled', false); }, 2000);
+            });
+
+            // Search with debounce
+            var searchTimer = null;
+            $('#fm-requests-search').on('input', function() {
+                var val = $(this).val();
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(function() {
+                    state.search = val;
+                    state.paged = 1;
+                    saveFilters();
+                    loadTickets();
+                }, 400);
             });
 
             // Auto-filter on select change
@@ -248,6 +327,7 @@ class RequestsPage {
                 state.status = $('#fm-filter-status').val();
                 state.priority = $('#fm-filter-priority').val();
                 state.paged = 1;
+                saveFilters();
                 loadTickets();
             });
 
@@ -267,7 +347,28 @@ class RequestsPage {
                 $('#fm-requests-tbody input[name="ticket[]"]').prop('checked', checked);
             });
 
-            // Bulk delete
+            // Bulk action — show/hide value selector.
+            var bulkOptions = {
+                status: <?php echo wp_json_encode( array_map( fn( $k, $v ) => [ 'value' => $k, 'label' => $v ], array_keys( TicketManager::STATUSES ), array_values( TicketManager::STATUSES ) ) ); ?>,
+                priority: <?php echo wp_json_encode( array_map( fn( $k, $v ) => [ 'value' => $k, 'label' => $v ], array_keys( TicketManager::PRIORITIES ), array_values( TicketManager::PRIORITIES ) ) ); ?>,
+                developer_id: <?php echo wp_json_encode( array_map( fn( $u ) => [ 'value' => (string) $u->ID, 'label' => $u->display_name ], get_users( [ 'role__in' => [ 'administrator', 'editor', 'author', 'contributor' ], 'fields' => [ 'ID', 'display_name' ] ] ) ) ); ?>,
+            };
+
+            $('#bulk-action-selector-top').on('change', function() {
+                var action = $(this).val();
+                var $val = $('#bulk-value-selector');
+                if (bulkOptions[action]) {
+                    var html = '<option value=""><?php echo esc_js( __( 'Select...', 'fanaloka-maintenance' ) ); ?></option>';
+                    $.each(bulkOptions[action], function(i, opt) {
+                        html += '<option value="' + opt.value + '">' + opt.label + '</option>';
+                    });
+                    $val.html(html).show();
+                } else {
+                    $val.hide().val('');
+                }
+            });
+
+            // Bulk apply
             $('#fm-bulk-apply').on('click', function() {
                 var action = $('#bulk-action-selector-top').val();
                 if ('-1' === action) {
@@ -298,11 +399,48 @@ class RequestsPage {
                     }, function(res) {
                         $btn.prop('disabled', false).val('Apply');
                         $('#bulk-action-selector-top').val('-1');
+                        $('#bulk-value-selector').hide().val('');
                         if (res.success) {
                             showNotice(res.data.message, 'success');
                             loadTickets();
                         } else {
                             showNotice(res.data.message || 'Delete failed', 'error');
+                        }
+                    }).fail(function() {
+                        $btn.prop('disabled', false).val('Apply');
+                        showNotice('Request failed', 'error');
+                    });
+                } else {
+                    // Bulk update (status, priority, developer_id).
+                    var bulkVal = $('#bulk-value-selector').val();
+                    if (!bulkVal) {
+                        showNotice('Please select a value.', 'error');
+                        return;
+                    }
+
+                    var labels = { status: 'Status', priority: 'Priority', developer_id: 'Developer' };
+                    if (!confirm('Update ' + ids.length + ' ticket(s) ' + labels[action] + '?')) {
+                        return;
+                    }
+
+                    var $btn = $(this);
+                    $btn.prop('disabled', true).val('Updating...');
+
+                    $.post(fmRequestsAjax.url, {
+                        action: 'fm_bulk_update_requests',
+                        nonce: fmRequestsAjax.nonce,
+                        ids: ids,
+                        bulk_field: action,
+                        bulk_value: bulkVal,
+                    }, function(res) {
+                        $btn.prop('disabled', false).val('Apply');
+                        $('#bulk-action-selector-top').val('-1');
+                        $('#bulk-value-selector').hide().val('');
+                        if (res.success) {
+                            showNotice(res.data.message, 'success');
+                            loadTickets();
+                        } else {
+                            showNotice(res.data.message || 'Update failed', 'error');
                         }
                     }).fail(function() {
                         $btn.prop('disabled', false).val('Apply');
@@ -336,16 +474,15 @@ class RequestsPage {
                 loadTickets();
             });
 
-            // Initial load
+            // Restore saved filters and initial load
+            restoreFilters();
             loadTickets();
 
             // Auto-refresh
             function startAutoRefresh() {
                 if (refreshTimer) clearInterval(refreshTimer);
                 refreshTimer = setInterval(function() {
-                    $('#fm-refresh-icon').css('animation', 'spin 1s linear infinite');
                     loadTickets();
-                    setTimeout(function(){ $('#fm-refresh-icon').css('animation', ''); }, 1000);
                 }, fmRequestsAjax.interval * 1000);
             }
             startAutoRefresh();

@@ -354,7 +354,7 @@ class SettingsPage {
             [
                 'type'              => 'string',
                 'sanitize_callback' => [ self::class, 'sanitize_text' ],
-                'default'           => 'fanaloka.co',
+                'default'           => '',
             ]
         );
     }

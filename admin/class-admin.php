@@ -716,6 +716,9 @@ class Admin {
             // Open all links in new tab.
             $entry_body_html = preg_replace( '/<a\b(?! [^>]*target=)([^>]*)>/i', '<a$1 target="_blank" rel="noopener">', $entry_body_html );
 
+            // Wrap images in clickable links (open full image in new tab).
+            $entry_body_html = preg_replace( '/<img\b([^>]*src="([^"]+)")>/i', '<a href="$2" target="_blank" rel="noopener"><img$1></a>', $entry_body_html );
+
             $html .= '<div class="fm-entry-content">' . $entry_body_html . '</div>';
         } else {
             $html .= '<div class="fm-entry-content">' . wp_kses_post( $entry_body ) . '</div>';
@@ -1138,7 +1141,6 @@ class Admin {
                 $html .= '<th scope="row" class="check-column"><input type="checkbox" name="ticket[]" value="' . esc_attr( $ticket['id'] ) . '" /></th>';
                 $html .= '<td class="column-ticket_number column-primary"><a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a></td>';
                 $html .= '<td class="column-client"><strong>' . esc_html( $ticket['client_name'] ) . '</strong><br><span style="color:#8c8f94;font-size:12px;">' . esc_html( $ticket['client_email'] ) . '</span></td>';
-                $html .= '<td class="column-subject"><a href="' . esc_url( $view_url . $ticket['id'] ) . '">' . esc_html( $ticket['subject'] ) . '</a></td>';
                 $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
                 $html .= '<td class="column-priority"><span class="fm-badge ' . esc_attr( $pc ) . '">' . esc_html( $ticket['priority_label'] ?? $ticket['priority'] ) . '</span></td>';
                 $html .= '<td class="column-assigned_dev">' . esc_html( $ticket['assigned_dev_name'] ?? '-' ) . '</td>';

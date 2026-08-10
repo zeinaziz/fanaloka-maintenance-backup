@@ -338,39 +338,33 @@ class EmailParser {
         $domain      = substr( strrchr( $email_lower, '@' ), 1 );
         $local_part  = explode( '@', $email_lower )[0];
 
-        // Check local domain.
-        $local_domain = get_option( 'fm_ignore_local_domain', 'fanaloka.co' );
-        if ( $local_domain && $domain === $local_domain ) {
+        // Check local domain (only if set in DB, no hardcoded default).
+        $local_domain = get_option( 'fm_ignore_local_domain', '' );
+        if ( ! empty( $local_domain ) && $domain === strtolower( $local_domain ) ) {
             return true;
         }
 
-        // Check domains (hardcoded defaults + configurable).
-        $custom_domains = get_option( 'fm_ignore_domains', '' );
-        $extra_domains  = ! empty( $custom_domains )
-            ? array_map( 'trim', explode( "\n", $custom_domains ) )
-            : [];
-        $extra_domains  = array_filter( $extra_domains );
-        $all_domains    = array_unique( array_merge( self::DEFAULT_IGNORED_DOMAINS, $extra_domains ) );
-
-        if ( in_array( $domain, $all_domains, true ) ) {
-            return true;
-        }
-
-        // Check sender prefixes (hardcoded defaults + configurable).
-        $custom_prefixes = get_option( 'fm_ignore_sender_prefixes', '' );
-        $extra_prefixes  = ! empty( $custom_prefixes )
-            ? array_map( 'trim', explode( "\n", $custom_prefixes ) )
-            : [];
-        $extra_prefixes  = array_filter( $extra_prefixes );
-        $all_prefixes    = array_unique( array_merge( self::DEFAULT_IGNORED_PREFIXES, $extra_prefixes ) );
-
-        foreach ( $all_prefixes as $prefix ) {
-            if ( 0 === strpos( $local_part, $prefix ) ) {
+        // Check domains (DB only, no hardcoded defaults merged).
+        $domains_raw = get_option( 'fm_ignore_domains', '' );
+        if ( ! empty( $domains_raw ) ) {
+            $domains  = array_unique( array_filter( array_map( 'strtolower', array_map( 'trim', explode( "\n", $domains_raw ) ) ) ) );
+            if ( in_array( $domain, $domains, true ) ) {
                 return true;
             }
         }
 
-        // Check configurable sender patterns (wildcards, exact emails).
+        // Check sender prefixes (DB only, no hardcoded defaults merged).
+        $prefixes_raw = get_option( 'fm_ignore_sender_prefixes', '' );
+        if ( ! empty( $prefixes_raw ) ) {
+            $prefixes = array_unique( array_filter( array_map( 'strtolower', array_map( 'trim', explode( "\n", $prefixes_raw ) ) ) ) );
+            foreach ( $prefixes as $prefix ) {
+                if ( '' !== $prefix && 0 === strpos( $local_part, $prefix ) ) {
+                    return true;
+                }
+            }
+        }
+
+        // Check configurable sender patterns (wildcards, exact emails, @domain).
         $custom_patterns = get_option( 'fm_ignore_sender_patterns', '' );
         if ( ! empty( $custom_patterns ) ) {
             $patterns = array_map( 'trim', explode( "\n", $custom_patterns ) );
