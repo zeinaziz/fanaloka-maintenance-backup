@@ -1144,7 +1144,25 @@ class Admin {
                 $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
                 $html .= '<td class="column-priority"><span class="fm-badge ' . esc_attr( $pc ) . '">' . esc_html( $ticket['priority_label'] ?? $ticket['priority'] ) . '</span></td>';
                 $html .= '<td class="column-assigned_dev">' . esc_html( $ticket['assigned_dev_name'] ?? '-' ) . '</td>';
-                $html .= '<td class="column-date_created">' . esc_html( $ticket['date_created'] ?? '' ) . '</td>';
+                $date_val = $ticket['date_created'] ?? '';
+                $date_display = '';
+                if ( $date_val ) {
+                    $ts = strtotime( $date_val );
+                    $now = time();
+                    $diff = $now - $ts;
+                    if ( $diff < 60 ) {
+                        $date_display = sprintf( '%ds ago', $diff );
+                    } elseif ( $diff < 3600 ) {
+                        $date_display = sprintf( '%dm ago', floor( $diff / 60 ) );
+                    } elseif ( $diff < 86400 ) {
+                        $date_display = sprintf( '%dh ago', floor( $diff / 3600 ) );
+                    } elseif ( $diff < 604800 ) {
+                        $date_display = sprintf( '%dd ago', floor( $diff / 86400 ) );
+                    } else {
+                        $date_display = date( 'd M Y', $ts );
+                    }
+                }
+                $html .= '<td class="column-date_created" title="' . esc_attr( $date_val ) . '">' . esc_html( $date_display ) . '</td>';
                 $html .= '</tr>';
             }
         }
