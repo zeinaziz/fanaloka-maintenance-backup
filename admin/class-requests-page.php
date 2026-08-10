@@ -166,7 +166,7 @@ class RequestsPage {
         .fm-auto-refresh-info .dashicons { font-size: 16px; color: #00a32a; }
         .fm-requests-search { display: flex; align-items: center; gap: 6px; background: #f0f0f1; border-radius: 6px; padding: 6px 12px; }
         .fm-requests-search .dashicons { color: #8c8f94; font-size: 16px; }
-        .fm-requests-search input { border: none; background: transparent; font-size: 14px; outline: none; width: 220px; }
+        .fm-requests-search input { border: none; background: transparent; font-size: 14px; outline: none; width: 220px; max-width: 100%; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .fm-notice { position: fixed; top: 50px; right: 20px; padding: 12px 20px; border-radius: 6px; z-index: 100000; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fm-slide-in 0.3s ease; max-width: 400px; }
         .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
