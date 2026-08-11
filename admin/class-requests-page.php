@@ -158,6 +158,8 @@ class RequestsPage {
         .fm-sort-indicator { color: #2271b1; font-size: 10px; }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
         .widefat tr:hover td { background: #f9f9f9; }
+        #fm-requests-tbody tr:hover td { background: #eaf2fa; }
+        #fm-requests-tbody tr:hover td.column-ticket_number strong { color: #2271b1; }
         .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; white-space: nowrap; }
         .fm-badge-primary { background: #2271b1; }
         .fm-badge-success { background: #00a32a; }
