@@ -156,6 +156,13 @@ class RequestsPage {
         .widefat thead th.sortable, .widefat tfoot th.sortable { cursor: pointer; user-select: none; }
         .widefat thead th.sortable:hover, .widefat tfoot th.sortable:hover { color: #2271b1; background: #f0f6fc; }
         .fm-sort-indicator { color: #2271b1; font-size: 10px; }
+        #fm-requests-table { table-layout: auto; }
+        #fm-requests-table .column-cb { width: 34px; padding-right: 4px; }
+        #fm-requests-table .column-status { width: 110px; }
+        #fm-requests-table .column-priority { width: 90px; }
+        #fm-requests-table .column-assigned_dev { width: 120px; }
+        #fm-requests-table .column-date_created { width: 130px; white-space: nowrap; }
+        #fm-requests-table .column-ticket_number { width: auto; min-width: 260px; }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
         .widefat tr:hover td { background: #f9f9f9; }
         #fm-requests-tbody tr:hover td { background: #eaf2fa; }
