@@ -293,7 +293,7 @@ class DashboardPage {
         /* Sidebar Cards */
         .fm-sidebar-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-sidebar-card-header { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; border-radius: 8px 8px 0 0; }
-        .fm-sidebar-card-header .dashicons { color: #2271b1; font-size: 16px; }
+        .fm-sidebar-card-header .dashicons { color: #2271b1; font-size: 16px; width: 16px; height: 16px; }
         .fm-sidebar-card-body { padding: 12px 14px; }
 
         /* Info Rows */

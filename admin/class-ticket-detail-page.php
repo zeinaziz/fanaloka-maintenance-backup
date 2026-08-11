@@ -562,7 +562,7 @@ class TicketDetailPage {
         /* Sidebar Sections */
         .fm-sidebar-section { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-sidebar-title { display: flex; align-items: center; gap: 6px; margin: 0; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1d2327; background: #f9f9f9; border-bottom: 1px solid #e2e4e7; }
-        .fm-sidebar-title .dashicons { color: #2271b1; font-size: 20px; width: 20px; height: 20px; }
+        .fm-sidebar-title .dashicons { color: #2271b1; font-size: 16px; width: 16px; height: 16px; }
         .fm-sidebar-content { padding: 12px 14px; }
 
         /* Field Rows */
