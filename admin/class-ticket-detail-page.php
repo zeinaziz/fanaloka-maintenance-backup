@@ -83,6 +83,27 @@ class TicketDetailPage {
         $files          = $attachments->get_ticket_attachments( $this->ticket_id );
         $developers     = $this->get_developer_options();
 
+        // Auto-fill reply CC from the latest client entry's CC recipients.
+        $default_reply_cc = '';
+        $own_email        = strtolower( (string) get_option( 'fm_imap_username', '' ) );
+        foreach ( array_reverse( $entries ) as $entry ) {
+            if ( 'client' !== ( $entry['entry_type'] ?? '' ) ) {
+                continue;
+            }
+            $entry_meta_data = ! empty( $entry['meta'] ) ? json_decode( $entry['meta'], true ) : [];
+            $cc_raw          = $entry_meta_data['cc'] ?? '';
+            if ( ! empty( $cc_raw ) ) {
+                $filtered = [];
+                foreach ( array_map( 'trim', explode( ',', $cc_raw ) ) as $cc_addr ) {
+                    if ( empty( $own_email ) || strtolower( $cc_addr ) !== $own_email ) {
+                        $filtered[] = $cc_addr;
+                    }
+                }
+                $default_reply_cc = implode( ', ', $filtered );
+                break;
+            }
+        }
+
         $status_colors = [
             'new'             => '#2271b1',
             'open'            => '#dba617',
@@ -262,10 +283,10 @@ class TicketDetailPage {
                             <div class="fm-reply-cc-bcc-toggle">
                                 <a href="#" id="fm-toggle-cc-bcc"><span class="dashicons dashicons-email-alt"></span> <?php esc_html_e( 'CC / BCC', 'fanaloka-maintenance' ); ?></a>
                             </div>
-                            <div class="fm-reply-cc-bcc-fields" id="fm-cc-bcc-fields" style="display:none;">
+                            <div class="fm-reply-cc-bcc-fields" id="fm-cc-bcc-fields"<?php echo empty( $default_reply_cc ) ? ' style="display:none;"' : ''; ?>>
                                 <div class="fm-cc-bcc-row">
                                     <label for="fm-reply-cc">CC</label>
-                                    <input type="text" id="fm-reply-cc" name="reply_cc" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
+                                    <input type="text" id="fm-reply-cc" name="reply_cc" value="<?php echo esc_attr( $default_reply_cc ); ?>" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
                                 </div>
                                 <div class="fm-cc-bcc-row">
                                     <label for="fm-reply-bcc">BCC</label>
