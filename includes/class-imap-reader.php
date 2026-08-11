@@ -635,8 +635,8 @@ class IMAPReader {
             $mime_type = $this->get_mime_type( $structure );
             if ( 'text/html' === $mime_type ) {
                 return [
-                    'body'      => '',
-                    'body_html' => $this->clean_body( $body, $structure ),
+                    'body'      => $this->clean_body( $body, $structure ),
+                    'body_html' => $this->sanitize_html_body( $body ),
                 ];
             }
 
