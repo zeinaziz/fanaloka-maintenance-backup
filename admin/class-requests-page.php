@@ -108,12 +108,12 @@ class RequestsPage {
                             <td id="cb" class="manage-column column-cb check-column">
                                 <input id="cb-select-all" type="checkbox" />
                             </td>
-                            <th scope="col" class="manage-column column-ticket_number column-primary"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="ticket_number" class="manage-column column-ticket_number column-primary sortable"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-client"><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-status"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-priority"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="status" class="manage-column column-status sortable"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="priority" class="manage-column column-priority sortable"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-assigned_dev"><?php esc_html_e( 'Developer', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-date_created"><?php esc_html_e( 'Date', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="date_created" class="manage-column column-date_created sortable"><?php esc_html_e( 'Date', 'fanaloka-maintenance' ); ?></th>
                         </tr>
                     </thead>
                     <tbody id="fm-requests-tbody">
@@ -126,12 +126,12 @@ class RequestsPage {
                             <td class="manage-column column-cb check-column">
                                 <input id="cb-select-all-2" type="checkbox" />
                             </td>
-                            <th scope="col" class="manage-column column-ticket_number column-primary"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="ticket_number-2" class="manage-column column-ticket_number column-primary sortable"><?php esc_html_e( 'Ticket', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-client"><?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-status"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-priority"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="status-2" class="manage-column column-status sortable"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="priority-2" class="manage-column column-priority sortable"><?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?></th>
                             <th scope="col" class="manage-column column-assigned_dev"><?php esc_html_e( 'Developer', 'fanaloka-maintenance' ); ?></th>
-                            <th scope="col" class="manage-column column-date_created"><?php esc_html_e( 'Date', 'fanaloka-maintenance' ); ?></th>
+                            <th scope="col" id="date_created-2" class="manage-column column-date_created sortable"><?php esc_html_e( 'Date', 'fanaloka-maintenance' ); ?></th>
                         </tr>
                     </tfoot>
                 </table>
@@ -153,6 +153,9 @@ class RequestsPage {
         .fm-card .tablenav .tablenav-pages { margin: 0; }
         .widefat td, .widefat th { padding: 10px 14px; }
         .widefat thead th { background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; color: #646970; font-weight: 600; }
+        .widefat thead th.sortable, .widefat tfoot th.sortable { cursor: pointer; user-select: none; }
+        .widefat thead th.sortable:hover, .widefat tfoot th.sortable:hover { color: #2271b1; background: #f0f6fc; }
+        .fm-sort-indicator { color: #2271b1; font-size: 10px; }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
         .widefat tr:hover td { background: #f9f9f9; }
         .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; white-space: nowrap; }
@@ -456,9 +459,9 @@ class RequestsPage {
                 $('.fm-page-wrap').first().prepend($n);
                 setTimeout(function(){ $n.fadeOut(300, function(){ $(this).remove(); }); }, 4000);
             }
-            $(document).on('click', '#fm-requests-table thead th:not(.column-cb)', function() {
+            $(document).on('click', '#fm-requests-table thead th.sortable, #fm-requests-table tfoot th.sortable', function() {
                 var $th = $(this);
-                var col = $th.attr('id') || $th.data('col');
+                var col = $th.attr('id') ? $th.attr('id').replace(/-2$/, '') : '';
                 if (!col) return;
 
                 var sortable = { ticket_number: 'ticket_number', status: 'status', priority: 'priority', date_created: 'date' };
@@ -471,12 +474,32 @@ class RequestsPage {
                     state.order = 'ASC';
                 }
                 state.paged = 1;
+                updateSortIndicators();
                 loadTickets();
             });
+
+            function updateSortIndicators() {
+                var cols = { ticket_number: 'ticket_number', status: 'status', priority: 'priority', date_created: 'date' };
+                $('#fm-requests-table thead th.sortable, #fm-requests-table tfoot th.sortable').each(function() {
+                    var $th = $(this);
+                    var col = $th.attr('id') ? $th.attr('id').replace(/-2$/, '') : '';
+                    var arrow = '';
+                    if (cols[col] === state.orderby) {
+                        arrow = state.order === 'ASC'
+                            ? '<span class="fm-sort-indicator"> &#9650;</span>'
+                            : '<span class="fm-sort-indicator"> &#9660;</span>';
+                    }
+                    $th.find('.fm-sort-indicator').remove();
+                    if (arrow) {
+                        $th.append(arrow);
+                    }
+                });
+            }
 
             // Restore saved filters and initial load
             restoreFilters();
             loadTickets();
+            updateSortIndicators();
 
             // Auto-refresh
             function startAutoRefresh() {
