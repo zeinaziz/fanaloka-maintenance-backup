@@ -260,11 +260,23 @@ class TicketDetailPage {
                         <div class="fm-reply-header">
                             <span class="dashicons dashicons-edit"></span>
                             <strong><?php esc_html_e( 'Reply', 'fanaloka-maintenance' ); ?></strong>
+                            <span class="fm-reply-to"><?php esc_html_e( 'to', 'fanaloka-maintenance' ); ?> <?php echo esc_html( $ticket['client_email'] ?? '' ); ?></span>
                         </div>
                         <form method="post" id="fm-reply-form" enctype="multipart/form-data">
                             <input type="hidden" name="ticket_id" value="<?php echo esc_attr( $this->ticket_id ); ?>" />
                             <input type="hidden" name="fm_action" value="reply" />
                             <?php wp_nonce_field( 'fm_reply_ticket' ); ?>
+                            <div class="fm-recipients">
+                                <div class="fm-recipient-row">
+                                    <label for="fm-reply-cc">CC</label>
+                                    <input type="text" id="fm-reply-cc" name="reply_cc" value="<?php echo esc_attr( $default_reply_cc ); ?>" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
+                                    <a href="#" id="fm-toggle-bcc" class="fm-bcc-toggle<?php echo empty( $default_reply_cc ) ? '' : ' fm-active'; ?>">BCC</a>
+                                </div>
+                                <div class="fm-recipient-row fm-bcc-row" id="fm-bcc-row"<?php echo empty( $default_reply_cc ) ? ' style="display:none;"' : ''; ?>>
+                                    <label for="fm-reply-bcc">BCC</label>
+                                    <input type="text" id="fm-reply-bcc" name="reply_bcc" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
+                                </div>
+                            </div>
                             <div id="reply-editor-wrap">
                                 <?php
                                 wp_editor( '', 'reply_content', [
@@ -279,19 +291,6 @@ class TicketDetailPage {
                                     ],
                                 ] );
                                 ?>
-                            </div>
-                            <div class="fm-reply-cc-bcc-toggle">
-                                <a href="#" id="fm-toggle-cc-bcc"><span class="dashicons dashicons-email-alt"></span> <?php esc_html_e( 'CC / BCC', 'fanaloka-maintenance' ); ?></a>
-                            </div>
-                            <div class="fm-reply-cc-bcc-fields" id="fm-cc-bcc-fields"<?php echo empty( $default_reply_cc ) ? ' style="display:none;"' : ''; ?>>
-                                <div class="fm-cc-bcc-row">
-                                    <label for="fm-reply-cc">CC</label>
-                                    <input type="text" id="fm-reply-cc" name="reply_cc" value="<?php echo esc_attr( $default_reply_cc ); ?>" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
-                                </div>
-                                <div class="fm-cc-bcc-row">
-                                    <label for="fm-reply-bcc">BCC</label>
-                                    <input type="text" id="fm-reply-bcc" name="reply_bcc" placeholder="<?php esc_attr_e( 'email@example.com, email2@example.com', 'fanaloka-maintenance' ); ?>" />
-                                </div>
                             </div>
                             <div class="fm-reply-footer">
                                 <div class="fm-reply-attach">
@@ -520,8 +519,10 @@ class TicketDetailPage {
         .fm-empty-state .dashicons { font-size: 48px; width: 48px; height: 48px; margin-bottom: 15px; color: #c3c4c7; }
 
         /* Reply Box */
-        .fm-reply-box { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; }
-        .fm-reply-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 14px; color: #1d2327; }
+        .fm-reply-box { background: #fff; border: 1px solid #e2e4e7; border-radius: 12px; margin-top: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+        .fm-reply-header { display: flex; align-items: center; gap: 8px; padding: 14px 18px; background: linear-gradient(180deg, #f9fafb, #f4f6f8); border-bottom: 1px solid #e2e4e7; font-size: 14px; color: #1d2327; }
+        .fm-reply-header .dashicons { color: #2271b1; }
+        .fm-reply-to { margin-left: auto; font-size: 12px; color: #646970; background: #fff; border: 1px solid #dcdcde; border-radius: 20px; padding: 3px 12px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .fm-reply-box .inside { padding: 0; }
         .fm-reply-box #reply-editor-wrap { padding: 0; }
         .fm-reply-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid #e2e4e7; background: #f9f9f9; }
@@ -540,14 +541,16 @@ class TicketDetailPage {
         .fm-upload-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #646970; width: 100%; order: 4; }
         .fm-upload-status .spinner { margin: 0; }
         .fm-reply-submit { margin: 0 !important; }
-        .fm-reply-cc-bcc-toggle { padding: 8px 16px; border-top: 1px solid #f0f0f1; }
-        .fm-reply-cc-bcc-toggle a { font-size: 13px; color: #2271b1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-        .fm-reply-cc-bcc-toggle a:hover { color: #135e96; }
-        .fm-reply-cc-bcc-toggle a .dashicons { font-size: 14px; width: 14px; height: 14px; }
-        .fm-reply-cc-bcc-fields { padding: 0 16px 12px; border-top: 1px solid #f0f0f1; background: #fafafa; }
-        .fm-cc-bcc-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-        .fm-cc-bcc-row:first-child { padding-top: 12px; }
-        .fm-cc-bcc-row:last-child { padding-bottom: 0; }
+        .fm-recipients { background: #fff; border-bottom: 1px solid #f0f0f1; }
+        .fm-recipient-row { display: flex; align-items: center; gap: 10px; padding: 6px 16px; }
+        .fm-recipient-row label { font-size: 12px; font-weight: 600; color: #8c8f94; min-width: 30px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .fm-recipient-row input { flex: 1; border: none; border-bottom: 1px solid #e0e1e3; padding: 5px 2px; font-size: 13px; color: #1d2327; background: transparent; border-radius: 0; box-shadow: none !important; transition: border-color 0.15s; }
+        .fm-recipient-row input:hover { border-bottom-color: #c3c4c7; }
+        .fm-recipient-row input:focus { border-bottom-color: #2271b1; outline: none; }
+        .fm-bcc-toggle { font-size: 12px; font-weight: 600; color: #2271b1; text-decoration: none; padding: 3px 8px; border: 1px solid #c3c4c7; border-radius: 4px; line-height: 1.4; transition: all 0.15s; }
+        .fm-bcc-toggle:hover { border-color: #2271b1; background: #f0f6fc; }
+        .fm-bcc-toggle.fm-active { background: #2271b1; border-color: #2271b1; color: #fff; }
+        .fm-bcc-row { display: flex; align-items: center; gap: 10px; padding: 6px 16px; background: #fafbfc; }
 
         .fm-internal-note-box { background: #fff; border: 1px solid #ffc107; border-radius: 8px; margin-top: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; }
         .fm-note-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fef3cd; border-bottom: 1px solid #ffc107; font-size: 13px; }
@@ -555,9 +558,6 @@ class TicketDetailPage {
         .fm-note-header strong { color: #856404; }
         .fm-note-toggle-link { margin-left: auto; font-size: 12px; color: #856404; text-decoration: underline; cursor: pointer; }
         .fm-entry-badge-internal { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3cd; color: #856404; }
-        .fm-cc-bcc-row label { font-size: 13px; font-weight: 600; color: #646970; min-width: 35px; }
-        .fm-cc-bcc-row input { flex: 1; padding: 6px 10px; border: 1px solid #c3c4c7; border-radius: 4px; font-size: 13px; }
-        .fm-cc-bcc-row input:focus { border-color: #2271b1; outline: none; box-shadow: 0 0 0 1px #2271b1; }
 
         /* Sidebar Sections */
         .fm-sidebar-section { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
@@ -578,6 +578,19 @@ class TicketDetailPage {
         .fm-file-link:hover { color: #135e96; }
         .fm-file-size { color: #8c8f94; font-size: 12px; }
         </style>
+        <script>
+        (function($) {
+            $(document).on('click', '#fm-toggle-bcc', function(e) {
+                e.preventDefault();
+                var $row = $('#fm-bcc-row');
+                $row.toggle();
+                $(this).toggleClass('fm-active');
+                if ($row.is(':visible')) {
+                    $('#fm-reply-bcc').trigger('focus');
+                }
+            });
+        })(jQuery);
+        </script>
         <?php
     }
 
