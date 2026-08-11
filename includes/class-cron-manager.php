@@ -347,7 +347,7 @@ class CronManager {
                             'imap_uid'    => $sent_email['msg_number'] ?? 0,
                         ] );
 
-                        update_post_meta( $ticket_id, '_fm_last_updated', time() );
+                        update_post_meta( $ticket_id, '_fm_last_updated', strtotime( $parsed['date'] ?? '' ) ?: time() );
                         $results['sent_synced']++;
 
                         Logger::log( sprintf( 'Sent email synced to ticket #%d from %s', $ticket_id, $from_email ) );
@@ -723,7 +723,7 @@ class CronManager {
                             'imap_uid'    => $sent_email['msg_number'] ?? 0,
                         ] );
 
-                        update_post_meta( $ticket_id, '_fm_last_updated', time() );
+                        update_post_meta( $ticket_id, '_fm_last_updated', strtotime( $parsed['date'] ?? '' ) ?: time() );
                         $results['sent_synced']++;
                         $steps[] = [ 'step' => 'sent_synced', 'time' => gmdate( 'H:i:s' ), 'msg' => sprintf( '  Sent [%d/%d] Synced to ticket #%d: "%s"', $sent_index, count( $sent_emails ), $ticket_id, mb_substr( $subject, 0, 40 ) ) ];
                         Logger::log( sprintf( 'Sent email synced to ticket #%d from %s', $ticket_id, $from_email ) );

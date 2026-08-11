@@ -93,6 +93,7 @@ class RequestsPage {
                         </select>
                         <input type="button" id="fm-filter-apply" class="button" value="<?php esc_attr_e( 'Filter', 'fanaloka-maintenance' ); ?>" />
                         <input type="button" id="fm-filter-clear" class="button" value="<?php esc_attr_e( 'Clear', 'fanaloka-maintenance' ); ?>" />
+                        <input type="button" id="fm-order-reset" class="button" value="<?php esc_attr_e( 'Reset Order', 'fanaloka-maintenance' ); ?>" />
                     </div>
                     <div class="tablenav-pages">
                         <span class="displaying-num" id="fm-displaying-num"></span>
@@ -329,6 +330,19 @@ class RequestsPage {
                 state.search = '';
                 state.paged = 1;
                 try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+                $btn.prop('disabled', true);
+                loadTickets();
+                setTimeout(function(){ $btn.prop('disabled', false); }, 2000);
+            });
+
+            // Reset sort order to default (last updated, DESC).
+            $('#fm-order-reset').on('click', function() {
+                var $btn = $(this);
+                state.orderby = '_fm_last_updated';
+                state.order = 'DESC';
+                state.paged = 1;
+                saveFilters();
+                updateSortIndicators();
                 $btn.prop('disabled', true);
                 loadTickets();
                 setTimeout(function(){ $btn.prop('disabled', false); }, 2000);

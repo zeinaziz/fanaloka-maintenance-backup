@@ -169,7 +169,7 @@ class TicketManager {
             '_fm_priority'        => $this->detect_priority( $parsed ),
             '_fm_assigned_dev'    => 0,
             '_fm_date_created'    => $parsed['date'] ?? current_time( 'mysql' ),
-            '_fm_last_updated'    => time(),
+            '_fm_last_updated'    => strtotime( $parsed['date'] ?? '' ) ?: time(),
             '_fm_completion_date' => '',
             '_fm_message_id'      => $parsed['message_id'] ?? '',
             '_fm_in_reply_to'     => $parsed['in_reply_to'] ?? '',
@@ -243,7 +243,7 @@ class TicketManager {
         }
 
         // Update last updated timestamp.
-        update_post_meta( $ticket_id, '_fm_last_updated', time() );
+        update_post_meta( $ticket_id, '_fm_last_updated', strtotime( $parsed['date'] ?? '' ) ?: time() );
 
         // If status is completed or cancelled, reopen.
         $current_status = get_post_meta( $ticket_id, '_fm_status', true );
@@ -504,7 +504,7 @@ class TicketManager {
         $old_status = get_post_meta( $ticket_id, '_fm_status', true );
 
         update_post_meta( $ticket_id, '_fm_status', $new_status );
-        update_post_meta( $ticket_id, '_fm_last_updated', current_time( 'mysql' ) );
+        update_post_meta( $ticket_id, '_fm_last_updated', time() );
 
         if ( 'completed' === $new_status ) {
             update_post_meta( $ticket_id, '_fm_completion_date', current_time( 'mysql' ) );
@@ -534,7 +534,7 @@ class TicketManager {
      */
     public function assign_developer( int $ticket_id, int $developer_id ): bool {
         update_post_meta( $ticket_id, '_fm_assigned_dev', $developer_id );
-        update_post_meta( $ticket_id, '_fm_last_updated', current_time( 'mysql' ) );
+        update_post_meta( $ticket_id, '_fm_last_updated', time() );
 
         $conversation = new ConversationManager();
         $user         = get_userdata( $developer_id );
@@ -566,7 +566,7 @@ class TicketManager {
         }
 
         update_post_meta( $ticket_id, '_fm_priority', $new_priority );
-        update_post_meta( $ticket_id, '_fm_last_updated', current_time( 'mysql' ) );
+        update_post_meta( $ticket_id, '_fm_last_updated', time() );
 
         return true;
     }
