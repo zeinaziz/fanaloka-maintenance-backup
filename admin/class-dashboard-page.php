@@ -157,7 +157,18 @@ class DashboardPage {
                         <div class="fm-sidebar-card-body">
                             <div class="fm-info-row">
                                 <span class="fm-info-label"><?php esc_html_e( 'Time', 'fanaloka-maintenance' ); ?></span>
-                                <span class="fm-info-value"><?php echo esc_html( $last_sync['time'] ); ?></span>
+                                <span class="fm-info-value">
+                                    <?php
+                                    if ( '-' === $last_sync['time'] ) {
+                                        echo esc_html( $last_sync['time'] );
+                                    } else {
+                                        $sync_ts = strtotime( $last_sync['time'] );
+                                        $full    = wp_date( 'D, d M Y \a\t g:i A', $sync_ts );
+                                        echo esc_html( human_time_diff( $sync_ts, time() ) . ' ago' );
+                                        echo ' <span class="fm-info-tooltip" title="' . esc_attr( $full ) . '">(' . esc_html( wp_date( 'g:i A', $sync_ts ) ) . ')</span>';
+                                    }
+                                    ?>
+                                </span>
                             </div>
                             <div class="fm-info-row">
                                 <span class="fm-info-label"><?php esc_html_e( 'Emails', 'fanaloka-maintenance' ); ?></span>
