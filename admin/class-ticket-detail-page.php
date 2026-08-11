@@ -204,7 +204,7 @@ class TicketDetailPage {
                                         } elseif ( 'client' === $entry['entry_type'] && ! empty( $entry['body_html'] ) ) {
                                             echo $this->kses_html_body( $entry['body_html'] );
                                         } else {
-                                            echo wp_kses_post( nl2br( esc_html( $entry['body'] ) ) );
+                                            echo wp_kses_post( nl2br( make_clickable( esc_html( $entry['body'] ) ) ) );
                                         }
                                         ?>
                                     </div>
