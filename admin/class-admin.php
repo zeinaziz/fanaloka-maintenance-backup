@@ -244,7 +244,7 @@ class Admin {
             'manage_options',
             'fm-dashboard',
             [ new DashboardPage(), 'render' ],
-            'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><defs><linearGradient id="fmBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#39a2f2"/><stop offset="1" stop-color="#0b56a3"/></linearGradient></defs><rect width="24" height="24" rx="5.5" fill="url(#fmBg)"/><g transform="translate(3.2 3.2) scale(0.73)"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.4 1.4a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" fill="#ffffff"/></g></svg>' ),
+            'dashicons-admin-tools',
             3
         );
 
