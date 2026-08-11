@@ -212,6 +212,8 @@ class RequestsPage {
                         state.status = urlStatus || saved.status || '';
                         state.priority = saved.priority || '';
                         state.search = saved.search || '';
+                        state.orderby = saved.orderby || '_fm_last_updated';
+                        state.order = saved.order === 'ASC' ? 'ASC' : 'DESC';
                         $('#fm-filter-client').val(state.client);
                         $('#fm-filter-status').val(state.status);
                         $('#fm-filter-priority').val(state.priority);
@@ -240,6 +242,8 @@ class RequestsPage {
                         status: state.status,
                         priority: state.priority,
                         search: state.search,
+                        orderby: state.orderby,
+                        order: state.order,
                     }));
                 } catch(e) {}
             }
@@ -475,6 +479,7 @@ class RequestsPage {
                 }
                 state.paged = 1;
                 updateSortIndicators();
+                saveFilters();
                 loadTickets();
             });
 
