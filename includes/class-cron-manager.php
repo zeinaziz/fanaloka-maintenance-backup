@@ -344,7 +344,7 @@ class CronManager {
                             'subject'     => $subject,
                             'date'        => $parsed['date'] ?? current_time( 'mysql' ),
                             'body_html'   => $this->strip_email_signature( $parsed['body_html'] ?? '' ),
-                            'imap_uid'    => $sent_email['msg_number'] ?? 0,
+                            'imap_uid'    => $parsed['uid'] ?? 0,
                         ] );
 
                         update_post_meta( $ticket_id, '_fm_last_updated', strtotime( $parsed['date'] ?? '' ) ?: time() );
@@ -720,7 +720,7 @@ class CronManager {
                             'subject'     => $subject,
                             'date'        => $parsed['date'] ?? current_time( 'mysql' ),
                             'body_html'   => $this->strip_email_signature( $parsed['body_html'] ?? '' ),
-                            'imap_uid'    => $sent_email['msg_number'] ?? 0,
+                            'imap_uid'    => $parsed['uid'] ?? 0,
                         ] );
 
                         update_post_meta( $ticket_id, '_fm_last_updated', strtotime( $parsed['date'] ?? '' ) ?: time() );

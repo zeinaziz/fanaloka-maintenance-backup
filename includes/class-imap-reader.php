@@ -305,7 +305,11 @@ class IMAPReader {
             return false;
         }
 
-        return $this->normalize_headers( $header );
+        $headers = $this->normalize_headers( $header );
+        // imap_headerinfo() does not populate the Uid property on all builds,
+        // so fetch the real UID explicitly (UIDs are stable per message).
+        $headers['uid'] = (int) imap_uid( $this->connection, $msg_number );
+        return $headers;
     }
 
     /**

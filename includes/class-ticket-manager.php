@@ -186,7 +186,7 @@ class TicketManager {
             'date'       => $parsed['date'] ?? current_time( 'mysql' ),
             'message_id' => $parsed['message_id'] ?? '',
             'body_html'  => $parsed['body_html'] ?? '',
-            'imap_uid'   => $parsed['msg_number'] ?? 0,
+            'imap_uid'   => $parsed['uid'] ?? 0,
             'db_meta'    => ! empty( $parsed['cc'] ) ? [ 'cc' => $parsed['cc'] ] : [],
         ] );
 
@@ -261,7 +261,7 @@ class TicketManager {
             'in_reply_to' => $parsed['in_reply_to'] ?? '',
             'references'  => $parsed['references'] ?? '',
             'body_html'  => $parsed['body_html'] ?? '',
-            'imap_uid'   => $parsed['msg_number'] ?? 0,
+            'imap_uid'   => $parsed['uid'] ?? 0,
             'db_meta'    => ! empty( $parsed['cc'] ) ? [ 'cc' => $parsed['cc'] ] : [],
         ] );
 
