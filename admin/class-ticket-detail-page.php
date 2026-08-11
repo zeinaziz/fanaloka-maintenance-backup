@@ -245,7 +245,7 @@ class TicketDetailPage {
                                 </div>
                             </div>
                             <?php if ( $has_collapse && $is_first ) : ?>
-                                <div class="fm-entry-collapse-toggle" id="fm-collapse-toggle">
+                                <div class="fm-entry-collapse-toggle" id="fm-collapse-toggle" data-collapse-label="<?php echo esc_attr( sprintf( __( 'Show %d earlier messages', 'fanaloka-maintenance' ), $entry_count - 2 ) ); ?>" data-expand-label="<?php echo esc_attr( sprintf( __( 'Hide %d earlier messages', 'fanaloka-maintenance' ), $entry_count - 2 ) ); ?>">
                                     <span class="dashicons dashicons-arrow-down-alt2"></span>
                                     <span class="fm-collapse-text"><?php echo esc_html( sprintf( __( 'Show %d earlier messages', 'fanaloka-maintenance' ), $entry_count - 2 ) ); ?></span>
                                 </div>
@@ -590,6 +590,23 @@ class TicketDetailPage {
                 $(this).toggleClass('fm-active');
                 if ($row.is(':visible')) {
                     $('#fm-reply-bcc').trigger('focus');
+                }
+            });
+
+            $(document).on('click', '#fm-collapse-toggle', function(e) {
+                e.preventDefault();
+                var $toggle = $(this);
+                var $targets = $('.fm-entry[data-collapse-target="1"]');
+                if ($toggle.hasClass('fm-expanded')) {
+                    $targets.addClass('fm-entry-collapsed');
+                    $toggle.removeClass('fm-expanded');
+                    $toggle.find('.dashicons').removeClass('dashicons-arrow-up-alt2').addClass('dashicons-arrow-down-alt2');
+                    $toggle.find('.fm-collapse-text').text($toggle.data('collapse-label'));
+                } else {
+                    $targets.removeClass('fm-entry-collapsed');
+                    $toggle.addClass('fm-expanded');
+                    $toggle.find('.dashicons').removeClass('dashicons-arrow-down-alt2').addClass('dashicons-arrow-up-alt2');
+                    $toggle.find('.fm-collapse-text').text($toggle.data('expand-label'));
                 }
             });
         })(jQuery);
