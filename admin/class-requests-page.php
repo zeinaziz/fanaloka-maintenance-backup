@@ -151,8 +151,8 @@ class RequestsPage {
         .fm-card .tablenav .button { height: 32px; line-height: 30px; border-radius: 5px; font-size: 13px; padding: 0 12px; }
         .fm-card .tablenav .bulkactions { display: flex; align-items: center; gap: 6px; }
         .fm-card .tablenav .tablenav-pages { margin: 0; }
-        .widefat td, .widefat th { padding: 10px 14px; }
-        .widefat thead th { background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; color: #646970; font-weight: 600; }
+        .widefat td, .widefat th { padding: 10px 5px; }
+        .widefat thead th { background: #f9f9f9; border-bottom: 1px solid #e2e4e7; font-size: 13px; color: #646970; font-weight: 600; padding: 10px 5px !important; }
         .widefat thead th.sortable, .widefat tfoot th.sortable { cursor: pointer; user-select: none; }
         .widefat thead th.sortable:hover, .widefat tfoot th.sortable:hover { color: #2271b1; background: #f0f6fc; }
         .fm-sort-indicator { color: #2271b1; font-size: 10px; }
