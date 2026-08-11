@@ -292,8 +292,17 @@ class ReportManager {
      * @param int $months Number of months to look back.
      * @return array<int, array{month: string, total: int, completed: int, new_count: int}>
      */
-    public function get_monthly_report( int $months = 12 ): array {
+    public function get_monthly_report( int $months = 12, string $period = 'all' ): array {
         $report = [];
+
+        // Adjust months based on period.
+        if ( 'today' === $period || 'week' === $period ) {
+            $months = 1;
+        } elseif ( 'month' === $period ) {
+            $months = 1;
+        } elseif ( 'year' === $period ) {
+            $months = 12;
+        }
 
         for ( $i = $months - 1; $i >= 0; $i-- ) {
             $month = strtotime( '-' . $i . ' months' );
@@ -359,7 +368,92 @@ class ReportManager {
             ] );
 
             $report[] = [
-                'month'     => date( 'M Y', $month ),
+                'label'     => date( 'M Y', $month ),
+                'total'     => $total_query->found_posts,
+                'completed' => $completed_query->found_posts,
+                'new_count' => $new_query->found_posts,
+            ];
+        }
+
+        return $report;
+    }
+
+    /**
+     * Get daily report for a given number of days.
+     *
+     * @param int    $days Number of days to look back.
+     * @param string $period Period type.
+     * @return array<int, array{label: string, total: int, completed: int, new_count: int}>
+     */
+    public function get_daily_report( int $days = 7, string $period = 'week' ): array {
+        $report = [];
+
+        for ( $i = $days - 1; $i >= 0; $i-- ) {
+            $date  = strtotime( '-' . $i . ' days' );
+            $start = date( 'Y-m-d', $date );
+            $end   = $start;
+
+            $total_query = new \WP_Query( [
+                'post_type'      => 'maintenance_request',
+                'post_status'    => 'any',
+                'posts_per_page' => -1,
+                'fields'         => 'ids',
+                'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+                    [
+                        'key'     => '_fm_date_created',
+                        'value'   => [ $start, $end . ' 23:59:59' ],
+                        'compare' => 'BETWEEN',
+                        'type'    => 'DATETIME',
+                    ],
+                ],
+            ] );
+
+            $completed_query = new \WP_Query( [
+                'post_type'      => 'maintenance_request',
+                'post_status'    => 'any',
+                'posts_per_page' => -1,
+                'fields'         => 'ids',
+                'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+                    'relation' => 'AND',
+                    [
+                        'key'     => '_fm_date_created',
+                        'value'   => [ $start, $end . ' 23:59:59' ],
+                        'compare' => 'BETWEEN',
+                        'type'    => 'DATETIME',
+                    ],
+                    [
+                        'key'   => '_fm_status',
+                        'value' => 'completed',
+                    ],
+                ],
+            ] );
+
+            $new_query = new \WP_Query( [
+                'post_type'      => 'maintenance_request',
+                'post_status'    => 'any',
+                'posts_per_page' => -1,
+                'fields'         => 'ids',
+                'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+                    'relation' => 'AND',
+                    [
+                        'key'     => '_fm_date_created',
+                        'value'   => [ $start, $end . ' 23:59:59' ],
+                        'compare' => 'BETWEEN',
+                        'type'    => 'DATETIME',
+                    ],
+                    [
+                        'key'   => '_fm_status',
+                        'value' => 'new',
+                    ],
+                ],
+            ] );
+
+            $label = 'today' === $period
+                ? date( 'H:i', $date )
+                : date( 'D, d M', $date );
+
+            $report[] = [
+                'label'     => $label,
                 'total'     => $total_query->found_posts,
                 'completed' => $completed_query->found_posts,
                 'new_count' => $new_query->found_posts,
@@ -413,6 +507,11 @@ class ReportManager {
 
         foreach ( $csv_rows as $row ) {
             $output .= implode( ',', array_map( function ( $cell ) {
+                // Prevent CSV formula injection — prefix dangerous characters.
+                $cell = (string) $cell;
+                if ( preg_match( '/^[=+\-@\t\r]/', $cell ) ) {
+                    $cell = "'" . $cell;
+                }
                 return '"' . str_replace( '"', '""', $cell ) . '"';
             }, $row ) ) . "\n";
         }

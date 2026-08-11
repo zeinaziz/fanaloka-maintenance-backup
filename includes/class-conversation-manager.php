@@ -81,9 +81,11 @@ class ConversationManager {
             'entry_type'         => $type,
             'imap_uid'           => absint( $meta['imap_uid'] ?? 0 ),
             'created_at'         => $meta['date'] ?? current_time( 'mysql' ),
+            'attachments'        => $meta['attachments'] ?? '',
+            'meta'               => ! empty( $meta['db_meta'] ) ? wp_json_encode( $meta['db_meta'] ) : '',
         ];
 
-        $format = [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ];
+        $format = [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' ];
 
         $result = $wpdb->insert( $table, $data, $format );
 
@@ -100,9 +102,11 @@ class ConversationManager {
      *
      * @param int    $ticket_id Ticket post ID.
      * @param string $body      Reply content.
+     * @param string $cc        CC emails (comma-separated).
+     * @param string $bcc       BCC emails (comma-separated).
      * @return int|false Entry ID on success, false on failure.
      */
-    public function add_reply_from_developer( int $ticket_id, string $body ) {
+    public function add_reply_from_developer( int $ticket_id, string $body, string $cc = '', string $bcc = '' ) {
         global $wpdb;
 
         $table = Database::table_name();
@@ -129,6 +133,10 @@ class ConversationManager {
             'in_reply_to'        => $last_client_msg_id ?? '',
             'references'         => $references,
             'from_email'         => get_option( 'fm_imap_username', '' ),
+            'db_meta'            => array_filter( [
+                'cc'  => $cc ?: null,
+                'bcc' => $bcc ?: null,
+            ] ),
         ] );
     }
 
@@ -204,6 +212,25 @@ class ConversationManager {
         );
 
         return $results ?: [];
+    }
+
+    /**
+     * Get a single entry by ID.
+     *
+     * @param int $entry_id Entry ID.
+     * @return array<string, mixed>|false Entry data or false.
+     */
+    public function get_entry( int $entry_id ) {
+        global $wpdb;
+
+        $table = Database::table_name();
+
+        $result = $wpdb->get_row(
+            $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry_id ),
+            ARRAY_A
+        );
+
+        return $result ?: false;
     }
 
     /**

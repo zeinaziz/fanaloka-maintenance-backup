@@ -207,18 +207,26 @@ class NotificationManager {
      */
     public function notify_developer_assigned( int $ticket_id, int $developer_id ): bool {
         if ( 'yes' !== get_option( 'fm_notif_assignment', 'yes' ) ) {
+            Logger::log( sprintf( 'notify_developer_assigned: skipped (option fm_notif_assignment=%s)', get_option( 'fm_notif_assignment', 'not set' ) ) );
             return false;
         }
 
         $ticket = $this->get_ticket_data( $ticket_id );
 
         if ( empty( $ticket ) ) {
+            Logger::log( sprintf( 'notify_developer_assigned: skipped (no ticket data for #%d)', $ticket_id ) );
             return false;
         }
 
         $developer = get_user_by( 'id', $developer_id );
 
         if ( ! $developer ) {
+            Logger::log( sprintf( 'notify_developer_assigned: skipped (developer #%d not found)', $developer_id ) );
+            return false;
+        }
+
+        if ( empty( $developer->user_email ) ) {
+            Logger::log( sprintf( 'notify_developer_assigned: skipped (developer %s has no email)', $developer->display_name ) );
             return false;
         }
 
@@ -243,7 +251,11 @@ class NotificationManager {
             esc_url( $site_url )
         ) );
 
-        return $this->send_html( $developer->user_email, $subject, $html );
+        $result = $this->send_html( $developer->user_email, $subject, $html );
+
+        Logger::log( sprintf( 'notify_developer_assigned: sent to %s (%s) for ticket #%d', $developer->display_name, $developer->user_email, $ticket_id ) );
+
+        return $result;
     }
 
     /**

@@ -39,42 +39,45 @@ class Database {
         $installed_ver   = self::get_version();
         $required_ver    = '3';
 
-        if ( $installed_ver === $required_ver ) {
-            return;
+        if ( $installed_ver !== $required_ver ) {
+            $charset_collate = $wpdb->get_charset_collate();
+
+            $sql = "CREATE TABLE {$table_name} (
+                id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+                ticket_id bigint(20) unsigned NOT NULL,
+                message_id varchar(255) NOT NULL DEFAULT '',
+                parent_message_id varchar(255) NOT NULL DEFAULT '',
+                in_reply_to varchar(255) NOT NULL DEFAULT '',
+                references_header text NOT NULL,
+                sender varchar(255) NOT NULL DEFAULT '',
+                email varchar(255) NOT NULL DEFAULT '',
+                subject varchar(500) NOT NULL DEFAULT '',
+                body longtext NOT NULL,
+                body_html longtext DEFAULT NULL,
+                entry_type varchar(20) NOT NULL DEFAULT 'client',
+                attachments text NOT NULL,
+                meta text NOT NULL,
+                imap_uid int(10) unsigned NOT NULL DEFAULT 0,
+                created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY ticket_id (ticket_id),
+                KEY message_id (message_id(191)),
+                KEY parent_message_id (parent_message_id(191)),
+                KEY in_reply_to (in_reply_to(191)),
+                KEY email (email),
+                KEY entry_type (entry_type)
+            ) {$charset_collate};";
+
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            dbDelta( $sql );
+
+            update_option( 'fm_db_version', $required_ver );
+
+            Logger::log( 'Database tables created/updated' );
         }
 
-        $charset_collate = $wpdb->get_charset_collate();
-
-        $sql = "CREATE TABLE {$table_name} (
-            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            ticket_id bigint(20) unsigned NOT NULL,
-            message_id varchar(255) NOT NULL DEFAULT '',
-            parent_message_id varchar(255) NOT NULL DEFAULT '',
-            in_reply_to varchar(255) NOT NULL DEFAULT '',
-            references_header text NOT NULL,
-            sender varchar(255) NOT NULL DEFAULT '',
-            email varchar(255) NOT NULL DEFAULT '',
-            subject varchar(500) NOT NULL DEFAULT '',
-            body longtext NOT NULL,
-            entry_type varchar(20) NOT NULL DEFAULT 'client',
-            attachments text NOT NULL,
-            imap_uid int(10) unsigned NOT NULL DEFAULT 0,
-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY ticket_id (ticket_id),
-            KEY message_id (message_id(191)),
-            KEY parent_message_id (parent_message_id(191)),
-            KEY in_reply_to (in_reply_to(191)),
-            KEY email (email),
-            KEY entry_type (entry_type)
-        ) {$charset_collate};";
-
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-        dbDelta( $sql );
-
-        update_option( 'fm_db_version', $required_ver );
-
-        Logger::log( 'Database tables created/updated' );
+        // Always ensure activity log table exists.
+        \Fanaloka\Maintenance\Log\ActivityLog::create_table();
     }
 
     /**
@@ -154,6 +157,9 @@ class Database {
         if ( $migrated > 0 ) {
             Logger::log( sprintf( 'Migrated %d old conversation entries to new table', $migrated ) );
         }
+
+        // Always ensure activity_log table exists.
+        \Fanaloka\Maintenance\Log\ActivityLog::create_table();
 
         return $migrated;
     }

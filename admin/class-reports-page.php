@@ -27,7 +27,10 @@ class ReportsPage {
         $report   = new ReportManager();
         $period   = isset( $_GET['period'] ) ? sanitize_text_field( wp_unslash( $_GET['period'] ) ) : 'month'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $summary  = $report->get_summary( $period );
-        $monthly  = $report->get_monthly_report( 12 );
+        $is_daily = in_array( $period, [ 'today', 'week' ], true );
+        $chart_data = $is_daily
+            ? $report->get_daily_report( 'today' === $period ? 1 : 7, $period )
+            : $report->get_monthly_report( 12, $period );
         $status   = $report->get_count_by_status( $period );
         $priority = $report->get_count_by_priority( $period );
         $dev_perf = $report->get_developer_performance( $period );
@@ -82,13 +85,39 @@ class ReportsPage {
                                 <span class="fm-stat-label"><?php esc_html_e( 'Avg Completion', 'fanaloka-maintenance' ); ?></span>
                             </div>
                         </div>
+                        <div class="fm-stat-card">
+                            <div class="fm-stat-icon" style="background:#fef3cd;color:#856404;">
+                                <span class="dashicons dashicons-email-alt"></span>
+                            </div>
+                            <div class="fm-stat-content">
+                                <span class="fm-stat-number">
+                                    <?php
+                                    printf(
+                                        /* translators: %s: hours */
+                                        esc_html__( '%sh', 'fanaloka-maintenance' ),
+                                        esc_html( $summary['avg_response_h'] )
+                                    );
+                                    ?>
+                                </span>
+                                <span class="fm-stat-label"><?php esc_html_e( 'Avg Response Time', 'fanaloka-maintenance' ); ?></span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Monthly Chart -->
                     <div class="fm-card">
                         <div class="fm-card-header">
                             <span class="dashicons dashicons-chart-bar"></span>
-                            <?php esc_html_e( 'Monthly Report (Last 12 Months)', 'fanaloka-maintenance' ); ?>
+                            <?php
+                            $chart_titles = [
+                                'all'   => __( 'Ticket Report (All Time)', 'fanaloka-maintenance' ),
+                                'today' => __( 'Ticket Report (Today)', 'fanaloka-maintenance' ),
+                                'week'  => __( 'Ticket Report (This Week)', 'fanaloka-maintenance' ),
+                                'month' => __( 'Ticket Report (This Month)', 'fanaloka-maintenance' ),
+                                'year'  => __( 'Ticket Report (This Year)', 'fanaloka-maintenance' ),
+                            ];
+                            echo esc_html( $chart_titles[ $period ] ?? $chart_titles['all'] );
+                            ?>
                         </div>
                         <div class="fm-card-body">
                             <canvas id="fm-report-chart" height="300"></canvas>
@@ -227,17 +256,17 @@ class ReportsPage {
             new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: <?php echo wp_json_encode( array_column( $monthly, 'month' ) ); ?>,
+                    labels: <?php echo wp_json_encode( array_column( $chart_data, 'label' ) ); ?>,
                     datasets: [
                         {
                             label: '<?php echo esc_js( __( 'Total', 'fanaloka-maintenance' ) ); ?>',
-                            data: <?php echo wp_json_encode( array_column( $monthly, 'total' ) ); ?>,
+                            data: <?php echo wp_json_encode( array_column( $chart_data, 'total' ) ); ?>,
                             backgroundColor: '#2271b1',
                             borderRadius: 3
                         },
                         {
                             label: '<?php echo esc_js( __( 'Completed', 'fanaloka-maintenance' ) ); ?>',
-                            data: <?php echo wp_json_encode( array_column( $monthly, 'completed' ) ); ?>,
+                            data: <?php echo wp_json_encode( array_column( $chart_data, 'completed' ) ); ?>,
                             backgroundColor: '#00a32a',
                             borderRadius: 3
                         }
