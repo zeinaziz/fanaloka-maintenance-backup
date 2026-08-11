@@ -310,14 +310,45 @@ class EmailParser {
 
         // Strip quoted reply chains from plain text body.
         // Indonesian: "Pada ... menulis:"
-        $body = preg_replace( '/Pada\s+[\s\S]*?menulis\s*:\s*[\s\S]*$/i', '', $body );
+        // Only strip when there is meaningful content before the quote,
+        // so forwards (quote at the very top) keep their content.
+        $body = $this->strip_trailing_quote( $body, 'Pada\s+[\s\S]*?menulis\s*:' );
         // English: "On ... wrote:"
-        $body = preg_replace( '/On\s+[\s\S]*?\bwrote\s*:\s*[\s\S]*$/i', '', $body );
+        $body = $this->strip_trailing_quote( $body, 'On\s+[\s\S]*?\bwrote\s*:' );
 
         $body = preg_replace( "/\n{3,}/", "\n\n", $body );
         $body = trim( $body );
 
         return $body;
+    }
+
+    /**
+     * Strip a trailing quoted/forwarded section only when there is meaningful
+     * content before it. When the marker appears at the very start of the
+     * message (e.g. a forward where the quoted content is the whole message),
+     * the content is kept intact.
+     *
+     * @param string $text   Plain text or HTML body.
+     * @param string $marker Regex matching the start of the trailing section.
+     * @return string Body with trailing section removed (if preceded by content).
+     */
+    private function strip_trailing_quote( string $text, string $marker ): string {
+        $result = preg_replace_callback(
+            '/^(.*?)' . $marker . '[\s\S]*$/is',
+            function ( $m ) {
+                $prefix = trim( $m[1] );
+                $plain  = wp_strip_all_tags( $prefix );
+                // Meaningful content before the marker → keep only the prefix.
+                if ( preg_match( '/[A-Za-z0-9\p{L}]{3,}/u', $plain ) ) {
+                    return $prefix;
+                }
+                // No content before → the marked section is the message itself.
+                return $m[0];
+            },
+            $text
+        );
+
+        return is_string( $result ) ? $result : $text;
     }
 
     /**
@@ -477,28 +508,21 @@ class EmailParser {
         }
 
         // Strip Gmail quote containers: <div class="gmail_quote">...</div>
-        $html = preg_replace( '/<div\s+class="gmail_quote[\s\S]*$/i', '', $html );
+        // Only when there is meaningful content before the quote.
+        $html = $this->strip_trailing_quote( $html, '<div\s+class="gmail_quote' );
 
         // Strip Indonesian reply header: "Pada ... menulis:" (with optional HTML tags).
-        $html = preg_replace(
-            '/<[^>]*>\s*Pada\s+[\s\S]*?menulis\s*:\s*[\s\S]*$/i',
-            '',
-            $html
-        );
+        $html = $this->strip_trailing_quote( $html, '(?:<[^>]*>\s*)?Pada\s+[\s\S]*?menulis\s*:' );
         // Plain text variant.
-        $html = preg_replace( '/Pada\s+[\s\S]*?menulis\s*:\s*[\s\S]*$/i', '', $html );
+        $html = $this->strip_trailing_quote( $html, 'Pada\s+[\s\S]*?menulis\s*:' );
 
         // Strip English reply header: "On ... wrote:" (with optional HTML tags).
-        $html = preg_replace(
-            '/<[^>]*>\s*On\s+[\s\S]*?\bwrote\s*:\s*[\s\S]*$/i',
-            '',
-            $html
-        );
+        $html = $this->strip_trailing_quote( $html, '(?:<[^>]*>\s*)?On\s+[\s\S]*?\bwrote\s*:' );
         // Plain text variant.
-        $html = preg_replace( '/On\s+[\s\S]*?\bwrote\s*:\s*[\s\S]*$/i', '', $html );
+        $html = $this->strip_trailing_quote( $html, 'On\s+[\s\S]*?\bwrote\s*:' );
 
         // Strip forwarded message headers.
-        $html = preg_replace( '/----------\s*Forwarded message\s*----------[\s\S]*$/i', '', $html );
+        $html = $this->strip_trailing_quote( $html, '----------\s*Forwarded message\s*----------' );
 
         // Remove <blockquote> elements (keep content if needed, but usually quoted).
         $html = preg_replace( '/<blockquote\b[^>]*>[\s\S]*?<\/blockquote\s*>/is', '', $html );
