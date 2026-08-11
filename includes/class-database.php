@@ -37,7 +37,7 @@ class Database {
 
         $table_name      = $wpdb->prefix . 'fm_conversations';
         $installed_ver   = self::get_version();
-        $required_ver    = '3';
+        $required_ver    = '4';
 
         if ( $installed_ver !== $required_ver ) {
             $charset_collate = $wpdb->get_charset_collate();
@@ -78,6 +78,9 @@ class Database {
 
         // Always ensure activity log table exists.
         \Fanaloka\Maintenance\Log\ActivityLog::create_table();
+
+        // Always ensure email log table exists.
+        \Fanaloka\Maintenance\Email\EmailLog::create_table();
     }
 
     /**

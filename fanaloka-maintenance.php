@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'FM_VERSION', '1.0.3' );
+define( 'FM_VERSION', '1.0.4' );
 define( 'FM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'FM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'FM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -81,8 +81,61 @@ final class Plugin {
         add_action( 'init', [ $this, 'init' ] );
         add_action( 'plugins_loaded', [ $this, 'plugins_loaded' ] );
 
+        // Apply SMTP settings to outgoing mail.
+        add_action( 'phpmailer_init', [ $this, 'configure_smtp' ], 10 );
+
         // Register custom cron intervals.
         add_filter( 'cron_schedules', [ $this, 'add_cron_interval' ] );
+    }
+
+    /**
+     * Apply saved SMTP settings to PHPMailer.
+     *
+     * @param \PHPMailer\PHPMailer\PHPMailer $phpmailer PHPMailer instance.
+     * @return void
+     */
+    public function configure_smtp( $phpmailer ): void {
+        if ( 'yes' !== get_option( 'fm_smtp_enabled', 'no' ) ) {
+            return;
+        }
+        if ( ! $phpmailer instanceof \PHPMailer\PHPMailer\PHPMailer ) {
+            return;
+        }
+
+        $host = get_option( 'fm_smtp_host', '' );
+        if ( empty( $host ) ) {
+            return;
+        }
+
+        $port = absint( get_option( 'fm_smtp_port', 587 ) );
+        if ( $port < 1 ) {
+            $port = 587;
+        }
+
+        $phpmailer->isSMTP();
+        $phpmailer->Host     = $host;
+        $phpmailer->Port     = $port;
+        $phpmailer->SMTPAuth = true;
+        $phpmailer->Username = get_option( 'fm_smtp_username', '' );
+        $phpmailer->Password = \Fanaloka\Maintenance\Admin\SettingsPage::decrypt_password( (string) get_option( 'fm_smtp_password', '' ) );
+
+        $encryption = get_option( 'fm_smtp_encryption', 'tls' );
+        $phpmailer->SMTPSecure = 'none' === $encryption ? '' : $encryption;
+        $phpmailer->SMTPKeepAlive = true;
+        $phpmailer->Timeout       = 30;
+
+        $from_email = get_option( 'fm_smtp_from_email', '' );
+        $from_name  = get_option( 'fm_smtp_from_name', '' );
+
+        if ( is_email( $from_email ) ) {
+            $phpmailer->From = $from_email;
+            $phpmailer->FromName = $from_name ?: wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+            $phpmailer->Sender   = $from_email;
+        } elseif ( ! empty( $phpmailer->Username ) && is_email( $phpmailer->Username ) ) {
+            $phpmailer->From     = $phpmailer->Username;
+            $phpmailer->FromName = $from_name ?: wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+            $phpmailer->Sender   = $phpmailer->Username;
+        }
     }
 
     /**

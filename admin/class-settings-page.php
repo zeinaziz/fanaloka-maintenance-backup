@@ -220,10 +220,42 @@ class SettingsPage {
      */
     public function register_settings(): void {
         $this->register_imap_settings();
+        $this->register_smtp_settings();
         $this->register_sync_settings();
         $this->register_ticket_settings();
         $this->register_notification_settings();
         $this->register_sections_and_fields();
+    }
+
+    /**
+     * Register SMTP options.
+     *
+     * @return void
+     */
+    private function register_smtp_settings(): void {
+        $fields = [
+            'fm_smtp_enabled'    => [ 'type' => 'string', 'default' => 'no' ],
+            'fm_smtp_host'       => [ 'type' => 'string', 'default' => '' ],
+            'fm_smtp_port'       => [ 'type' => 'string', 'default' => '587' ],
+            'fm_smtp_encryption' => [ 'type' => 'string', 'default' => 'tls' ],
+            'fm_smtp_username'   => [ 'type' => 'string', 'default' => '' ],
+            'fm_smtp_password'   => [ 'type' => 'string', 'default' => '', 'sanitize' => 'sanitize_password_encrypt' ],
+            'fm_smtp_from_name'  => [ 'type' => 'string', 'default' => '' ],
+            'fm_smtp_from_email' => [ 'type' => 'string', 'default' => '', 'sanitize' => 'sanitize_email_val' ],
+        ];
+
+        foreach ( $fields as $name => $config ) {
+            $sanitize = $config['sanitize'] ?? 'sanitize_text';
+            register_setting(
+                self::OPTION_GROUP,
+                $name,
+                [
+                    'type'              => $config['type'],
+                    'sanitize_callback' => [ self::class, $sanitize ],
+                    'default'           => $config['default'],
+                ]
+            );
+        }
     }
 
     /**
@@ -467,6 +499,74 @@ class SettingsPage {
             'fm_imap_section'
         );
 
+        // SMTP Section.
+        add_settings_section(
+            'fm_smtp_section',
+            __( 'SMTP Outgoing Mail', 'fanaloka-maintenance' ),
+            [ $this, 'render_smtp_section' ],
+            'fm-settings'
+        );
+
+        $smtp_fields = [
+            'fm_smtp_enabled' => [
+                'label'   => __( 'Enable SMTP for outgoing emails', 'fanaloka-maintenance' ),
+                'type'    => 'select',
+                'options' => [
+                    'no'  => __( 'Disabled (use default PHP mail)', 'fanaloka-maintenance' ),
+                    'yes' => __( 'Enabled', 'fanaloka-maintenance' ),
+                ],
+            ],
+            'fm_smtp_host' => [
+                'label' => __( 'SMTP server hostname (e.g., smtp.gmail.com)', 'fanaloka-maintenance' ),
+                'type'  => 'text',
+            ],
+            'fm_smtp_port' => [
+                'label' => __( 'SMTP port (default: 587 for TLS, 465 for SSL)', 'fanaloka-maintenance' ),
+                'type'  => 'number',
+            ],
+            'fm_smtp_encryption' => [
+                'label'   => __( 'Encryption type', 'fanaloka-maintenance' ),
+                'type'    => 'select',
+                'options' => [
+                    'tls'  => __( 'TLS', 'fanaloka-maintenance' ),
+                    'ssl'  => __( 'SSL', 'fanaloka-maintenance' ),
+                    'none' => __( 'None', 'fanaloka-maintenance' ),
+                ],
+            ],
+            'fm_smtp_username' => [
+                'label' => __( 'SMTP username (usually the email address)', 'fanaloka-maintenance' ),
+                'type'  => 'text',
+            ],
+            'fm_smtp_password' => [
+                'label' => __( 'SMTP password or app password (stored encrypted)', 'fanaloka-maintenance' ),
+                'type'  => 'password',
+            ],
+            'fm_smtp_from_name' => [
+                'label' => __( 'From name (optional, e.g., Fanaloka Support)', 'fanaloka-maintenance' ),
+                'type'  => 'text',
+            ],
+            'fm_smtp_from_email' => [
+                'label' => __( 'From email (optional; defaults to SMTP username)', 'fanaloka-maintenance' ),
+                'type'  => 'email',
+            ],
+        ];
+
+        foreach ( $smtp_fields as $id => $args ) {
+            $render = 'select' === $args['type']
+                ? [ $this, 'render_select_field' ]
+                : [ $this, 'render_text_field' ];
+
+            add_settings_field( $id, $this->field_label( $id ), $render, 'fm-settings', 'fm_smtp_section', array_merge( [ 'id' => $id ], $args ) );
+        }
+
+        add_settings_field(
+            'fm_smtp_test',
+            __( 'Test SMTP', 'fanaloka-maintenance' ),
+            [ $this, 'render_smtp_test_button' ],
+            'fm-settings',
+            'fm_smtp_section'
+        );
+
         // Sync Section.
         add_settings_section(
             'fm_sync_section',
@@ -685,6 +785,14 @@ class SettingsPage {
             'fm_imap_username'         => __( 'Username', 'fanaloka-maintenance' ),
             'fm_imap_password'         => __( 'Password', 'fanaloka-maintenance' ),
             'fm_imap_folder'           => __( 'Folder', 'fanaloka-maintenance' ),
+            'fm_smtp_enabled'          => __( 'Enable SMTP', 'fanaloka-maintenance' ),
+            'fm_smtp_host'             => __( 'SMTP Host', 'fanaloka-maintenance' ),
+            'fm_smtp_port'             => __( 'SMTP Port', 'fanaloka-maintenance' ),
+            'fm_smtp_encryption'       => __( 'Encryption', 'fanaloka-maintenance' ),
+            'fm_smtp_username'         => __( 'SMTP Username', 'fanaloka-maintenance' ),
+            'fm_smtp_password'         => __( 'SMTP Password', 'fanaloka-maintenance' ),
+            'fm_smtp_from_name'        => __( 'From Name', 'fanaloka-maintenance' ),
+            'fm_smtp_from_email'       => __( 'From Email', 'fanaloka-maintenance' ),
             'fm_notif_new_ticket'      => __( 'New Ticket', 'fanaloka-maintenance' ),
             'fm_notif_status_change'   => __( 'Status Change', 'fanaloka-maintenance' ),
             'fm_notif_assignment'      => __( 'Developer Assignment', 'fanaloka-maintenance' ),
@@ -702,6 +810,15 @@ class SettingsPage {
      */
     public function render_imap_section(): void {
         echo '<p>' . esc_html__( 'Configure your IMAP email connection settings.', 'fanaloka-maintenance' ) . '</p>';
+    }
+
+    /**
+     * Render SMTP section description.
+     *
+     * @return void
+     */
+    public function render_smtp_section(): void {
+        echo '<p>' . esc_html__( 'Configure SMTP to send outgoing emails (replies and notifications) through your email provider instead of the default PHP mail function.', 'fanaloka-maintenance' ) . '</p>';
     }
 
     /**
@@ -860,6 +977,112 @@ class SettingsPage {
     }
 
     /**
+     * Render SMTP test button.
+     *
+     * @return void
+     */
+    public function render_smtp_test_button(): void {
+        printf(
+            '<button type="button" class="button fm-btn-test-smtp" id="fm-test-smtp">%s</button> ',
+            esc_html__( 'Send Test Email', 'fanaloka-maintenance' )
+        );
+        echo '<span id="fm-smtp-test-result" style="margin-left:10px;font-size:13px;font-weight:600;"></span>';
+        printf(
+            '<p class="description">%s</p>',
+            esc_html__( 'Sends a test email to the admin email using the saved SMTP settings. Save your settings first.', 'fanaloka-maintenance' )
+        );
+    }
+
+    /**
+     * AJAX send test email through SMTP.
+     *
+     * @return void
+     */
+    public function ajax_test_smtp(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [
+                'message' => __( 'Permission denied.', 'fanaloka-maintenance' ),
+            ] );
+        }
+
+        $host = get_option( 'fm_smtp_host', '' );
+        if ( empty( $host ) ) {
+            wp_send_json_error( [
+                'message' => __( 'SMTP host is not configured. Save your SMTP settings first.', 'fanaloka-maintenance' ),
+            ] );
+        }
+
+        $to      = get_option( 'fm_admin_email', get_option( 'admin_email' ) );
+        $subject = sprintf( '[%s] SMTP Test Email', get_bloginfo( 'name' ) );
+
+        add_filter( 'wp_mail_from', function () {
+            return get_option( 'fm_smtp_from_email', get_option( 'fm_smtp_username', get_option( 'admin_email' ) ) );
+        } );
+        add_filter( 'wp_mail_from_name', function () {
+            return get_option( 'fm_smtp_from_name', get_bloginfo( 'name' ) );
+        } );
+
+        $this->apply_smtp_to_mailer();
+
+        $sent = \Fanaloka\Maintenance\Email\EmailLog::send(
+            $to,
+            $subject,
+            '<p>' . esc_html__( 'This is a test email from the Fanaloka Maintenance plugin.', 'fanaloka-maintenance' ) . '</p>',
+            "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0",
+            'test'
+        );
+
+        if ( $sent ) {
+            Logger::log( 'SMTP test email sent to ' . $to );
+            wp_send_json_success( [
+                'message' => sprintf( __( 'Test email sent successfully to %s!', 'fanaloka-maintenance' ), $to ),
+            ] );
+        }
+
+        $error = '';
+        if ( isset( $GLOBALS['phpmailer'] ) && $GLOBALS['phpmailer'] instanceof \PHPMailer\PHPMailer\PHPMailer ) {
+            $error = (string) $GLOBALS['phpmailer']->ErrorInfo;
+        }
+
+        Logger::log( 'SMTP test email FAILED: ' . ( $error ?: 'unknown error' ), Logger::LEVEL_ERROR );
+        wp_send_json_error( [
+            'message' => sprintf( __( 'Test email FAILED: %s', 'fanaloka-maintenance' ), $error ?: __( 'Unknown error.', 'fanaloka-maintenance' ) ),
+        ] );
+    }
+
+    /**
+     * Apply saved SMTP settings to the PHPMailer instance for the test.
+     *
+     * @return void
+     */
+    private function apply_smtp_to_mailer(): void {
+        add_action( 'phpmailer_init', function ( $phpmailer ) {
+            if ( ! $phpmailer instanceof \PHPMailer\PHPMailer\PHPMailer ) {
+                return;
+            }
+
+            $port = absint( get_option( 'fm_smtp_port', 587 ) );
+            if ( $port < 1 ) {
+                $port = 587;
+            }
+
+            $phpmailer->isSMTP();
+            $phpmailer->Host       = get_option( 'fm_smtp_host', '' );
+            $phpmailer->Port       = $port;
+            $phpmailer->SMTPAuth   = true;
+            $phpmailer->Username   = get_option( 'fm_smtp_username', '' );
+            $phpmailer->Password   = self::decrypt_password( (string) get_option( 'fm_smtp_password', '' ) );
+
+            $encryption = get_option( 'fm_smtp_encryption', 'tls' );
+            $phpmailer->SMTPSecure = 'none' === $encryption ? '' : $encryption;
+            $phpmailer->SMTPKeepAlive = true;
+            $phpmailer->Timeout       = 30;
+        }, 20 );
+    }
+
+    /**
      * AJAX test IMAP connection.
      *
      * @return void
@@ -933,6 +1156,10 @@ class SettingsPage {
                        class="nav-tab <?php echo 'general' === $tab ? 'nav-tab-active' : ''; ?>">
                         <span class="fm-icon-sm"><?php echo \Fanaloka\Maintenance\Icons::get( 'clients', '#646970' ); ?></span> <?php esc_html_e( 'IMAP', 'fanaloka-maintenance' ); ?>
                     </a>
+                    <a href="?page=fm-settings&tab=smtp"
+                       class="nav-tab <?php echo 'smtp' === $tab ? 'nav-tab-active' : ''; ?>">
+                        <span class="fm-icon-sm"><?php echo \Fanaloka\Maintenance\Icons::get( 'mail', '#646970' ); ?></span> <?php esc_html_e( 'SMTP', 'fanaloka-maintenance' ); ?>
+                    </a>
                     <a href="?page=fm-settings&tab=sync"
                        class="nav-tab <?php echo 'sync' === $tab ? 'nav-tab-active' : ''; ?>">
                         <span class="fm-icon-sm"><?php echo \Fanaloka\Maintenance\Icons::get( 'refresh', '#646970' ); ?></span> <?php esc_html_e( 'Sync', 'fanaloka-maintenance' ); ?>
@@ -957,6 +1184,8 @@ class SettingsPage {
 
                         if ( 'general' === $tab ) {
                             $this->render_tab_sections( [ 'fm_imap_section' ] );
+                        } elseif ( 'smtp' === $tab ) {
+                            $this->render_tab_sections( [ 'fm_smtp_section' ] );
                         } elseif ( 'sync' === $tab ) {
                             $this->render_tab_sections( [ 'fm_sync_section' ] );
                         } elseif ( 'ticket' === $tab ) {
@@ -1049,12 +1278,16 @@ class SettingsPage {
             'fm_ignore_sender_patterns', 'fm_ignore_domains', 'fm_ignore_sender_prefixes', 'fm_ignore_local_domain',
             'fm_notif_new_ticket', 'fm_notif_status_change', 'fm_notif_assignment',
             'fm_notif_ticket_completed', 'fm_admin_email',
+            'fm_smtp_enabled', 'fm_smtp_host', 'fm_smtp_port', 'fm_smtp_encryption',
+            'fm_smtp_username', 'fm_smtp_password', 'fm_smtp_from_name', 'fm_smtp_from_email',
         ];
 
         // Determine which fields are visible on current tab.
         $visible = [];
         if ( 'general' === $current_tab ) {
             $visible = [ 'fm_imap_host', 'fm_imap_port', 'fm_imap_ssl', 'fm_imap_username', 'fm_imap_password', 'fm_imap_folder' ];
+        } elseif ( 'smtp' === $current_tab ) {
+            $visible = [ 'fm_smtp_enabled', 'fm_smtp_host', 'fm_smtp_port', 'fm_smtp_encryption', 'fm_smtp_username', 'fm_smtp_password', 'fm_smtp_from_name', 'fm_smtp_from_email' ];
         } elseif ( 'sync' === $current_tab ) {
             $visible = [ 'fm_sync_interval', 'fm_auto_sync' ];
         } elseif ( 'ticket' === $current_tab ) {

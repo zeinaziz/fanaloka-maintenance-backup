@@ -71,6 +71,7 @@
 
         bindEvents: function() {
             $( document ).on( 'click', '.fm-btn-test-connection', this.testConnection );
+            $( document ).on( 'click', '.fm-btn-test-smtp', this.testSmtp );
             $( document ).on( 'click', '.fm-sync-btn', this.syncNow );
             $( document ).on( 'change', '.fm-ajax-field', this.updateField );
             $( document ).on( 'submit', '#fm-reply-form', this.submitReply );
@@ -260,6 +261,30 @@
             } ).fail( function() {
                 $result.text( 'Request failed. Please try again.' ).addClass( 'fm-test-error' );
                 $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Test Connection' );
+            } );
+        },
+
+        testSmtp: function( e ) {
+            e.preventDefault();
+            var $btn = $( this );
+            var $result = $( '#fm-smtp-test-result' );
+
+            $btn.prop( 'disabled', true ).text( fmAdmin.testing || 'Testing...' );
+            $result.text( '' ).removeClass( 'fm-test-success fm-test-error' );
+
+            $.post( fmAdmin.ajaxUrl, {
+                action: 'fm_test_smtp',
+                nonce: fmAdmin.nonce,
+            }, function( response ) {
+                if ( response.success ) {
+                    $result.text( response.data.message || 'Test email sent!' ).addClass( 'fm-test-success' );
+                } else {
+                    $result.text( response.data.message || 'Failed' ).addClass( 'fm-test-error' );
+                }
+                $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Send Test Email' );
+            } ).fail( function() {
+                $result.text( 'Request failed. Please try again.' ).addClass( 'fm-test-error' );
+                $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Send Test Email' );
             } );
         },
 

@@ -98,6 +98,7 @@ class Admin {
         add_action( 'wp_ajax_fm_list_developers', [ $this, 'ajax_list_developers' ] );
         add_action( 'wp_ajax_fm_get_developer_tickets', [ $this, 'ajax_get_developer_tickets' ] );
         add_action( 'wp_ajax_fm_test_connection', [ new SettingsPage(), 'ajax_test_connection' ] );
+        add_action( 'wp_ajax_fm_test_smtp', [ new SettingsPage(), 'ajax_test_smtp' ] );
     }
 
     /**
@@ -309,6 +310,15 @@ class Admin {
             'manage_options',
             'fm-activity-log',
             [ new \Fanaloka\Maintenance\Admin\ActivityLogPage(), 'render' ]
+        );
+
+        add_submenu_page(
+            'fm-dashboard',
+            __( 'Email Log', 'fanaloka-maintenance' ),
+            __( 'Email Log', 'fanaloka-maintenance' ),
+            'manage_options',
+            'fm-email-log',
+            [ new \Fanaloka\Maintenance\Admin\EmailLogPage(), 'render' ]
         );
     }
 
@@ -740,7 +750,7 @@ class Admin {
 
         add_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ], 999 );
 
-        wp_mail( $to, $subject, $body_html, $headers );
+        \Fanaloka\Maintenance\Email\EmailLog::send( $to, $subject, $body_html, $headers, 'reply', $ticket_id );
 
         remove_action( 'phpmailer_init', [ $this, 'set_reply_email_headers' ], 999 );
 

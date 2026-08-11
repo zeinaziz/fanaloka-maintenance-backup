@@ -907,7 +907,7 @@ class TicketDetailPage {
         add_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ], 999 );
 
         // Pass HTML body directly with HTML content type.
-        wp_mail( $to, $subject, $body_html, "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0" );
+        \Fanaloka\Maintenance\Email\EmailLog::send( $to, $subject, $body_html, "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0", 'reply', $ticket_id );
 
         remove_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ], 999 );
 

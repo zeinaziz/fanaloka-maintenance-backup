@@ -34,7 +34,7 @@ class NotificationManager {
             sprintf( 'From: %s <%s>', $site_name, get_option( 'fm_admin_email', get_option( 'admin_email' ) ) ),
         ];
 
-        $result = wp_mail( $to, $subject, $body, $headers );
+        $result = \Fanaloka\Maintenance\Email\EmailLog::send( $to, $subject, $body, $headers, 'notification' );
 
         if ( $result ) {
             Logger::log( sprintf( 'Email sent to %s: %s', $to, $subject ) );
@@ -60,7 +60,7 @@ class NotificationManager {
             sprintf( 'From: %s <%s>', $site_name, get_option( 'fm_admin_email', get_option( 'admin_email' ) ) ),
         ];
 
-        $result = wp_mail( $to, $subject, $html, $headers );
+        $result = \Fanaloka\Maintenance\Email\EmailLog::send( $to, $subject, $html, $headers, 'notification' );
 
         if ( $result ) {
             Logger::log( sprintf( 'HTML email sent to %s: %s', $to, $subject ) );
