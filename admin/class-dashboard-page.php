@@ -326,6 +326,19 @@ class DashboardPage {
         .fm-btn-row { display: flex; gap: 8px; margin-top: 10px; }
         .fm-btn-row .fm-btn { flex: 1; }
         .fm-empty-text { padding: 20px; text-align: center; color: #8c8f94; }
+
+        /* Mobile Responsive */
+        @media (max-width: 782px) {
+            .fm-page-header { padding: 12px 14px; }
+            .fm-page-title { font-size: 17px; }
+            .fm-page-columns { flex-direction: column; }
+            .fm-page-main { width: 100%; }
+            .fm-page-sidebar { width: 100%; }
+            .fm-stats-row { gap: 8px; }
+            .fm-stat-card { min-width: 100%; box-sizing: border-box; }
+            .fm-card-body-np { overflow-x: auto; }
+            .fm-table { min-width: 520px; }
+        }
         </style>
         <script>
         jQuery(document).ready(function($) {

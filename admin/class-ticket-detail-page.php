@@ -464,6 +464,9 @@ class TicketDetailPage {
         .fm-ticket-title { margin: 0; font-size: 14px; line-height: 1.3; }
         .fm-ticket-number { font-size: 11px; color: #646970; }
         .fm-ticket-header-right { display: flex; gap: 8px; align-items: center; }
+        @media (max-width: 782px) {
+            .fm-ticket-title { display: none; }
+        }
 
         /* Badges */
         .fm-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; }

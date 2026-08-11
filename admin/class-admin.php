@@ -1492,21 +1492,23 @@ class Admin {
             $sc = $status_colors[ $status ] ?? 'fm-badge-default';
             $view_url = admin_url( 'admin.php?page=fm-requests&action=view&id=' . $post_id );
 
-            $tickets_html .= '<div class="fm-modal-ticket-row">';
-            $tickets_html .= '<a href="' . esc_url( $view_url ) . '" class="fm-modal-ticket-num">' . esc_html( $full_number ) . '</a>';
+            $tickets_html .= '<a href="' . esc_url( $view_url ) . '" class="fm-modal-ticket-row">';
+            $tickets_html .= '<span class="fm-modal-ticket-num">' . esc_html( $full_number ) . '</span>';
             $tickets_html .= '<span class="fm-modal-ticket-subject">' . esc_html( $subject ) . '</span>';
             $tickets_html .= '<span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( ucfirst( str_replace( '-', ' ', $status ) ) ) . '</span>';
-            $tickets_html .= '</div>';
+            $tickets_html .= '</a>';
         }
 
         if ( empty( $tickets_html ) ) {
             $tickets_html = '<div style="text-align:center;padding:20px;color:#8c8f94;">No tickets found.</div>';
         }
 
-        $info_html  = '<div class="fm-modal-info-item"><strong>' . esc_html( $email ) . '</strong>Email</div>';
+        $info_html  = '<div class="fm-modal-info-item fm-modal-info-email"><strong>' . esc_html( $email ) . '</strong>Email</div>';
+        $info_html .= '<div class="fm-modal-info-stats">';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $total ) . '</strong>Total Tickets</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $open ) . '</strong>Open</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $completed ) . '</strong>Completed</div>';
+        $info_html .= '</div>';
 
         wp_send_json_success( [
             'info_html'    => $info_html,
@@ -1728,11 +1730,11 @@ class Admin {
             $sc       = $status_colors[ $status ] ?? 'fm-badge-default';
             $view_url = admin_url( 'admin.php?page=fm-requests&action=view&id=' . $post_id );
 
-            $tickets_html .= '<div class="fm-modal-ticket-row">';
-            $tickets_html .= '<a href="' . esc_url( $view_url ) . '" class="fm-modal-ticket-num">' . esc_html( $full_number ) . '</a>';
+            $tickets_html .= '<a href="' . esc_url( $view_url ) . '" class="fm-modal-ticket-row">';
+            $tickets_html .= '<span class="fm-modal-ticket-num">' . esc_html( $full_number ) . '</span>';
             $tickets_html .= '<span class="fm-modal-ticket-subject">' . esc_html( $subject ) . '</span>';
             $tickets_html .= '<span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( ucfirst( str_replace( '-', ' ', $status ) ) ) . '</span>';
-            $tickets_html .= '</div>';
+            $tickets_html .= '</a>';
         }
 
         if ( empty( $tickets_html ) ) {
@@ -1744,12 +1746,16 @@ class Admin {
             $role = array_values( $user_data->roles )[0];
         }
 
-        $info_html  = '<div class="fm-modal-info-item"><strong>' . esc_html( $display_name ) . '</strong>Name</div>';
+        $info_html  = '<div class="fm-modal-info-main">';
+        $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $display_name ) . '</strong>Name</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $email ) . '</strong>Email</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( ucfirst( str_replace( '_', ' ', $role ) ) ) . '</strong>Role</div>';
+        $info_html .= '</div>';
+        $info_html .= '<div class="fm-modal-info-stats">';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $total ) . '</strong>Total Assigned</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $open ) . '</strong>Open</div>';
         $info_html .= '<div class="fm-modal-info-item"><strong>' . esc_html( $completed ) . '</strong>Completed</div>';
+        $info_html .= '</div>';
 
         wp_send_json_success( [
             'info_html'    => $info_html,

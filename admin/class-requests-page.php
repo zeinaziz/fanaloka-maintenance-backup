@@ -163,6 +163,16 @@ class RequestsPage {
         #fm-requests-table .column-assigned_dev { width: 120px; }
         #fm-requests-table .column-date_created { width: 130px; white-space: nowrap; }
         #fm-requests-table .column-ticket_number { width: auto; max-width: 200px; min-width: fit-content; }
+        #fm-requests-table .column-client { max-width: 110px; }
+        #fm-requests-tbody td, #fm-requests-tbody td strong { font-weight: 400; }
+        @media (max-width: 782px) {
+            .fm-card { overflow-x: auto; }
+            .fm-page-header { flex-wrap: wrap; }
+            .fm-requests-search { width: 100%; min-width: 0; box-sizing: border-box; }
+            #fm-requests-table .column-ticket_number { min-width: 0; max-width: none; }
+            #fm-requests-table { width: 100%; }
+            #fm-requests-tbody td { width: auto; min-width: 0; }
+        }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
         .widefat tr:hover td { background: #f9f9f9; }
         #fm-requests-tbody tr:hover td { background: #eaf2fa; }

@@ -125,14 +125,26 @@ class DevelopersPage {
         .fm-modal-close { background: none; border: none; font-size: 28px; cursor: pointer; color: #646970; padding: 0 4px; line-height: 1; }
         .fm-modal-close:hover { color: #1d2327; }
         .fm-modal-body { padding: 20px; overflow-y: auto; max-height: calc(80vh - 60px); }
-        .fm-modal-info { display: flex; gap: 20px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f1; }
-        .fm-modal-info-item { font-size: 13px; color: #646970; }
-        .fm-modal-info-item strong { color: #1d2327; display: block; font-size: 14px; margin-bottom: 2px; }
-        .fm-modal-ticket-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f1; }
+        .fm-modal-info { display: flex; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f1; }
+        .fm-modal-info-email { flex: 0 0 240px; }
+        .fm-modal-info-main { flex: 0 0 240px; display: flex; flex-direction: column; gap: 8px; }
+        .fm-modal-info-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex: 1; }
+        .fm-modal-info-item { background: #f9f9f9; border: 1px solid #e2e4e7; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #646970; min-width: 0; }
+        .fm-modal-info-item strong { color: #1d2327; display: block; font-size: 16px; font-weight: 700; margin-bottom: 2px; overflow-wrap: anywhere; }
+        .fm-modal-ticket-row { display: flex; align-items: center; gap: 12px; padding: 11px 10px; border-bottom: 1px solid #f0f0f1; text-decoration: none; transition: background 0.15s; }
         .fm-modal-ticket-row:last-child { border-bottom: none; }
-        .fm-modal-ticket-num { font-weight: 600; color: #2271b1; text-decoration: none; }
-        .fm-modal-ticket-num:hover { text-decoration: underline; }
-        .fm-modal-ticket-subject { flex: 1; margin: 0 16px; font-size: 14px; color: #1d2327; }
+        .fm-modal-ticket-row:hover { background: #f0f6fc; }
+        .fm-modal-ticket-num { font-weight: 600; color: #2271b1; flex-shrink: 0; }
+        .fm-modal-ticket-subject { flex: 1; margin: 0; font-size: 14px; color: #1d2327; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        @media (max-width: 782px) {
+            .fm-modal-content { width: 95%; max-height: 85vh; }
+            .fm-modal-body { padding: 14px; }
+            .fm-modal-info { flex-direction: column; gap: 10px; }
+            .fm-modal-info-email, .fm-modal-info-main { flex: none; width: 100%; }
+            .fm-modal-ticket-subject { white-space: normal; }
+            .fm-modal-ticket-row { flex-wrap: wrap; gap: 6px 12px; }
+            .fm-modal-ticket-row .fm-badge { margin-left: auto; }
+        }
         .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; white-space: nowrap; }
         .fm-badge-primary { background: #2271b1; }
         .fm-badge-success { background: #00a32a; }
