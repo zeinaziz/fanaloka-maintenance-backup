@@ -21,14 +21,52 @@
         },
 
         initEmailFrames: function() {
+            var self = this;
             window.addEventListener( 'message', function( e ) {
                 if ( e.data && e.data.fmEmail ) {
-                    var frame = document.getElementById( e.data.fmEmail.id );
-                    if ( frame ) {
-                        frame.style.height = e.data.fmEmail.h + 'px';
+                    var msg = e.data.fmEmail;
+                    var frame = document.getElementById( msg.id );
+                    if ( frame && msg.h ) {
+                        frame.style.height = msg.h + 'px';
+                    }
+                    if ( msg.openImage ) {
+                        self.openImageModal( msg.openImage.src, msg.openImage.alt );
                     }
                 }
             } );
+        },
+
+        openImageModal: function( src, alt ) {
+            if ( ! src || ! /^(https?:|data:image\/)/i.test( src ) ) {
+                return;
+            }
+            this.closeImageModal();
+            var $modal = $( '<div class="fm-image-modal" tabindex="-1" role="dialog" aria-modal="true" aria-label="Image preview">' +
+                '<span class="dashicons dashicons-no-alt fm-image-modal-close" title="Close (Esc)"></span>' +
+                '<img src="" alt="" />' +
+                '</div>' );
+            $modal.find( 'img' ).attr( 'src', src ).attr( 'alt', alt || '' );
+            $( 'body' ).append( $modal ).addClass( 'fm-modal-open' );
+            $modal.trigger( 'focus' );
+            $modal.on( 'click', function( e ) {
+                if ( e.target === this ) {
+                    FMAdmin.closeImageModal();
+                }
+            } );
+            $modal.find( '.fm-image-modal-close' ).on( 'click', function() {
+                FMAdmin.closeImageModal();
+            } );
+            $( document ).on( 'keyup.fmImageModal', function( e ) {
+                if ( e.key === 'Escape' || e.keyCode === 27 ) {
+                    FMAdmin.closeImageModal();
+                }
+            } );
+        },
+
+        closeImageModal: function() {
+            $( '.fm-image-modal' ).remove();
+            $( 'body' ).removeClass( 'fm-modal-open' );
+            $( document ).off( 'keyup.fmImageModal' );
         },
 
         bindEvents: function() {

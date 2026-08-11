@@ -155,9 +155,10 @@ class EmailRenderer {
         $srcdoc .= 'body{font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1d2327;padding:10px 14px;word-wrap:break-word;overflow-wrap:break-word;}';
         $srcdoc .= 'img{max-width:100%;height:auto;}';
         $srcdoc .= 'a{color:#2271b1;}';
+        $srcdoc .= 'a img{cursor:zoom-in;}';
         $srcdoc .= '</style></head>';
         $srcdoc .= '<body>' . $body;
-        $srcdoc .= '<script>(function(){function rs(){var h=document.body.scrollHeight;parent.postMessage({fmEmail:{id:' . wp_json_encode( $frame_id ) . ',h:h}},"*");}window.addEventListener("load",rs);if(window.ResizeObserver){new ResizeObserver(rs).observe(document.body);}})();</script>';
+        $srcdoc .= '<script>(function(){var fid=' . wp_json_encode( $frame_id ) . ';function rs(){var h=document.body.scrollHeight;parent.postMessage({fmEmail:{id:fid,h:h}},"*");}window.addEventListener("load",rs);if(window.ResizeObserver){new ResizeObserver(rs).observe(document.body);}document.addEventListener("click",function(e){if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.defaultPrevented){return;}var a=e.target.closest?e.target.closest("a"):null;var url=null,alt="";if(a&&a.querySelector("img")){url=a.href;var im=a.querySelector("img");alt=im?im.getAttribute("alt")||"":"";}else if(!a&&e.target.tagName==="IMG"){url=e.target.src;alt=e.target.getAttribute("alt")||"";}if(!url||!/^(https?:|data:image\/)/i.test(url)||!/\.(jpe?g|png|gif|webp|svg|avif|bmp)([?#]|$)/i.test(url)){return;}e.preventDefault();parent.postMessage({fmEmail:{id:fid,openImage:{src:url,alt:alt}}},"*");});})();</script>';
         $srcdoc .= '</body></html>';
 
         return '<iframe id="' . esc_attr( $frame_id ) . '" class="fm-email-frame" data-fm-frame-id="' . esc_attr( $frame_id ) . '" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" loading="lazy" srcdoc="' . esc_attr( $srcdoc ) . '"></iframe>';
