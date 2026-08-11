@@ -151,6 +151,43 @@ class GuidePage {
                 <div class="fm-guide-card">
                     <div class="fm-guide-number">5</div>
                     <div class="fm-guide-body">
+                        <h2><?php esc_html_e( 'SMTP Outgoing Mail', 'fanaloka-maintenance' ); ?></h2>
+                        <p><?php esc_html_e( 'Send replies and notifications through your email provider instead of PHP mail.', 'fanaloka-maintenance' ); ?></p>
+                        <div class="fm-guide-steps">
+                            <div class="fm-guide-step">
+                                <strong><?php esc_html_e( 'Go to', 'fanaloka-maintenance' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=fm-settings&tab=smtp' ) ); ?>"><?php esc_html_e( 'Settings → SMTP', 'fanaloka-maintenance' ); ?></a></strong>
+                            </div>
+                            <div class="fm-guide-step">
+                                <strong><?php esc_html_e( 'Fill in these values:', 'fanaloka-maintenance' ); ?></strong>
+                                <table class="fm-guide-table">
+                                    <tr><td><?php esc_html_e( 'Enable SMTP', 'fanaloka-maintenance' ); ?></td><td><code><?php esc_html_e( 'Enabled', 'fanaloka-maintenance' ); ?></code></td></tr>
+                                    <tr><td><?php esc_html_e( 'Host', 'fanaloka-maintenance' ); ?></td><td><code>smtp.gmail.com</code></td></tr>
+                                    <tr><td><?php esc_html_e( 'Port', 'fanaloka-maintenance' ); ?></td><td><code>587</code> <?php esc_html_e( '(TLS) or', 'fanaloka-maintenance' ); ?> <code>465</code> <?php esc_html_e( '(SSL)', 'fanaloka-maintenance' ); ?></td></tr>
+                                    <tr><td><?php esc_html_e( 'Encryption', 'fanaloka-maintenance' ); ?></td><td><code>TLS</code></td></tr>
+                                    <tr><td><?php esc_html_e( 'Username', 'fanaloka-maintenance' ); ?></td><td><?php esc_html_e( 'Your full email address', 'fanaloka-maintenance' ); ?></td></tr>
+                                    <tr><td><?php esc_html_e( 'Password', 'fanaloka-maintenance' ); ?></td><td><?php esc_html_e( 'App Password (same one used for IMAP)', 'fanaloka-maintenance' ); ?></td></tr>
+                                </table>
+                            </div>
+                            <div class="fm-guide-step">
+                                <strong><?php esc_html_e( 'Optional:', 'fanaloka-maintenance' ); ?></strong>
+                                <ul>
+                                    <li><?php esc_html_e( 'From Name — e.g., "Fanaloka Support" (defaults to site name)', 'fanaloka-maintenance' ); ?></li>
+                                    <li><?php esc_html_e( 'From Email — must be your Workspace address (defaults to SMTP username)', 'fanaloka-maintenance' ); ?></li>
+                                </ul>
+                            </div>
+                            <div class="fm-guide-step">
+                                <button type="button" class="button fm-btn-test-smtp" id="fm-test-smtp"><?php esc_html_e( 'Send Test Email', 'fanaloka-maintenance' ); ?></button>
+                                <span id="fm-smtp-test-result" style="margin-left:10px;font-size:13px;font-weight:600;"></span>
+                                <p style="margin:8px 0 0;color:#646970;"><?php esc_html_e( 'Save the settings first, then click this button to verify SMTP works.', 'fanaloka-maintenance' ); ?></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6 -->
+                <div class="fm-guide-card">
+                    <div class="fm-guide-number">6</div>
+                    <div class="fm-guide-body">
                         <h2><?php esc_html_e( 'First Sync', 'fanaloka-maintenance' ); ?></h2>
                         <p><?php esc_html_e( 'Run your first sync to create tickets from existing emails.', 'fanaloka-maintenance' ); ?></p>
                         <div class="fm-guide-steps">
@@ -162,6 +199,33 @@ class GuidePage {
                             </div>
                             <div class="fm-guide-step">
                                 <?php esc_html_e( 'After sync, tickets will appear in the Requests page.', 'fanaloka-maintenance' ); ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 7 -->
+                <div class="fm-guide-card">
+                    <div class="fm-guide-number">7</div>
+                    <div class="fm-guide-body">
+                        <h2><?php esc_html_e( 'Email Log (Sent)', 'fanaloka-maintenance' ); ?></h2>
+                        <p><?php esc_html_e( 'Track every email the plugin sends: replies, notifications, and test emails.', 'fanaloka-maintenance' ); ?></p>
+                        <div class="fm-guide-steps">
+                            <div class="fm-guide-step">
+                                <strong><?php esc_html_e( 'Open', 'fanaloka-maintenance' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=fm-email-log' ) ); ?>"><?php esc_html_e( 'Menu → Email Log', 'fanaloka-maintenance' ); ?></a></strong>
+                            </div>
+                            <div class="fm-guide-step">
+                                <strong><?php esc_html_e( 'What you can do:', 'fanaloka-maintenance' ); ?></strong>
+                                <ul>
+                                    <li><?php esc_html_e( 'See time, recipient (To/CC/BCC), subject, context, and status of each sent email', 'fanaloka-maintenance' ); ?></li>
+                                    <li><?php esc_html_e( 'Filter by status (Sent / Failed) and context (Notification / Reply / Test)', 'fanaloka-maintenance' ); ?></li>
+                                    <li><?php esc_html_e( 'Click a subject to view the full email body and headers', 'fanaloka-maintenance' ); ?></li>
+                                    <li><?php esc_html_e( 'Delete individual entries or clear the whole log', 'fanaloka-maintenance' ); ?></li>
+                                </ul>
+                            </div>
+                            <div class="fm-guide-step">
+                                <strong><?php esc_html_e( 'Failed emails:', 'fanaloka-maintenance' ); ?></strong>
+                                <p style="margin:0;"><?php esc_html_e( 'Shown in red with the SMTP error message. Usually the fix is checking the SMTP credentials or port.', 'fanaloka-maintenance' ); ?></p>
                             </div>
                         </div>
                     </div>
@@ -179,6 +243,14 @@ class GuidePage {
                                     <li><?php esc_html_e( 'Check IMAP is enabled on your email server', 'fanaloka-maintenance' ); ?></li>
                                     <li><?php esc_html_e( 'For Gmail: use App Password, not regular password', 'fanaloka-maintenance' ); ?></li>
                                     <li><?php esc_html_e( 'Check port number (993 for SSL, 587 for TLS)', 'fanaloka-maintenance' ); ?></li>
+                                </ul>
+                            </div>
+                            <div class="fm-guide-step">
+                                <strong><?php esc_html_e( 'Email not sent / not received?', 'fanaloka-maintenance' ); ?></strong>
+                                <ul>
+                                    <li><?php esc_html_e( 'Check Menu → Email Log → status Failed shows the SMTP error', 'fanaloka-maintenance' ); ?></li>
+                                    <li><?php esc_html_e( 'Verify SMTP host, port, and App Password are correct', 'fanaloka-maintenance' ); ?></li>
+                                    <li><?php esc_html_e( 'Check the From Email matches your Workspace address', 'fanaloka-maintenance' ); ?></li>
                                 </ul>
                             </div>
                             <div class="fm-guide-step">
@@ -252,6 +324,30 @@ class GuidePage {
                 }).fail(function() {
                     $result.text('Request failed.').addClass('fm-test-error');
                     $btn.prop('disabled', false).text('Test Connection');
+                });
+            });
+
+            $(document).on('click', '#fm-test-smtp', function(e) {
+                e.preventDefault();
+                var $btn = $(this);
+                var $result = $('#fm-smtp-test-result');
+
+                $btn.prop('disabled', true).text('Sending...');
+                $result.text('').removeClass('fm-test-success fm-test-error');
+
+                $.post(fmGuideAjax.url, {
+                    action: 'fm_test_smtp',
+                    nonce: fmGuideAjax.nonce,
+                }, function(response) {
+                    if (response.success) {
+                        $result.text(response.data.message || 'Test email sent!').addClass('fm-test-success');
+                    } else {
+                        $result.text(response.data.message || 'Failed').addClass('fm-test-error');
+                    }
+                    $btn.prop('disabled', false).text('Send Test Email');
+                }).fail(function() {
+                    $result.text('Request failed.').addClass('fm-test-error');
+                    $btn.prop('disabled', false).text('Send Test Email');
                 });
             });
         })(jQuery);
