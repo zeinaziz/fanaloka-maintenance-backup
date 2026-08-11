@@ -162,7 +162,7 @@ class RequestsPage {
         #fm-requests-table .column-priority { width: 90px; }
         #fm-requests-table .column-assigned_dev { width: 120px; }
         #fm-requests-table .column-date_created { width: 130px; white-space: nowrap; }
-        #fm-requests-table .column-ticket_number { width: auto; min-width: 260px; }
+        #fm-requests-table .column-ticket_number { width: auto; max-width: 200px; min-width: fit-content; }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
         .widefat tr:hover td { background: #f9f9f9; }
         #fm-requests-tbody tr:hover td { background: #eaf2fa; }
