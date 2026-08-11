@@ -426,3 +426,13 @@
     .fm-ticket-title { font-size: 15px !important; }
     .fm-reply-box { margin-top: 15px; }
 }
+
+/* Gmail-style sandboxed email body */
+.fm-email-frame {
+    display: block;
+    width: 100%;
+    min-height: 160px;
+    border: 1px solid #e2e4e7;
+    border-radius: 6px;
+    background: #fff;
+}

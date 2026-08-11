@@ -161,13 +161,10 @@ class EmailParser {
         // Build HTML body from raw HTML if available.
         $body_html = $email_data['body_html'] ?? '';
         if ( ! empty( $body_html ) ) {
-            // Remove <style> and <script> tags.
-            $body_html = preg_replace( '/<style\b[^>]*>.*?<\/style\s*>/is', '', $body_html );
-            $body_html = preg_replace( '/<script\b[^>]*>.*?<\/script\s*>/is', '', $body_html );
-            $body_html = preg_replace( '/<!--.*?-->/s', '', $body_html );
-
-            // Sanitize HTML but keep formatting tags.
-            $body_html = wp_kses_post( $body_html );
+            // Keep <style> blocks and style attributes (rendered safely inside
+            // a sandboxed iframe later), but strip scripts, handlers and other
+            // dangerous content.
+            $body_html = EmailRenderer::sanitize_for_storage( $body_html );
             $body_html = str_replace( [ "\r\n", "\r" ], "\n", $body_html );
             $body_html = preg_replace( "/\n{3,}/", "\n\n", $body_html );
 

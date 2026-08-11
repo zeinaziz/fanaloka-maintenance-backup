@@ -17,6 +17,18 @@
             this.bindEvents();
             this.stripQuotedText();
             this.initAutoRefresh();
+            this.initEmailFrames();
+        },
+
+        initEmailFrames: function() {
+            window.addEventListener( 'message', function( e ) {
+                if ( e.data && e.data.fmEmail ) {
+                    var frame = document.getElementById( e.data.fmEmail.id );
+                    if ( frame ) {
+                        frame.style.height = e.data.fmEmail.h + 'px';
+                    }
+                }
+            } );
         },
 
         bindEvents: function() {

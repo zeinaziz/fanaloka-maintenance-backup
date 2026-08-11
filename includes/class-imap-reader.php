@@ -693,23 +693,9 @@ class IMAPReader {
      * @return string Sanitized HTML.
      */
     private function sanitize_html_body( string $body ): string {
-        // Remove <style> tags and their content.
-        $body = preg_replace( '/<style\b[^>]*>.*?<\/style\s*>/is', '', $body );
-
-        // Remove <script> tags and their content.
-        $body = preg_replace( '/<script\b[^>]*>.*?<\/script\s*>/is', '', $body );
-
-        // Remove HTML comments.
-        $body = preg_replace( '/<!--.*?-->/s', '', $body );
-
-        // Normalize line endings.
-        $body = str_replace( [ "\r\n", "\r" ], "\n", $body );
-        $body = trim( $body );
-
-        // Use wp_kses_post to keep formatting tags (b, i, strong, em, p, br, etc).
-        $body = wp_kses_post( $body );
-
-        return $body;
+        // Keep <style> and style attributes (rendered in a sandboxed iframe
+        // later), but strip scripts, handlers and other dangerous content.
+        return \Fanaloka\Maintenance\Email\EmailRenderer::sanitize_for_storage( $body );
     }
 
     /**

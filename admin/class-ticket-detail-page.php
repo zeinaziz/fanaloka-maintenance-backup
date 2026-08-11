@@ -202,7 +202,7 @@ class TicketDetailPage {
                                         if ( 'developer' === $entry['entry_type'] || 'internal' === $entry['entry_type'] ) {
                                             echo wp_kses_post( $entry['body'] );
                                         } elseif ( 'client' === $entry['entry_type'] && ! empty( $entry['body_html'] ) ) {
-                                            echo $this->kses_html_body( $entry['body_html'] );
+                                            echo $this->kses_html_body( $entry['body_html'], (int) $entry['id'] );
                                         } else {
                                             echo wp_kses_post( nl2br( make_clickable( esc_html( $entry['body'] ) ) ) );
                                         }
@@ -598,99 +598,14 @@ class TicketDetailPage {
     }
 
     /**
-     * Sanitize HTML body allowing data: URIs for embedded images.
+     * Render a client email body inside a Gmail-style sandboxed iframe.
      *
-     * @param string $html Raw HTML content.
-     * @return string Sanitized HTML.
+     * @param string $html     Stored email HTML body.
+     * @param int    $entry_id Conversation entry ID (unique frame id).
+     * @return string
      */
-    private function kses_html_body( string $html ): string {
-        // Strip quoted reply/forward text to avoid showing old inline images.
-        $parser = new \Fanaloka\Maintenance\Email\EmailParser();
-        $html = $parser->strip_quoted_html( $html );
-
-        // Allow data: URIs in img src by temporarily replacing them.
-        $data_uris = [];
-        $html = preg_replace_callback( '/src="(data:[^"]+)"/', function ( $m ) use ( &$data_uris ) {
-            $key = '___DATA_URI_' . count( $data_uris ) . '___';
-            $data_uris[] = $m[1];
-            return 'src="' . $key . '"';
-        }, $html );
-
-        // Fix malformed HTML with DOMDocument.
-        $doc = new \DOMDocument( LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
-        $doc->preserveWhiteSpace = false;
-        $doc->formatOutput = false;
-        // Suppress warnings from malformed HTML.
-        @$doc->loadHTML( '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' . $html . '</body></html>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
-
-        // Remove inline images with non-resolvable CID refs.
-        $this->strip_bare_cid_images( $doc );
-
-        $body = $doc->saveHTML( $doc->getElementsByTagName( 'body' )->item( 0 ) );
-        // Remove wrapping <body> tags.
-        $body = preg_replace( '/^<body>(.*)<\/body>$/s', '$1', $body );
-        $html = $body;
-
-        $html = wp_kses_post( $html );
-
-        // Restore data: URIs only in img src attributes (safe context).
-        $html = preg_replace_callback( '/src="(___DATA_URI_\d+___)"/', function ( $m ) use ( $data_uris ) {
-            $idx = (int) preg_replace( '/^___DATA_URI_(\d+)___$/', '$1', $m[1] );
-            if ( isset( $data_uris[ $idx ] ) ) {
-                // Validate: only allow safe data URI schemes (images only).
-                $uri = $data_uris[ $idx ];
-                if ( preg_match( '/^data:image\/(jpeg|png|gif|webp|svg\+xml);base64,/', $uri ) ) {
-                    return 'src="' . esc_attr( $uri ) . '"';
-                }
-            }
-            return 'src=""';
-        }, $html );
-
-        // Open all links in new tab.
-        $html = preg_replace( '/<a\b(?! [^>]*target=)([^>]*)>/i', '<a$1 target="_blank" rel="noopener">', $html );
-
-        return $html;
-    }
-
-    /**
-     * Remove inline images with non-resolvable CID references from DOMDocument.
-     *
-     * @param \DOMDocument $doc DOM document to clean.
-     * @return void
-     */
-    private function strip_bare_cid_images( \DOMDocument $doc ): void {
-        $img_tags = $doc->getElementsByTagName( 'img' );
-        $to_remove = [];
-
-        for ( $i = 0; $i < $img_tags->length; $i++ ) {
-            $img = $img_tags->item( $i );
-            $src = trim( $img->getAttribute( 'src' ) );
-            if ( ! empty( $src ) && ! preg_match( '/^(https?|cid|data):/i', $src ) ) {
-                $to_remove[] = $img;
-            }
-        }
-
-        foreach ( $to_remove as $img ) {
-            $parent = $img->parentNode;
-            if ( $parent ) {
-                if ( 'div' === $parent->nodeName && $this->is_emptyish_container( $parent ) ) {
-                    $parent->parentNode->removeChild( $parent );
-                } else {
-                    $parent->removeChild( $img );
-                }
-            }
-        }
-    }
-
-    /**
-     * Check if a node is an empty-ish container.
-     *
-     * @param \DOMNode $node Node to check.
-     * @return bool
-     */
-    private function is_emptyish_container( \DOMNode $node ): bool {
-        $content = trim( $node->textContent );
-        return '' === $content || ctype_space( $content );
+    private function kses_html_body( string $html, int $entry_id ): string {
+        return \Fanaloka\Maintenance\Email\EmailRenderer::render( $html, 'fm-email-' . $entry_id );
     }
 
     /**

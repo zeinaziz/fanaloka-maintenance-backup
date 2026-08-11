@@ -49,6 +49,7 @@ class Autoloader {
         'Fanaloka\Maintenance\Cron\CronManager'           => 'includes/class-cron-manager.php',
         'Fanaloka\Maintenance\IMAP\IMAPReader'            => 'includes/class-imap-reader.php',
         'Fanaloka\Maintenance\Email\EmailParser'          => 'includes/class-email-parser.php',
+        'Fanaloka\Maintenance\Email\EmailRenderer'        => 'includes/class-email-renderer.php',
         'Fanaloka\Maintenance\Ticket\TicketManager'       => 'includes/class-ticket-manager.php',
         'Fanaloka\Maintenance\Ticket\ConversationManager' => 'includes/class-conversation-manager.php',
         'Fanaloka\Maintenance\Notification\NotificationManager' => 'includes/class-notification-manager.php',

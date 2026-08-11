@@ -563,52 +563,6 @@ class Admin {
     }
 
     /**
-     * Remove inline images with non-resolvable CID references from DOMDocument.
-     *
-     * Gmail uses bare refs like "ii_xxx" instead of "cid:xxx@yyy". These images
-     * can't be displayed inline. The actual image is saved as attachment.
-     *
-     * @param \DOMDocument $doc DOM document to clean.
-     * @return void
-     */
-    private function strip_bare_cid_images( \DOMDocument $doc ): void {
-        $img_tags = $doc->getElementsByTagName( 'img' );
-        $to_remove = [];
-
-        for ( $i = 0; $i < $img_tags->length; $i++ ) {
-            $img = $img_tags->item( $i );
-            $src = trim( $img->getAttribute( 'src' ) );
-            // Keep http/https/data: images. Remove bare CID refs (ii_xxx, inline refs).
-            if ( ! empty( $src ) && ! preg_match( '/^(https?|cid|data):/i', $src ) ) {
-                $to_remove[] = $img;
-            }
-        }
-
-        foreach ( $to_remove as $img ) {
-            $parent = $img->parentNode;
-            if ( $parent ) {
-                // Remove the parent <div> if it only contains this image + optional <br>.
-                if ( 'div' === $parent->nodeName && $this->is_emptyish_container( $parent ) ) {
-                    $parent->parentNode->removeChild( $parent );
-                } else {
-                    $parent->removeChild( $img );
-                }
-            }
-        }
-    }
-
-    /**
-     * Check if a node is an empty-ish container (only <br> or whitespace).
-     *
-     * @param \DOMNode $node Node to check.
-     * @return bool
-     */
-    private function is_emptyish_container( \DOMNode $node ): bool {
-        $content = trim( $node->textContent );
-        return '' === $content || ctype_space( $content );
-    }
-
-    /**
      * Render a single conversation entry HTML.
      *
      * @param array<string, mixed> $entry Entry data.
@@ -675,51 +629,7 @@ class Admin {
         $entry_body = $entry['body'] ?? '';
         $entry_body_html = $entry['body_html'] ?? '';
         if ( 'client' === $type && ! empty( $entry_body_html ) ) {
-            // Strip quoted reply/forward text to avoid showing old inline images.
-            $parser = new \Fanaloka\Maintenance\Email\EmailParser();
-            $entry_body_html = $parser->strip_quoted_html( $entry_body_html );
-
-            // Allow data: URIs in img src by temporarily replacing them.
-            $data_uris = [];
-            $entry_body_html = preg_replace_callback( '/src="(data:[^"]+)"/', function ( $m ) use ( &$data_uris ) {
-                $key = '___DATA_URI_' . count( $data_uris ) . '___';
-                $data_uris[] = $m[1];
-                return 'src="' . $key . '"';
-            }, $entry_body_html );
-
-            // Fix malformed HTML with DOMDocument.
-            $doc = new \DOMDocument( LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
-            $doc->preserveWhiteSpace = false;
-            $doc->formatOutput = false;
-            @$doc->loadHTML( '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' . $entry_body_html . '</body></html>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR );
-
-            // Remove inline images with non-resolvable CID refs (Gmail bare refs like "ii_xxx").
-            // The actual image is saved as attachment and shown in attachment section.
-            $this->strip_bare_cid_images( $doc );
-
-            $fixed_html = $doc->saveHTML( $doc->getElementsByTagName( 'body' )->item( 0 ) );
-            $fixed_html = preg_replace( '/^<body>(.*)<\/body>$/s', '$1', $fixed_html );
-            $entry_body_html = wp_kses_post( $fixed_html );
-
-            // Restore data: URIs only in img src (safe context, images only).
-            $entry_body_html = preg_replace_callback( '/src="(___DATA_URI_\d+___)"/', function ( $m ) use ( $data_uris ) {
-                $idx = (int) preg_replace( '/^___DATA_URI_(\d+)___$/', '$1', $m[1] );
-                if ( isset( $data_uris[ $idx ] ) ) {
-                    $uri = $data_uris[ $idx ];
-                    if ( preg_match( '/^data:image\/(jpeg|png|gif|webp|svg\+xml);base64,/', $uri ) ) {
-                        return 'src="' . esc_attr( $uri ) . '"';
-                    }
-                }
-                return 'src=""';
-            }, $entry_body_html );
-
-            // Open all links in new tab.
-            $entry_body_html = preg_replace( '/<a\b(?! [^>]*target=)([^>]*)>/i', '<a$1 target="_blank" rel="noopener">', $entry_body_html );
-
-            // Wrap images in clickable links (open full image in new tab).
-            $entry_body_html = preg_replace( '/<img\b([^>]*src="([^"]+)")>/i', '<a href="$2" target="_blank" rel="noopener"><img$1></a>', $entry_body_html );
-
-            $html .= '<div class="fm-entry-content">' . $entry_body_html . '</div>';
+            $html .= '<div class="fm-entry-content">' . \Fanaloka\Maintenance\Email\EmailRenderer::render( $entry_body_html, 'fm-email-' . $entry_id ) . '</div>';
         } else {
             $html .= '<div class="fm-entry-content">' . wp_kses_post( $entry_body ) . '</div>';
         }
