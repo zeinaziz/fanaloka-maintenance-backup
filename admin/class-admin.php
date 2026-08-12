@@ -678,12 +678,11 @@ class Admin {
         }
 
         $att_count = count( $att_ids );
-        $label     = 1 === $att_count ? __( 'Attachment', 'fanaloka-maintenance' ) : __( 'Attachments', 'fanaloka-maintenance' );
 
         $html  = '<div class="fm-entry-attachments">';
         $html .= '<div class="fm-attachments-header">';
-        $html .= '<span class="fm-attachments-label">' . esc_html( $label ) . '</span>';
-        $html .= '<span class="fm-attachments-count">' . (int) $att_count . '</span>';
+        $html .= '<span class="dashicons dashicons-paperclip"></span>';
+        $html .= '<span class="fm-attachments-label">' . esc_html( sprintf( _n( '%d Attachment', '%d Attachments', $att_count, 'fanaloka-maintenance' ), $att_count ) ) . '</span>';
         $html .= '</div>';
         $html .= '<div class="fm-attachments-grid">';
 

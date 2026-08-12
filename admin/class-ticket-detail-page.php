@@ -476,8 +476,9 @@ class TicketDetailPage {
         .fm-entry-content p { margin: 0 0 8px; }
         .fm-entry-content p:last-child { margin-bottom: 0; }
         .fm-entry-attachments { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
-        .fm-attachments-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .fm-attachments-label { font-size: 12px; font-weight: 500; color: #1f1f1f; }
+        .fm-attachments-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .fm-attachments-header .dashicons { font-size: 14px; width: 14px; height: 14px; line-height: 14px; color: #5f6368; }
+        .fm-attachments-label { font-size: 12px; font-weight: 600; color: #3c4043; }
         .fm-attachments-count { font-size: 11px; color: #3c4043; background: #f1f3f4; border-radius: 10px; padding: 1px 8px; }
         .fm-attachments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; align-items: stretch; }
         .fm-attachment-card { position: relative; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; transition: border-color .15s ease, box-shadow .15s ease; }
@@ -507,7 +508,17 @@ class TicketDetailPage {
         .fm-reply-header .dashicons { color: #2271b1; }
         .fm-reply-to { margin-left: auto; font-size: 12px; color: #646970; background: #fff; border: 1px solid #dcdcde; border-radius: 20px; padding: 3px 12px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .fm-reply-box .inside { padding: 0; }
-        .fm-reply-box #reply-editor-wrap { padding: 0; }
+        .fm-reply-box #reply-editor-wrap { padding: 12px 16px 0; }
+        .fm-reply-box .wp-editor-wrap { border: 1px solid #e2e4e7; border-radius: 8px; overflow: hidden; background: #fff; }
+        .fm-reply-box .wp-editor-tools { display: flex; align-items: center; justify-content: flex-start; gap: 0; margin: 0; padding: 6px 10px; background: #f9fafb; border-bottom: 1px solid #e2e4e7; }
+        .fm-reply-box .wp-editor-tools .wp-media-buttons,
+        .fm-reply-box .wp-editor-tools .wp-editor-tabs { float: none; margin: 0; }
+        .fm-reply-box .wp-editor-tools .wp-editor-tabs { margin-left: auto; padding: 0; background: transparent; }
+        .fm-reply-box #reply-editor-wrap .wp-media-buttons .button { height: 32px; min-height: 32px; line-height: 30px; padding: 0 12px; border-radius: 4px; border-color: #dcdcde; margin: 0; }
+        .fm-reply-box .wp-editor-tabs button { height: 30px; min-height: 30px; line-height: 28px; padding: 0 12px; margin: 0; border-radius: 4px; }
+        .fm-reply-box .mce-tinymce { border: 0; box-shadow: none; }
+        .fm-reply-box .mce-toolbar-grp { border: 0; box-shadow: none; background: #fff; }
+        .fm-reply-box .wp-editor-container { border: 0; }
         .fm-reply-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; border-top: 1px solid #e2e4e7; background: #f9f9f9; }
         .fm-reply-attach { display: flex; align-items: center; gap: 10px; }
         .fm-attach-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: #fff; border: 1px dashed #2271b1; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: #2271b1; transition: all 0.15s; }
