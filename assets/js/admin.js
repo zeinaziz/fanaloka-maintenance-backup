@@ -386,6 +386,7 @@
             e.preventDefault();
             var $btn = $( this );
             var $result = $( '#fm-smtp-test-result' );
+            var originalText = $btn.text();
 
             $btn.prop( 'disabled', true ).text( fmAdmin.testing || 'Testing...' );
             $result.text( '' ).removeClass( 'fm-test-success fm-test-error' );
@@ -399,10 +400,10 @@
                 } else {
                     $result.text( response.data.message || 'Failed' ).addClass( 'fm-test-error' );
                 }
-                $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Send Test Email' );
+                $btn.prop( 'disabled', false ).text( originalText );
             } ).fail( function() {
                 $result.text( 'Request failed. Please try again.' ).addClass( 'fm-test-error' );
-                $btn.prop( 'disabled', false ).text( fmAdmin.testConnection || 'Send Test Email' );
+                $btn.prop( 'disabled', false ).text( originalText );
             } );
         },
 
