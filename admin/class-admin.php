@@ -1144,7 +1144,7 @@ class Admin {
 
                 $html .= '<tr>';
                 $html .= '<th scope="row" class="check-column"><input type="checkbox" name="ticket[]" value="' . esc_attr( $ticket['id'] ) . '" /></th>';
-                $ticket_col = '<a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a>';
+                $ticket_col = '';
                 if ( isset( $last_reply_map[ (int) $ticket['id'] ] ) ) {
                     $lr        = $last_reply_map[ (int) $ticket['id'] ];
                     $is_client = 'client' === $lr['type'];
@@ -1152,11 +1152,12 @@ class Admin {
                     $lr_tooltip = $is_client
                         ? sprintf( __( 'Last reply: %s · %s', 'fanaloka-maintenance' ), $lr_label, $lr['created_at'] )
                         : sprintf( __( 'Last reply: %s (%s) · %s', 'fanaloka-maintenance' ), $lr_label, $lr['sender'], $lr['created_at'] );
-                    $ticket_col .= '<div class="fm-last-act" title="' . esc_attr( $lr_tooltip ) . '">'
-                        . '<span class="fm-last-act-dot ' . ( $is_client ? 'fm-last-act-client' : 'fm-last-act-admin' ) . '"></span>'
+                    $ticket_col .= '<div class="fm-last-act ' . ( $is_client ? 'fm-last-act-client' : 'fm-last-act-admin' ) . '" title="' . esc_attr( $lr_tooltip ) . '">'
+                        . '<span class="fm-last-act-dot"></span>'
                         . '<span>' . esc_html( $lr_label ) . ' &middot; ' . esc_html( $this->relative_time_label( $lr['created_at'] ) ) . '</span>'
                         . '</div>';
                 }
+                $ticket_col .= '<a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a>';
                 $html .= '<td class="column-ticket_number column-primary">' . $ticket_col . '</td>';
                 $html .= '<td class="column-client"><strong>' . esc_html( $ticket['client_name'] ) . '</strong><br><span style="color:#8c8f94;font-size:12px;">' . esc_html( $ticket['client_email'] ) . '</span></td>';
                 $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';

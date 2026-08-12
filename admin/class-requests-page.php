@@ -166,10 +166,12 @@ class RequestsPage {
         #fm-requests-table .column-ticket_number { width: auto; max-width: 200px; min-width: fit-content; }
         #fm-requests-table .column-client { max-width: 110px; }
         #fm-requests-tbody td, #fm-requests-tbody td strong { font-weight: 400; }
-        .fm-last-act { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11px; color: #646970; line-height: 1.3; white-space: nowrap; }
-        .fm-last-act-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-        .fm-last-act-dot.fm-last-act-client { background: #00a32a; box-shadow: 0 0 0 2px rgba(0, 163, 42, 0.15); }
-        .fm-last-act-dot.fm-last-act-admin { background: #2271b1; box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.15); }
+        .fm-last-act { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+        .fm-last-act-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .fm-last-act-client { background: #e6f4ea; color: #137333; }
+        .fm-last-act-client .fm-last-act-dot { background: #137333; }
+        .fm-last-act-admin { background: #e8f0fe; color: #1a73e8; }
+        .fm-last-act-admin .fm-last-act-dot { background: #1a73e8; }
         #fm-requests-tbody .column-ticket_number strong { color: inherit; }
         @media (max-width: 782px) {
             .fm-card { overflow-x: auto; }
