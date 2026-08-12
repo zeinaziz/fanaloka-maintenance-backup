@@ -364,6 +364,13 @@ class Admin {
             'syncing'       => __( 'Syncing...', 'fanaloka-maintenance' ),
             'syncComplete'  => __( 'Sync Complete!', 'fanaloka-maintenance' ),
             'syncNow'       => __( 'Sync Now', 'fanaloka-maintenance' ),
+            'removeFile'    => __( 'Remove', 'fanaloka-maintenance' ),
+            'maxSizeMsg'    => __( 'max 10MB', 'fanaloka-maintenance' ),
+            'fileLabel'     => __( 'file', 'fanaloka-maintenance' ),
+            'filesLabel'    => __( 'files', 'fanaloka-maintenance' ),
+            'uploadingMsg'  => __( 'Uploading', 'fanaloka-maintenance' ),
+            'sentMsg'       => __( 'attached & sent', 'fanaloka-maintenance' ),
+            'failedMsg'     => __( 'Upload failed', 'fanaloka-maintenance' ),
         ] );
     }
 

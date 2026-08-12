@@ -299,14 +299,14 @@ class TicketDetailPage {
                                         <?php esc_html_e( 'Attach files', 'fanaloka-maintenance' ); ?>
                                         <input type="file" name="reply_attachments[]" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z" style="display:none;" />
                                     </label>
-                                    <span class="description"><?php esc_html_e( 'Max 10MB per file', 'fanaloka-maintenance' ); ?></span>
+                                    <span class="fm-file-count" id="fm-file-count" style="display:none;"></span>
+                                    <div class="fm-upload-status" id="fm-upload-status" style="display:none;">
+                                        <span class="spinner is-active"></span>
+                                        <span class="fm-upload-status-text"></span>
+                                    </div>
                                 </div>
                                 <div class="fm-file-list" id="fm-file-list"></div>
-                                <div class="fm-upload-status" id="fm-upload-status" style="display:none;">
-                                    <span class="spinner is-active"></span>
-                                    <span class="fm-upload-status-text"></span>
-                                </div>
-                                <?php submit_button( __( 'Send Reply', 'fanaloka-maintenance' ), 'primary', 'submit', false, [ 'class' => 'fm-reply-submit' ] ); ?>
+                                <?php submit_button( __( 'Send Reply', 'fanaloka-maintenance' ), 'primary', 'submit', false ); ?>
                             </div>
                         </form>
                     </div>
@@ -528,22 +528,28 @@ class TicketDetailPage {
         .fm-reply-to { margin-left: auto; font-size: 12px; color: #646970; background: #fff; border: 1px solid #dcdcde; border-radius: 20px; padding: 3px 12px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .fm-reply-box .inside { padding: 0; }
         .fm-reply-box #reply-editor-wrap { padding: 0; }
-        .fm-reply-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid #e2e4e7; background: #f9f9f9; }
+        .fm-reply-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; border-top: 1px solid #e2e4e7; background: #f9f9f9; }
         .fm-reply-attach { display: flex; align-items: center; gap: 10px; }
-        .fm-attach-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 13px; color: #1d2327; transition: background 0.15s; }
-        .fm-attach-btn:hover { background: #f0f0f1; }
-        .fm-reply-footer { flex-wrap: wrap; gap: 8px 0; }
-        .fm-file-list { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; order: 3; }
-        .fm-file-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #f0f6fc; border: 1px solid #c3e4ff; border-radius: 4px; font-size: 12px; color: #2271b1; }
+        .fm-attach-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: #fff; border: 1px dashed #2271b1; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: #2271b1; transition: all 0.15s; }
+        .fm-attach-btn:hover { background: #f0f6fc; border-color: #135e96; color: #135e96; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .fm-attach-btn:active { background: #dce9f7; }
+        .fm-attach-btn .dashicons { font-size: 16px; width: 16px; height: 16px; }
+        .fm-file-count { font-size: 12px; font-weight: 600; color: #2271b1; background: #f0f6fc; border: 1px solid #c3e4ff; border-radius: 20px; padding: 2px 10px; white-space: nowrap; }
+        .fm-file-list { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+        .fm-file-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; background: #f0f6fc; border: 1px solid #c3e4ff; border-radius: 4px; font-size: 12px; color: #1d2327; }
+        .fm-file-item .dashicons { font-size: 14px; width: 14px; height: 14px; color: #2271b1; }
         .fm-file-item.fm-file-error { background: #fcf0f1; border-color: #d63638; color: #d63638; }
-        .fm-file-item.fm-file-ok { background: #edfaef; border-color: #00a32a; color: #00a32a; }
+        .fm-file-item.fm-file-error .dashicons { color: #d63638; }
         .fm-file-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .fm-file-size { color: #646970; font-size: 11px; }
         .fm-file-remove { cursor: pointer; color: #d63638; font-size: 16px; line-height: 1; margin-left: 2px; }
         .fm-file-remove:hover { color: #a00; }
-        .fm-upload-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #646970; width: 100%; order: 4; }
+        .fm-upload-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #646970; }
         .fm-upload-status .spinner { margin: 0; }
-        .fm-reply-submit { margin: 0 !important; }
+        .fm-upload-status.fm-upload-ok { color: #00a32a; }
+        .fm-upload-status.fm-upload-error { color: #d63638; }
+        .fm-reply-submit { margin: 0 0 0 auto !important; }
+        #fm-reply-form input[type="submit"] { margin: 0 0 0 auto !important; }
         .fm-recipients { background: #fff; border-bottom: 1px solid #f0f0f1; }
         .fm-recipient-row { display: flex; align-items: center; gap: 10px; padding: 6px 16px; }
         .fm-recipient-row label { font-size: 12px; font-weight: 600; color: #8c8f94; min-width: 30px; text-transform: uppercase; letter-spacing: 0.5px; }

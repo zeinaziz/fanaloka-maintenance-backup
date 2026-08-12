@@ -75,6 +75,8 @@
             $( document ).on( 'click', '.fm-sync-btn', this.syncNow );
             $( document ).on( 'change', '.fm-ajax-field', this.updateField );
             $( document ).on( 'submit', '#fm-reply-form', this.submitReply );
+            $( document ).on( 'change', '#fm-reply-form input[type="file"]', this.handleFiles );
+            $( document ).on( 'click', '.fm-file-remove', this.removeFile );
         },
 
         showNotice: function( message, type ) {
@@ -112,6 +114,85 @@
             } );
         },
 
+        handleFiles: function( e ) {
+            var files = e.target.files;
+            var $list = $( '#fm-file-list' );
+            var $count = $( '#fm-file-count' );
+            var $status = $( '#fm-upload-status' );
+            var validFiles = [];
+
+            $list.empty();
+            $status.hide().removeClass( 'fm-upload-ok fm-upload-error' );
+
+            if ( ! files.length ) {
+                $count.hide();
+                return;
+            }
+
+            $.each( files, function( i, file ) {
+                var sizeText = FMAdmin.formatSize( file.size );
+                var $item = $( '<div class="fm-file-item" data-index="' + i + '">' +
+                    '<span class="dashicons dashicons-media-default"></span>' +
+                    '<span class="fm-file-name" title="' + file.name + '">' + file.name + '</span>' +
+                    '<span class="fm-file-size">(' + sizeText + ')</span>' +
+                    '<span class="fm-file-remove" title="' + ( fmAdmin.removeFile || 'Remove' ) + '">&times;</span>' +
+                    '</div>' );
+
+                if ( file.size > 10 * 1024 * 1024 ) {
+                    $item.addClass( 'fm-file-error' )
+                        .find( '.fm-file-name' ).after( '<span class="fm-file-size">' + ( fmAdmin.maxSizeMsg || 'max 10MB' ) + '</span>' );
+                } else {
+                    validFiles.push( file );
+                }
+                $list.append( $item );
+            } );
+
+            if ( validFiles.length ) {
+                $count.text( FMAdmin.uploadCount( validFiles.length ) ).show();
+            } else {
+                $count.hide();
+            }
+        },
+
+        removeFile: function( e ) {
+            e.preventDefault();
+            var $item = $( this ).closest( '.fm-file-item' );
+            var $input = $( '#fm-reply-form input[type="file"]' )[0];
+            var index = parseInt( $item.data( 'index' ), 10 );
+
+            if ( $input && typeof DataTransfer !== 'undefined' ) {
+                var dt = new DataTransfer();
+                $.each( $input.files, function( i, file ) {
+                    if ( i !== index ) {
+                        dt.items.add( file );
+                    }
+                } );
+                $input.files = dt.files;
+            } else {
+                $input.value = '';
+            }
+
+            // Trigger change to re-render list.
+            $( '#fm-reply-form input[type="file"]' ).trigger( 'change' );
+        },
+
+        formatSize: function( bytes ) {
+            if ( ! bytes ) {
+                return '0 B';
+            }
+            var units = [ 'B', 'KB', 'MB', 'GB' ];
+            var i = 0;
+            while ( bytes >= 1024 && i < units.length - 1 ) {
+                bytes /= 1024;
+                i++;
+            }
+            return bytes.toFixed( i === 0 || bytes >= 10 ? 0 : 1 ) + ' ' + units[ i ];
+        },
+
+        uploadCount: function( count ) {
+            return count + ' ' + ( count === 1 ? ( fmAdmin.fileLabel || 'file' ) : ( fmAdmin.filesLabel || 'files' ) );
+        },
+
         submitReply: function( e ) {
             e.preventDefault();
             var $form = $( this );
@@ -129,6 +210,17 @@
             }
 
             $btn.prop( 'disabled', true ).val( 'Sending...' );
+
+            // Show upload status (right of the attach button).
+            var $fileInput = $form.find( 'input[type="file"]' )[0];
+            var fileCount = $fileInput && $fileInput.files ? $fileInput.files.length : 0;
+            var $status = $( '#fm-upload-status' );
+            var $statusText = $( '#fm-upload-status .fm-upload-status-text' );
+            if ( fileCount > 0 ) {
+                $status.removeClass( 'fm-upload-ok fm-upload-error' );
+                $statusText.text( ( fmAdmin.uploadingMsg || 'Uploading' ) + ' ' + FMAdmin.uploadCount( fileCount ) + '…' );
+                $status.show();
+            }
 
             // Use FormData to support file uploads.
             var formData = new FormData( $form[0] );
@@ -162,6 +254,20 @@
                             tinymce.get( 'reply_content' ).setContent( '' );
                         }
 
+                        // Reset attachment UI.
+                        $( '#fm-file-list' ).empty();
+                        $( '#fm-file-count' ).hide();
+                        if ( fileCount > 0 ) {
+                            $status.addClass( 'fm-upload-ok' );
+                            $statusText.text( FMAdmin.uploadCount( fileCount ) + ' ' + ( fmAdmin.sentMsg || 'attached & sent' ) );
+                            $status.show();
+                            setTimeout( function() {
+                                $status.fadeOut( 300 );
+                            }, 2500 );
+                        } else {
+                            $status.hide();
+                        }
+
                         // Update lastEntryId.
                         var $lastEntry = $( '.fm-ticket-conversation .fm-entry' ).last();
                         if ( $lastEntry.length ) {
@@ -170,11 +276,23 @@
 
                         FMAdmin.showNotice( response.data.message || 'Reply sent!', 'success' );
                     } else {
+                        $status.removeClass( 'fm-upload-ok' ).addClass( 'fm-upload-error' );
+                        if ( fileCount > 0 ) {
+                            $statusText.text( ( fmAdmin.failedMsg || 'Upload failed' ) + ' — ' + ( response.data.message || '' ) );
+                        } else {
+                            $status.hide();
+                        }
                         FMAdmin.showNotice( response.data.message || 'Error sending reply', 'error' );
                     }
                 },
                 error: function() {
                     $btn.prop( 'disabled', false ).val( 'Send Reply' );
+                    $status.removeClass( 'fm-upload-ok' ).addClass( 'fm-upload-error' );
+                    if ( fileCount > 0 ) {
+                        $statusText.text( fmAdmin.failedMsg || 'Upload failed' );
+                    } else {
+                        $status.hide();
+                    }
                     FMAdmin.showNotice( 'Request failed', 'error' );
                 }
             } );
