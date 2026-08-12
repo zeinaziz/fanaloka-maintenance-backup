@@ -234,13 +234,8 @@ class RequestsPage {
         #fm-requests-table tbody tr.is-selected td { background: #eef4fd; }
         #fm-requests-table .check-column input { accent-color: #1a73e8; }
         #fm-requests-table .column-ticket_number strong { font-size: 14px; font-weight: 600; color: #1d2327; }
-        /* Modern soft badges */
-        #fm-requests-table .fm-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
-        #fm-requests-table .fm-badge-primary { background: #e8f0fe; color: #1a73e8; }
-        #fm-requests-table .fm-badge-success { background: #e6f4ea; color: #137333; }
-        #fm-requests-table .fm-badge-warning { background: #fef7e0; color: #b06000; }
-        #fm-requests-table .fm-badge-danger { background: #fce8e6; color: #c5221f; }
-        #fm-requests-table .fm-badge-default { background: #f1f3f4; color: #5f6368; }
+        /* Modern soft badges (global in admin.css) */
+        #fm-requests-table .fm-badge { display: inline-flex; }
         #fm-requests-table .column-priority .fm-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
         /* Client cell */
         .fm-client-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -265,12 +260,6 @@ class RequestsPage {
             #fm-requests-tbody td { width: auto; min-width: 0; }
         }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
-        .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; white-space: nowrap; }
-        .fm-badge-primary { background: #2271b1; }
-        .fm-badge-success { background: #00a32a; }
-        .fm-badge-warning { background: #dba617; color: #1d2327; }
-        .fm-badge-danger { background: #d63638; }
-        .fm-badge-default { background: #8c8f94; }
         .fm-sync-btn { white-space: nowrap; }
         .fm-auto-refresh-info { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #646970; }
         .fm-auto-refresh-info .dashicons { font-size: 16px; color: #00a32a; }

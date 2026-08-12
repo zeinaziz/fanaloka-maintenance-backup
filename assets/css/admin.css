@@ -318,6 +318,12 @@ ul.striped > :nth-child(odd) {
 
 .fm-card .wp-list-table tbody tr {
     background: #fff;
+    transition: background-color 0.15s ease;
+}
+
+.fm-card .wp-list-table tbody tr:hover td,
+.fm-card .wp-list-table tbody tr:hover th {
+    background: #f6f7f7;
 }
 
 .fm-card .wp-list-table a {
@@ -326,6 +332,35 @@ ul.striped > :nth-child(odd) {
 
 .fm-card .wp-list-table a:hover {
     color: #005cbf;
+}
+
+/* Soft pill badges */
+.fm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.fm-badge-primary { background: #e8f0fe; color: #1a73e8; }
+.fm-badge-success { background: #e6f4ea; color: #137333; }
+.fm-badge-warning { background: #fef7e0; color: #b06000; }
+.fm-badge-danger { background: #fce8e6; color: #c5221f; }
+.fm-badge-default { background: #f1f3f4; color: #5f6368; }
+
+/* Card toolbar (count + actions above filters) */
+.fm-card-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eef0f2;
+    background: #fff;
 }
 
 /* ============================================

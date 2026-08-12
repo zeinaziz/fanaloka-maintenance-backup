@@ -36,12 +36,15 @@ class EmailLogPage {
         ];
         ?>
         <div class="fm-page-wrap">
-            <div class="fm-page-header">
-                <h1 class="fm-page-title">
-                    <span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'chat' ); ?></span>
-                    <?php esc_html_e( 'Email Log (Sent)', 'fanaloka-maintenance' ); ?>
-                </h1>
-                <div class="fm-page-header-right">
+            <?php if ( isset( $_GET['fm_deleted'] ) || isset( $_GET['fm_cleared'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Missing ?>
+                <div class="fm-notice fm-notice-success">
+                    <span class="dashicons dashicons-yes-alt"></span>
+                    <?php esc_html_e( 'Email log entries deleted.', 'fanaloka-maintenance' ); ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="fm-card" id="fm-email-log-card">
+                <div class="fm-card-toolbar">
                     <span class="fm-log-count"><?php printf( esc_html__( '%d emails', 'fanaloka-maintenance' ), $total ); ?></span>
                     <?php if ( $total > 0 ) : ?>
                         <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fm_email_log_clear' ), 'fm_clear_email_log' ) ); ?>"
@@ -51,16 +54,7 @@ class EmailLogPage {
                         </a>
                     <?php endif; ?>
                 </div>
-            </div>
 
-            <?php if ( isset( $_GET['fm_deleted'] ) || isset( $_GET['fm_cleared'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Missing ?>
-                <div class="fm-notice fm-notice-success">
-                    <span class="dashicons dashicons-yes-alt"></span>
-                    <?php esc_html_e( 'Email log entries deleted.', 'fanaloka-maintenance' ); ?>
-                </div>
-            <?php endif; ?>
-
-            <div class="fm-card" id="fm-email-log-card">
                 <div class="tablenav top">
                     <div class="alignleft actions">
                         <select id="fm-email-filter-status" name="status">
@@ -99,48 +93,53 @@ class EmailLogPage {
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
-                            <th style="width:150px;"><?php esc_html_e( 'Time', 'fanaloka-maintenance' ); ?></th>
-                            <th style="width:220px;"><?php esc_html_e( 'To', 'fanaloka-maintenance' ); ?></th>
-                            <th><?php esc_html_e( 'Subject', 'fanaloka-maintenance' ); ?></th>
-                            <th style="width:120px;"><?php esc_html_e( 'Context', 'fanaloka-maintenance' ); ?></th>
-                            <th style="width:90px;"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
-                            <th style="width:60px;"><?php esc_html_e( 'Action', 'fanaloka-maintenance' ); ?></th>
+                            <th class="column-time"><?php esc_html_e( 'Time', 'fanaloka-maintenance' ); ?></th>
+                            <th class="column-to"><?php esc_html_e( 'To', 'fanaloka-maintenance' ); ?></th>
+                            <th class="column-subject"><?php esc_html_e( 'Subject', 'fanaloka-maintenance' ); ?></th>
+                            <th class="column-context"><?php esc_html_e( 'Context', 'fanaloka-maintenance' ); ?></th>
+                            <th class="column-status"><?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?></th>
+                            <th class="column-action"><?php esc_html_e( 'Action', 'fanaloka-maintenance' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ( empty( $logs ) ) : ?>
-                            <tr><td colspan="6" style="text-align:center;padding:30px;color:#646970;"><?php esc_html_e( 'No emails sent yet.', 'fanaloka-maintenance' ); ?></td></tr>
+                            <tr><td colspan="6" class="fm-empty"><?php esc_html_e( 'No emails sent yet.', 'fanaloka-maintenance' ); ?></td></tr>
                         <?php else : ?>
                             <?php foreach ( $logs as $log ) :
                                 $time     = strtotime( $log['created_at'] );
                                 $relative = $this->get_relative_time( $log['created_at'] );
                                 $full     = wp_date( 'D, d M Y \a\t g:i:s A', $time );
+                                $is_sent  = 'sent' === $log['status'];
                             ?>
                                 <tr class="fm-email-row" data-id="<?php echo esc_attr( $log['id'] ); ?>">
-                                    <td><span title="<?php echo esc_attr( $full ); ?>"><?php echo esc_html( $relative ); ?></span><br><small style="color:#8c8f94;"><?php echo esc_html( wp_date( 'd M Y H:i:s', $time ) ); ?></small></td>
-                                    <td>
+                                    <td class="column-time"><span title="<?php echo esc_attr( $full ); ?>"><?php echo esc_html( $relative ); ?></span><br><small class="fm-muted"><?php echo esc_html( wp_date( 'd M Y H:i:s', $time ) ); ?></small></td>
+                                    <td class="column-to">
                                         <?php echo esc_html( $log['to_email'] ); ?>
-                                        <?php if ( ! empty( $log['cc'] ) ) : ?><br><small style="color:#8c8f94;">CC: <?php echo esc_html( $log['cc'] ); ?></small><?php endif; ?>
-                                        <?php if ( ! empty( $log['bcc'] ) ) : ?><br><small style="color:#8c8f94;">BCC: <?php echo esc_html( $log['bcc'] ); ?></small><?php endif; ?>
+                                        <?php if ( ! empty( $log['cc'] ) ) : ?><br><small class="fm-muted">CC: <?php echo esc_html( $log['cc'] ); ?></small><?php endif; ?>
+                                        <?php if ( ! empty( $log['bcc'] ) ) : ?><br><small class="fm-muted">BCC: <?php echo esc_html( $log['bcc'] ); ?></small><?php endif; ?>
                                     </td>
-                                    <td>
+                                    <td class="column-subject">
                                         <a href="#" class="fm-email-view" data-id="<?php echo esc_attr( $log['id'] ); ?>"><?php echo esc_html( $log['subject'] ); ?></a>
                                         <?php if ( ! empty( $log['ticket_id'] ) ) : ?>
-                                            <br><small style="color:#8c8f94;">
+                                            <br><small class="fm-muted">
                                                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=fm-requests&action=view&id=' . absint( $log['ticket_id'] ) ) ); ?>">#<?php echo esc_html( $log['ticket_id'] ); ?></a>
                                             </small>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?php echo esc_html( $contexts[ $log['context'] ] ?? $log['context'] ); ?></td>
-                                    <td><span class="fm-email-status fm-email-status-<?php echo esc_attr( $log['status'] ); ?>"><?php echo esc_html( 'sent' === $log['status'] ? __( 'Sent', 'fanaloka-maintenance' ) : __( 'Failed', 'fanaloka-maintenance' ) ); ?></span></td>
-                                    <td>
+                                    <td class="column-context"><?php echo esc_html( $contexts[ $log['context'] ] ?? $log['context'] ); ?></td>
+                                    <td class="column-status">
+                                        <span class="fm-badge <?php echo $is_sent ? 'fm-badge-success' : 'fm-badge-danger'; ?>">
+                                            <?php echo esc_html( $is_sent ? __( 'Sent', 'fanaloka-maintenance' ) : __( 'Failed', 'fanaloka-maintenance' ) ); ?>
+                                        </span>
+                                    </td>
+                                    <td class="column-action">
                                         <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fm_email_log_delete&id=' . absint( $log['id'] ) ), 'fm_delete_email_log_' . absint( $log['id'] ) ) ); ?>"
                                            class="button button-link-delete"
                                            onclick="return confirm('<?php esc_attr_e( 'Delete this log entry?', 'fanaloka-maintenance' ); ?>');"><?php esc_html_e( 'Delete', 'fanaloka-maintenance' ); ?></a>
                                     </td>
                                 </tr>
                                 <tr class="fm-email-detail-row" id="fm-email-detail-<?php echo esc_attr( $log['id'] ); ?>" style="display:none;">
-                                    <td colspan="6" style="background:#f9f9f9;">
+                                    <td colspan="6">
                                         <?php if ( 'failed' === $log['status'] && ! empty( $log['error'] ) ) : ?>
                                             <div class="fm-email-error">
                                                 <strong><?php esc_html_e( 'Error:', 'fanaloka-maintenance' ); ?></strong>
@@ -166,23 +165,27 @@ class EmailLogPage {
         </div>
 
         <style>
-        .fm-page-header-right { display: flex; align-items: center; gap: 12px; }
-        .fm-log-count { font-size: 13px; color: #646970; }
+        #fm-email-log-card table { table-layout: auto; }
         #fm-email-filter-status, #fm-email-filter-context { margin-right: 8px; }
         #fm-email-search { width: 250px; }
-        .fm-email-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
-        .fm-email-status-sent { background: #d4edda; color: #155724; }
-        .fm-email-status-failed { background: #f8d7da; color: #721c24; }
-        .fm-email-view { color: #2271b1; text-decoration: none; font-weight: 500; }
-        .fm-email-view:hover { text-decoration: underline; }
-        .fm-email-detail-row td { padding: 16px 20px; }
-        .fm-email-error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px; }
-        .fm-email-body { max-height: 400px; overflow: auto; border: 1px solid #e2e4e7; border-radius: 4px; background: #fff; padding: 14px; }
+        #fm-email-log-card .column-time,
+        #fm-email-log-card .column-context,
+        #fm-email-log-card .column-status,
+        #fm-email-log-card .column-action { white-space: nowrap; width: auto; }
+        #fm-email-log-card .column-to { white-space: nowrap; }
+        .fm-log-count { font-size: 13px; color: #646970; font-weight: 500; }
+        .fm-muted { color: #8c8f94; }
+        .fm-email-view { color: #0a7bff; text-decoration: none; font-weight: 500; }
+        .fm-email-view:hover { color: #005cbf; text-decoration: underline; }
+        .fm-email-detail-row td { padding: 16px 20px; background: #f6f7f7; border-bottom: 1px solid #e5e7eb; }
+        .fm-empty { text-align: center; padding: 30px !important; color: #646970; }
+        .fm-email-error { background: #fce8e6; border: 1px solid #f5c6cb; color: #c5221f; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
+        .fm-email-body { max-height: 400px; overflow: auto; border: 1px solid #e8eaed; border-radius: 8px; background: #fff; padding: 14px; }
         .fm-email-body img { max-width: 100%; height: auto; }
         .fm-email-headers { margin-top: 10px; }
-        .fm-email-headers summary { cursor: pointer; color: #2271b1; font-size: 13px; }
-        .fm-email-headers pre { background: #f0f0f1; padding: 10px; border-radius: 4px; overflow: auto; font-size: 12px; max-height: 200px; }
-        .fm-notice { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+        .fm-email-headers summary { cursor: pointer; color: #0a7bff; font-size: 13px; }
+        .fm-email-headers pre { background: #f6f7f7; padding: 10px; border-radius: 6px; overflow: auto; font-size: 12px; max-height: 200px; }
+        .fm-notice { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
         .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
         .fm-notice-success .dashicons { font-size: 18px; }
         </style>
