@@ -1154,7 +1154,7 @@ class Admin {
                         : sprintf( __( 'Last reply: %s (%s) · %s', 'fanaloka-maintenance' ), $lr_label, $lr['sender'], $lr['created_at'] );
                     $ticket_col .= '<div class="fm-last-act ' . ( $is_client ? 'fm-last-act-client' : 'fm-last-act-admin' ) . '" title="' . esc_attr( $lr_tooltip ) . '">'
                         . '<span class="fm-last-act-dot"></span>'
-                        . '<span>' . esc_html( $lr_label ) . ' &middot; ' . esc_html( $this->relative_time_label( $lr['created_at'] ) ) . '</span>'
+                        . '<span>' . esc_html( $lr_label ) . '</span>'
                         . '</div>';
                 }
                 $ticket_col .= '<a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a>';
