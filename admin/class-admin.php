@@ -1159,7 +1159,7 @@ class Admin {
                 }
                 $ticket_col .= '<a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a>';
                 $html .= '<td class="column-ticket_number column-primary">' . $ticket_col . '</td>';
-                $html .= '<td class="column-client"><strong>' . esc_html( $ticket['client_name'] ) . '</strong><br><span style="color:#8c8f94;font-size:12px;">' . esc_html( $ticket['client_email'] ) . '</span></td>';
+                $html .= '<td class="column-client">' . $this->client_cell_html( $ticket['client_name'] ?? '', $ticket['client_email'] ?? '' ) . '</td>';
                 $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
                 $html .= '<td class="column-priority"><span class="fm-badge ' . esc_attr( $pc ) . '">' . esc_html( $ticket['priority_label'] ?? $ticket['priority'] ) . '</span></td>';
                 $html .= '<td class="column-assigned_dev">' . esc_html( $ticket['assigned_dev_name'] ?? '-' ) . '</td>';
@@ -1196,6 +1196,29 @@ class Admin {
             'total'      => $total,
             'pages'      => $pages,
         ] );
+    }
+
+    /**
+     * Modern client cell: avatar + name + email.
+     *
+     * @param string $name  Client name.
+     * @param string $email Client email.
+     * @return string
+     */
+    private function client_cell_html( string $name, string $email ): string {
+        $name     = $name ?: $email;
+        $parts    = preg_split( '/\s+/', trim( $name ) );
+        $initials = strtoupper( mb_substr( $parts[0] ?? '', 0, 1 ) . ( isset( $parts[1] ) ? mb_substr( $parts[1], 0, 1 ) : '' ) );
+        $palette  = [ '#1a73e8', '#137333', '#b06000', '#9334e6', '#c5221f', '#038a89', '#5f6368' ];
+        $color    = $palette[ crc32( $email ?: $name ) % count( $palette ) ];
+
+        return '<div class="fm-client-cell">'
+            . '<span class="fm-client-avatar" style="background:' . esc_attr( $color ) . ';">' . esc_html( $initials ) . '</span>'
+            . '<span class="fm-client-meta">'
+            . '<span class="fm-client-name">' . esc_html( $name ) . '</span>'
+            . '<span class="fm-client-email">' . esc_html( $email ) . '</span>'
+            . '</span>'
+            . '</div>';
     }
 
     /**
