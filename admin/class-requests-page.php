@@ -202,7 +202,7 @@ class RequestsPage {
         </div>
 
         <style>
-        .fm-page-wrap { max-width: 100%; margin: 0; padding: 0 20px 40px 0; }
+        .fm-page-wrap { max-width: 100%; margin: 0; padding: 0 20px 40px; }
         .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
         .fm-card { background: #fff; border: 1px solid #e8eaed; border-radius: 12px; overflow: visible; box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06), 0 2px 8px rgba(60, 64, 67, 0.04); }
