@@ -606,6 +606,58 @@ class TicketDetailPage {
                     $toggle.find('.fm-collapse-text').text($toggle.data('expand-label'));
                 }
             });
+        $(document).on('click', '#fm-toggle-note', function(e) {
+                e.preventDefault();
+                var $form = $('#fm-note-form');
+                $form.toggle();
+                if ($form.is(':visible')) {
+                    if (window.tinymce && tinymce.get('note_content')) {
+                        tinymce.get('note_content').focus();
+                    } else {
+                        $('#note_content').trigger('focus');
+                    }
+                }
+            });
+
+            $(document).on('submit', '#fm-note-form', function(e) {
+                e.preventDefault();
+                var $form = $(this);
+                var $btn = $form.find('.fm-note-submit');
+                var content = '';
+                if (window.tinymce && tinymce.get('note_content')) {
+                    content = tinymce.get('note_content').getContent();
+                } else {
+                    content = $('#note_content').val();
+                }
+                if (!$.trim(content)) {
+                    if (typeof FMAdmin !== 'undefined') { FMAdmin.showNotice('Note is empty', 'error'); }
+                    return;
+                }
+                $btn.prop('disabled', true);
+                $.post(fmAdmin.ajaxUrl, {
+                    action: 'fm_add_internal_note',
+                    nonce: fmAdmin.nonce,
+                    ticket_id: $form.find('input[name="ticket_id"]').val(),
+                    note_content: content
+                }).done(function(res) {
+                    if (res.success) {
+                        $('.fm-ticket-conversation .fm-reply-box').before(res.data.entry);
+                        if (window.tinymce && tinymce.get('note_content')) {
+                            tinymce.get('note_content').setContent('');
+                        } else {
+                            $('#note_content').val('');
+                        }
+                        $form.hide();
+                        if (typeof FMAdmin !== 'undefined') { FMAdmin.showNotice(res.data.message || 'Internal note added!', 'success'); }
+                    } else if (typeof FMAdmin !== 'undefined') {
+                        FMAdmin.showNotice((res.data && res.data.message) || 'Error adding note', 'error');
+                    }
+                }).fail(function() {
+                    if (typeof FMAdmin !== 'undefined') { FMAdmin.showNotice('Error adding note', 'error'); }
+                }).always(function() {
+                    $btn.prop('disabled', false);
+                });
+            });
         })(jQuery);
         </script>
         <?php
