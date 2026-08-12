@@ -1014,7 +1014,10 @@ class SettingsPage {
             ] );
         }
 
-        $to      = get_option( 'fm_admin_email', get_option( 'admin_email' ) );
+        $to = get_option( 'fm_admin_email', '' );
+        if ( ! is_email( $to ) ) {
+            $to = get_option( 'admin_email', '' );
+        }
         $subject = sprintf( '[%s] SMTP Test Email', get_bloginfo( 'name' ) );
 
         add_filter( 'wp_mail_from', function () {
