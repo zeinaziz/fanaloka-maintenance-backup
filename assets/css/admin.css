@@ -267,6 +267,68 @@
 }
 
 /* ============================================
+   Modern Tables (all plugin wp-list-table)
+   ============================================ */
+
+/* Remove WP core zebra striping */
+.alternate,
+.striped > tbody > :nth-child(odd),
+ul.striped > :nth-child(odd) {
+    background: transparent;
+}
+
+.fm-card .wp-list-table {
+    border: 0;
+    background: #fff;
+    border-radius: 0 0 12px 12px;
+    box-shadow: none;
+}
+
+.fm-card .wp-list-table thead th {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #646970;
+    background: #fafbfc;
+    border: 0;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 10px 12px;
+    line-height: 1.4;
+}
+
+.fm-card .wp-list-table tfoot th {
+    border: 0;
+    border-top: 1px solid #e5e7eb;
+    background: #fafbfc;
+}
+
+.fm-card .wp-list-table tbody td,
+.fm-card .wp-list-table tbody th {
+    border: 0;
+    border-bottom: 1px solid #f0f1f3;
+    padding: 11px 12px;
+    vertical-align: middle;
+}
+
+.fm-card .wp-list-table tbody tr:last-child td,
+.fm-card .wp-list-table tbody tr:last-child th {
+    border-bottom: 0;
+}
+
+.fm-card .wp-list-table tbody tr {
+    background: #fff;
+}
+
+.fm-card .wp-list-table a {
+    color: #0a7bff;
+}
+
+.fm-card .wp-list-table a:hover {
+    color: #005cbf;
+}
+
+/* ============================================
    Page Container
    ============================================ */
 

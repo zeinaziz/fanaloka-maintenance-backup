@@ -222,19 +222,15 @@ class RequestsPage {
         .fm-sort-indicator { color: #1a73e8; font-size: 10px; }
         #fm-requests-table { table-layout: auto; border-collapse: separate; border-spacing: 0; }
         #fm-requests-table .column-cb { width: 40px; padding-right: 4px; }
-        #fm-requests-table .column-status { width: 110px; }
-        #fm-requests-table .column-priority { width: 90px; }
-        #fm-requests-table .column-assigned_dev { width: 120px; }
-        #fm-requests-table .column-date_created { width: 130px; white-space: nowrap; }
-        #fm-requests-table .column-ticket_number { width: auto; max-width: 220px; min-width: fit-content; }
-        #fm-requests-table .column-client { max-width: 260px; }
+        #fm-requests-table .column-status,
+        #fm-requests-table .column-priority,
+        #fm-requests-table .column-assigned_dev,
+        #fm-requests-table .column-date_created { width: auto; white-space: nowrap; }
+        #fm-requests-table .column-ticket_number { width: auto; min-width: fit-content; max-width: 520px; }
+        #fm-requests-table .column-client { width: auto; min-width: 180px; max-width: 420px; }
         #fm-requests-tbody td, #fm-requests-tbody td strong { font-weight: 400; }
         #fm-requests-table tbody td { padding: 12px 14px; border-bottom: 1px solid #f0f1f3; font-size: 13.5px; vertical-align: middle; }
-        #fm-requests-table.striped tbody tr:nth-child(odd) td { background: #fff; }
         #fm-requests-table tbody tr:last-child td { border-bottom: none; }
-        #fm-requests-table tbody tr { transition: background 0.12s ease; }
-        #fm-requests-table tbody tr:hover td { background: #f5f8fd; }
-        #fm-requests-table tbody tr:hover td.column-ticket_number strong { color: #1a73e8; }
         #fm-requests-table tbody tr.is-selected td { background: #eef4fd; }
         #fm-requests-table .check-column input { accent-color: #1a73e8; }
         #fm-requests-table .column-ticket_number strong { font-size: 14px; font-weight: 600; color: #1d2327; }
