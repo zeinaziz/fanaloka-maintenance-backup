@@ -32,24 +32,13 @@ class RequestsPage {
             return;
         }
 
-        $devs    = $this->get_developers();
+        $devs     = $this->get_developers();
         $interval = max( 60, absint( get_option( 'fm_sync_interval', 5 ) ) * 60 );
+        $counts   = \Fanaloka\Maintenance\Admin\Admin::get_filter_counts();
         ?>
         <div class="fm-page-wrap">
-            <div class="fm-page-header">
-                <h1 class="fm-page-title">
-                    <span class="fm-icon"><?php echo \Fanaloka\Maintenance\Icons::get( 'requests' ); ?></span>
-                    <?php esc_html_e( 'All Requests', 'fanaloka-maintenance' ); ?>
-                </h1>
-                <div class="fm-page-header-right">
-                    <div class="fm-requests-search">
-                        <span class="dashicons dashicons-search"></span>
-                        <input type="text" id="fm-requests-search" placeholder="<?php esc_attr_e( 'Search tickets...', 'fanaloka-maintenance' ); ?>" />
-                    </div>
-
-                </div>
-            </div>
-
+            <div class="fm-requests-layout">
+            <div class="fm-requests-main">
             <div class="fm-card" id="fm-requests-card">
                 <!-- Tablenav Top -->
                 <div class="tablenav top">
@@ -68,32 +57,6 @@ class RequestsPage {
                             <option value=""><?php esc_html_e( 'Select...', 'fanaloka-maintenance' ); ?></option>
                         </select>
                         <input type="button" id="fm-bulk-apply" class="button action" value="<?php esc_attr_e( 'Apply', 'fanaloka-maintenance' ); ?>" />
-                    </div>
-                    <div class="alignleft actions">
-                        <select id="fm-filter-client">
-                            <option value=""><?php esc_html_e( 'All Clients', 'fanaloka-maintenance' ); ?></option>
-                            <?php
-                            $clients = $this->get_unique_clients();
-                            foreach ( $clients as $email => $name ) :
-                                ?>
-                                <option value="<?php echo esc_attr( $email ); ?>"><?php echo esc_html( $name ); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <select id="fm-filter-status">
-                            <option value=""><?php esc_html_e( 'All Statuses', 'fanaloka-maintenance' ); ?></option>
-                            <?php foreach ( TicketManager::STATUSES as $key => $label ) : ?>
-                                <option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <select id="fm-filter-priority">
-                            <option value=""><?php esc_html_e( 'All Priorities', 'fanaloka-maintenance' ); ?></option>
-                            <?php foreach ( TicketManager::PRIORITIES as $key => $label ) : ?>
-                                <option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <input type="button" id="fm-filter-apply" class="button" value="<?php esc_attr_e( 'Filter', 'fanaloka-maintenance' ); ?>" />
-                        <input type="button" id="fm-filter-clear" class="button" value="<?php esc_attr_e( 'Clear', 'fanaloka-maintenance' ); ?>" />
-                        <input type="button" id="fm-order-reset" class="button" value="<?php esc_attr_e( 'Reset Order', 'fanaloka-maintenance' ); ?>" />
                     </div>
                     <div class="tablenav-pages">
                         <span class="displaying-num" id="fm-displaying-num"></span>
@@ -136,6 +99,105 @@ class RequestsPage {
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+            </div>
+
+            <!-- Freshdesk-style filter sidebar -->
+            <aside class="fm-filter-sidebar" id="fm-filter-sidebar">
+                <div class="fm-filter-card">
+                    <div class="fm-filter-search">
+                        <span class="dashicons dashicons-search"></span>
+                        <input type="text" id="fm-requests-search" placeholder="<?php esc_attr_e( 'Search tickets...', 'fanaloka-maintenance' ); ?>" />
+                    </div>
+                </div>
+
+                <div class="fm-filter-card">
+                    <div class="fm-filter-card-title">
+                        <span class="dashicons dashicons-admin-users"></span>
+                        <?php esc_html_e( 'Client', 'fanaloka-maintenance' ); ?>
+                    </div>
+                    <select id="fm-filter-client">
+                        <option value=""><?php esc_html_e( 'All Clients', 'fanaloka-maintenance' ); ?></option>
+                        <?php
+                        $clients = $this->get_unique_clients();
+                        foreach ( $clients as $email => $name ) :
+                            ?>
+                            <option value="<?php echo esc_attr( $email ); ?>"><?php echo esc_html( $name ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="fm-filter-card">
+                    <div class="fm-filter-card-title">
+                        <span class="dashicons dashicons-flag"></span>
+                        <?php esc_html_e( 'Status', 'fanaloka-maintenance' ); ?>
+                    </div>
+                    <div class="fm-filter-options">
+                        <?php
+                        $status_total = array_sum( $counts['status'] );
+                        $status_colors = [
+                            'new'            => '#1a73e8',
+                            'open'           => '#b06000',
+                            'in-progress'    => '#0b8043',
+                            'waiting-client' => '#9334e6',
+                            'completed'      => '#188038',
+                            'cancelled'      => '#c5221f',
+                        ];
+                        ?>
+                        <button type="button" class="fm-filter-option" data-filter="status" data-value="">
+                            <span class="fm-filter-option-label"><?php esc_html_e( 'All statuses', 'fanaloka-maintenance' ); ?></span>
+                            <span class="fm-filter-count"><?php echo (int) $status_total; ?></span>
+                            <span class="dashicons dashicons-check"></span>
+                        </button>
+                        <?php foreach ( TicketManager::STATUSES as $key => $label ) : ?>
+                            <button type="button" class="fm-filter-option" data-filter="status" data-value="<?php echo esc_attr( $key ); ?>">
+                                <span class="fm-filter-dot" style="background:<?php echo esc_attr( $status_colors[ $key ] ?? '#5f6368' ); ?>;"></span>
+                                <span class="fm-filter-option-label"><?php echo esc_html( $label ); ?></span>
+                                <span class="fm-filter-count"><?php echo (int) ( $counts['status'][ $key ] ?? 0 ); ?></span>
+                                <span class="dashicons dashicons-check"></span>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="fm-filter-card">
+                    <div class="fm-filter-card-title">
+                        <span class="dashicons dashicons-filter"></span>
+                        <?php esc_html_e( 'Priority', 'fanaloka-maintenance' ); ?>
+                    </div>
+                    <div class="fm-filter-options">
+                        <?php
+                        $priority_total = array_sum( $counts['priority'] );
+                        $priority_colors = [
+                            'low'      => '#5f6368',
+                            'medium'   => '#b06000',
+                            'high'     => '#d93025',
+                            'critical' => '#c5221f',
+                        ];
+                        ?>
+                        <button type="button" class="fm-filter-option" data-filter="priority" data-value="">
+                            <span class="fm-filter-option-label"><?php esc_html_e( 'All priorities', 'fanaloka-maintenance' ); ?></span>
+                            <span class="fm-filter-count"><?php echo (int) $priority_total; ?></span>
+                            <span class="dashicons dashicons-check"></span>
+                        </button>
+                        <?php foreach ( TicketManager::PRIORITIES as $key => $label ) : ?>
+                            <button type="button" class="fm-filter-option" data-filter="priority" data-value="<?php echo esc_attr( $key ); ?>">
+                                <span class="fm-filter-dot" style="background:<?php echo esc_attr( $priority_colors[ $key ] ?? '#5f6368' ); ?>;"></span>
+                                <span class="fm-filter-option-label"><?php echo esc_html( $label ); ?></span>
+                                <span class="fm-filter-count"><?php echo (int) ( $counts['priority'][ $key ] ?? 0 ); ?></span>
+                                <span class="dashicons dashicons-check"></span>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="fm-filter-card">
+                    <div class="fm-filter-actions">
+                        <input type="button" id="fm-filter-clear" class="button" value="<?php esc_attr_e( 'Clear Filters', 'fanaloka-maintenance' ); ?>" />
+                        <input type="button" id="fm-order-reset" class="button" value="<?php esc_attr_e( 'Reset Order', 'fanaloka-maintenance' ); ?>" />
+                    </div>
+                </div>
+            </aside>
             </div>
         </div>
 
@@ -222,6 +284,42 @@ class RequestsPage {
         .fm-requests-search { display: flex; align-items: center; gap: 6px; background: #f0f0f1; border-radius: 6px; padding: 6px 12px; }
         .fm-requests-search .dashicons { color: #8c8f94; font-size: 16px; }
         .fm-requests-search input { border: none; background: transparent; font-size: 14px; outline: none; width: 220px; max-width: 100%; }
+        /* Freshdesk-style layout: scrollable table left, sticky filter sidebar right */
+        .fm-requests-layout { display: flex; gap: 20px; align-items: stretch; }
+        .fm-requests-main { flex: 1; min-width: 0; height: calc(100vh - 80px); min-height: 420px; overflow-y: auto; border-radius: 12px; padding-right: 6px; }
+        .fm-requests-main::-webkit-scrollbar { width: 8px; }
+        .fm-requests-main::-webkit-scrollbar-track { background: transparent; }
+        .fm-requests-main::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 4px; }
+        .fm-requests-main::-webkit-scrollbar-thumb:hover { background: #c3c7cc; }
+        .fm-card .tablenav.top { position: sticky; top: 0; z-index: 5; }
+        .fm-filter-sidebar { width: 280px; flex-shrink: 0; position: sticky; top: 48px; align-self: flex-start; max-height: calc(100vh - 96px); overflow-y: auto; }
+        .fm-filter-card { background: #fff; border: 1px solid #e8eaed; border-radius: 12px; box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06); margin-bottom: 14px; overflow: hidden; }
+        .fm-filter-card-title { display: flex; align-items: center; gap: 6px; padding: 11px 14px 9px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #5f6368; border-bottom: 1px solid #f0f1f3; }
+        .fm-filter-card-title .dashicons { font-size: 14px; width: 14px; height: 14px; color: #80868b; }
+        .fm-filter-search { padding: 12px; position: relative; }
+        .fm-filter-search .dashicons { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); color: #80868b; font-size: 16px; }
+        .fm-filter-search input { width: 100%; height: 36px; border: 1px solid #dadce0; border-radius: 8px; padding: 0 12px 0 34px; font-size: 13px; box-shadow: none; }
+        .fm-filter-search input:focus { border-color: #1a73e8; box-shadow: 0 0 0 1px #1a73e8; outline: none; }
+        .fm-filter-card select { width: calc(100% - 24px); margin: 12px; height: 36px; border-radius: 8px; border-color: #dadce0; font-size: 13px; }
+        .fm-filter-options { padding: 4px 0; }
+        .fm-filter-option { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: 0; background: none; font-size: 13px; color: #1d2327; cursor: pointer; text-align: left; font-family: inherit; transition: background 0.1s ease; }
+        .fm-filter-option:hover { background: #f5f8fd; }
+        .fm-filter-option.active { background: #eef4fd; color: #1a73e8; font-weight: 500; }
+        .fm-filter-option-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fm-filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .fm-filter-count { margin-left: auto; font-size: 11px; color: #80868b; min-width: 18px; text-align: right; }
+        .fm-filter-option.active .fm-filter-count { color: #1a73e8; }
+        .fm-filter-option .dashicons-check { font-size: 14px; width: 14px; height: 14px; color: #1a73e8; opacity: 0; margin-left: 2px; }
+        .fm-filter-option.active .dashicons-check { opacity: 1; }
+        .fm-filter-actions { display: flex; gap: 8px; padding: 12px; }
+        .fm-filter-actions .button { flex: 1; height: 34px; line-height: 32px; border-radius: 8px; font-size: 12.5px; margin: 0; }
+        @media (max-width: 1100px) {
+            .fm-requests-layout { flex-direction: column; }
+            .fm-requests-main { height: auto; max-height: 70vh; }
+            .fm-filter-sidebar { position: static; width: 100%; max-height: none; overflow: visible; }
+            .fm-card .tablenav.top { position: static; }
+            .fm-filter-card select { width: calc(100% - 24px); }
+        }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .fm-notice { position: fixed; top: 50px; right: 20px; padding: 12px 20px; border-radius: 6px; z-index: 100000; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fm-slide-in 0.3s ease; max-width: 400px; }
         .fm-notice-success { background: #e6f9e6; color: #00a32a; border: 1px solid #b8e6b8; }
@@ -267,8 +365,6 @@ class RequestsPage {
                         state.orderby = saved.orderby || '_fm_last_updated';
                         state.order = saved.order === 'ASC' ? 'ASC' : 'DESC';
                         $('#fm-filter-client').val(state.client);
-                        $('#fm-filter-status').val(state.status);
-                        $('#fm-filter-priority').val(state.priority);
                         if (state.search) {
                             $('#fm-requests-search').val(state.search);
                         }
@@ -279,11 +375,12 @@ class RequestsPage {
                 if (urlStatus || urlClient) {
                     if (urlStatus) state.status = urlStatus;
                     if (urlClient) state.client = urlClient;
-                    $('#fm-filter-status').val(state.status);
                     $('#fm-filter-client').val(state.client);
                     // Clean URL without reload.
                     window.history.replaceState({}, '', window.location.pathname + '?page=fm-requests');
                 }
+
+                updateFilterOptions();
             }
 
             // Save filters to localStorage.
@@ -336,31 +433,38 @@ class RequestsPage {
                 });
             }
 
-            // Filter apply
-            $('#fm-filter-apply').on('click', function() {
-                var $btn = $(this);
-                state.client = $('#fm-filter-client').val();
-                state.status = $('#fm-filter-status').val();
-                state.priority = $('#fm-filter-priority').val();
+            // Freshdesk-style sidebar filter options (status / priority).
+            function updateFilterOptions() {
+                $('.fm-filter-option').each(function() {
+                    var $opt = $(this);
+                    var filter = $opt.data('filter');
+                    var value = $opt.data('value') || '';
+                    $opt.toggleClass('active', state[filter] === value);
+                });
+            }
+
+            $(document).on('click', '.fm-filter-option', function() {
+                var $opt = $(this);
+                var filter = $opt.data('filter');
+                var value = $opt.data('value') || '';
+                state[filter] = value;
                 state.paged = 1;
                 saveFilters();
-                $btn.prop('disabled', true).val('<?php echo esc_js( __( 'Filtering...', 'fanaloka-maintenance' ) ); ?>');
+                updateFilterOptions();
                 loadTickets();
-                setTimeout(function(){ $btn.prop('disabled', false).val('<?php echo esc_js( __( 'Filter', 'fanaloka-maintenance' ) ); ?>'); }, 2000);
             });
 
             // Filter clear
             $('#fm-filter-clear').on('click', function() {
                 var $btn = $(this);
                 $('#fm-filter-client').val('');
-                $('#fm-filter-status').val('');
-                $('#fm-filter-priority').val('');
                 $('#fm-requests-search').val('');
                 state.client = '';
                 state.status = '';
                 state.priority = '';
                 state.search = '';
                 state.paged = 1;
+                updateFilterOptions();
                 try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
                 $btn.prop('disabled', true);
                 loadTickets();
@@ -393,11 +497,9 @@ class RequestsPage {
                 }, 400);
             });
 
-            // Auto-filter on select change
-            $('#fm-filter-client, #fm-filter-status, #fm-filter-priority').on('change', function() {
-                state.client = $('#fm-filter-client').val();
-                state.status = $('#fm-filter-status').val();
-                state.priority = $('#fm-filter-priority').val();
+            // Auto-filter on client select change
+            $('#fm-filter-client').on('change', function() {
+                state.client = $(this).val();
                 state.paged = 1;
                 saveFilters();
                 loadTickets();

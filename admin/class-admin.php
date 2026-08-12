@@ -1195,6 +1195,7 @@ class Admin {
             'pagination' => $pagination,
             'total'      => $total,
             'pages'      => $pages,
+            'counts'     => self::get_filter_counts(),
         ] );
     }
 
@@ -1219,6 +1220,32 @@ class Admin {
             . '<span class="fm-client-email">' . esc_html( $email ) . '</span>'
             . '</span>'
             . '</div>';
+    }
+
+    /**
+     * Ticket counts per status/priority (for the filter sidebar).
+     *
+     * @return array{status: array<string,int>, priority: array<string,int>}
+     */
+    public static function get_filter_counts(): array {
+        global $wpdb;
+
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+            "SELECT meta_key, meta_value, COUNT(*) AS total
+             FROM {$wpdb->postmeta}
+             WHERE meta_key IN ( '_fm_status', '_fm_priority' )
+               AND meta_value != ''
+             GROUP BY meta_key, meta_value" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        );
+
+        $counts = [ 'status' => [], 'priority' => [] ];
+
+        foreach ( (array) $rows as $row ) {
+            $bucket = '_fm_status' === $row->meta_key ? 'status' : 'priority';
+            $counts[ $bucket ][ (string) $row->meta_value ] = (int) $row->total;
+        }
+
+        return $counts;
     }
 
     /**
