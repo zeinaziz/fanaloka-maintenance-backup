@@ -219,6 +219,14 @@ class CronManager {
                         continue;
                     }
 
+                    // Skip emails sent by the admin account itself (self-delivery of outgoing replies).
+                    $admin_email = get_option( 'fm_imap_username', '' );
+                    if ( ! empty( $admin_email ) && strtolower( $sender_email ) === strtolower( $admin_email ) ) {
+                        Logger::log( sprintf( 'Skip admin self email from %s', $sender_email ), Logger::LEVEL_DEBUG );
+                        $results['ignored']++;
+                        continue;
+                    }
+
                     // Log email processing.
                     $cc = $parsed['cc'] ?? '';
                     Logger::log( sprintf(
@@ -614,6 +622,15 @@ class CronManager {
                     if ( $parser->should_ignore( $sender_email ) ) {
                         $steps[] = [ 'step' => 'ignored', 'time' => gmdate( 'H:i:s' ), 'msg' => sprintf( '  Ignored: %s matches ignore pattern (%.1fs)', $sender_email, $parse_time ) ];
                         Logger::log( sprintf( 'Ignored email from %s (matches ignore pattern)', $sender_email ), Logger::LEVEL_DEBUG );
+                        $results['ignored']++;
+                        continue;
+                    }
+
+                    // Skip emails sent by the admin account itself (self-delivery of outgoing replies).
+                    $admin_email = get_option( 'fm_imap_username', '' );
+                    if ( ! empty( $admin_email ) && strtolower( $sender_email ) === strtolower( $admin_email ) ) {
+                        $steps[] = [ 'step' => 'skipped_admin_self', 'time' => gmdate( 'H:i:s' ), 'msg' => sprintf( '  Skipped admin self email from %s', $sender_email ) ];
+                        Logger::log( sprintf( 'Skip admin self email from %s', $sender_email ), Logger::LEVEL_DEBUG );
                         $results['ignored']++;
                         continue;
                     }

@@ -251,8 +251,14 @@ class TicketManager {
             update_post_meta( $ticket_id, '_fm_status', 'open' );
         }
 
-        // Add conversation entry.
-        $result = $conversation->add_entry( $ticket_id, 'client', $parsed['body'] ?? '', [
+        // Add conversation entry. Classify sender role: admin → developer, otherwise client.
+        $entry_type = 'client';
+        $admin_email = get_option( 'fm_imap_username', '' );
+        if ( ! empty( $admin_email ) && strtolower( $parsed['sender_email'] ?? '' ) === strtolower( $admin_email ) ) {
+            $entry_type = 'developer';
+        }
+
+        $result = $conversation->add_entry( $ticket_id, $entry_type, $parsed['body'] ?? '', [
             'from_name'  => $parsed['sender_name'] ?? '',
             'from_email' => $parsed['sender_email'] ?? '',
             'subject'    => $parsed['original_subject'] ?? $parsed['subject'] ?? '',
