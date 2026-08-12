@@ -401,6 +401,7 @@ class SettingsPage {
             'notif_new_ticket'        => 'yes',
             'notif_status_change'     => 'yes',
             'notif_assignment'        => 'yes',
+            'notif_reply'             => 'yes',
             'notif_ticket_completed'  => 'yes',
         ];
 
@@ -1280,7 +1281,7 @@ class SettingsPage {
             'fm_ticket_prefix', 'fm_default_status', 'fm_default_priority',
             'fm_ignore_sender_patterns', 'fm_ignore_domains', 'fm_ignore_sender_prefixes', 'fm_ignore_local_domain',
             'fm_notif_new_ticket', 'fm_notif_status_change', 'fm_notif_assignment',
-            'fm_notif_ticket_completed', 'fm_admin_email',
+            'fm_notif_reply', 'fm_notif_ticket_completed', 'fm_admin_email',
             'fm_smtp_enabled', 'fm_smtp_host', 'fm_smtp_port', 'fm_smtp_encryption',
             'fm_smtp_username', 'fm_smtp_password', 'fm_smtp_from_name', 'fm_smtp_from_email',
         ];
@@ -1296,7 +1297,7 @@ class SettingsPage {
         } elseif ( 'ticket' === $current_tab ) {
             $visible = [ 'fm_ticket_prefix', 'fm_default_status', 'fm_default_priority', 'fm_ignore_sender_patterns', 'fm_ignore_domains', 'fm_ignore_sender_prefixes', 'fm_ignore_local_domain' ];
         } elseif ( 'notification' === $current_tab ) {
-            $visible = [ 'fm_notif_new_ticket', 'fm_notif_status_change', 'fm_notif_assignment', 'fm_notif_ticket_completed', 'fm_admin_email' ];
+            $visible = [ 'fm_notif_new_ticket', 'fm_notif_status_change', 'fm_notif_assignment', 'fm_notif_reply', 'fm_notif_ticket_completed', 'fm_admin_email' ];
         }
 
         foreach ( $all_options as $option ) {
