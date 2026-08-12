@@ -8,8 +8,6 @@ use Fanaloka\Maintenance\Email\EmailLog;
 class EmailLogPage {
 
     public function render(): void {
-        $this->handle_actions();
-
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $status = sanitize_text_field( wp_unslash( $_GET['status'] ?? '' ) );
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -46,7 +44,7 @@ class EmailLogPage {
                 <div class="fm-page-header-right">
                     <span class="fm-log-count"><?php printf( esc_html__( '%d emails', 'fanaloka-maintenance' ), $total ); ?></span>
                     <?php if ( $total > 0 ) : ?>
-                        <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=fm-email-log&fm_clear=1' ), 'fm_clear_email_log' ) ); ?>"
+                        <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fm_email_log_clear' ), 'fm_clear_email_log' ) ); ?>"
                            class="button button-link-delete fm-email-clear"
                            onclick="return confirm('<?php esc_attr_e( 'Delete all email log entries?', 'fanaloka-maintenance' ); ?>');">
                             <?php esc_html_e( 'Clear Log', 'fanaloka-maintenance' ); ?>
@@ -136,7 +134,7 @@ class EmailLogPage {
                                     <td><?php echo esc_html( $contexts[ $log['context'] ] ?? $log['context'] ); ?></td>
                                     <td><span class="fm-email-status fm-email-status-<?php echo esc_attr( $log['status'] ); ?>"><?php echo esc_html( 'sent' === $log['status'] ? __( 'Sent', 'fanaloka-maintenance' ) : __( 'Failed', 'fanaloka-maintenance' ) ); ?></span></td>
                                     <td>
-                                        <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=fm-email-log&fm_delete=' . absint( $log['id'] ) ), 'fm_delete_email_log_' . absint( $log['id'] ) ) ); ?>"
+                                        <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fm_email_log_delete&id=' . absint( $log['id'] ) ), 'fm_delete_email_log_' . absint( $log['id'] ) ) ); ?>"
                                            class="button button-link-delete"
                                            onclick="return confirm('<?php esc_attr_e( 'Delete this log entry?', 'fanaloka-maintenance' ); ?>');"><?php esc_html_e( 'Delete', 'fanaloka-maintenance' ); ?></a>
                                     </td>
@@ -217,31 +215,41 @@ class EmailLogPage {
     }
 
     /**
-     * Handle delete / clear actions (nonce protected).
+     * Handle delete / clear actions via admin-post (nonce protected).
      *
      * @return void
      */
-    private function handle_actions(): void {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( isset( $_GET['fm_delete'] ) ) {
-            $id = absint( $_GET['fm_delete'] );
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if ( $id > 0 && wp_verify_nonce( $_GET['_wpnonce'] ?? '', 'fm_delete_email_log_' . $id ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+    public function handle_actions(): void {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_safe_redirect( admin_url( 'admin.php?page=fm-email-log' ) );
+            exit;
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
+
+        if ( 'fm_email_log_delete' === $action ) {
+            $id = isset( $_REQUEST['id'] ) ? absint( $_REQUEST['id'] ) : 0;
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            if ( $id > 0 && wp_verify_nonce( wp_unslash( $_REQUEST['_wpnonce'] ?? '' ), 'fm_delete_email_log_' . $id ) ) {
                 EmailLog::delete( $id );
             }
             wp_safe_redirect( admin_url( 'admin.php?page=fm-email-log&fm_deleted=1' ) );
             exit;
         }
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if ( isset( $_GET['fm_clear'] ) ) {
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if ( wp_verify_nonce( $_GET['_wpnonce'] ?? '', 'fm_clear_email_log' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        if ( 'fm_email_log_clear' === $action ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            if ( wp_verify_nonce( wp_unslash( $_REQUEST['_wpnonce'] ?? '' ), 'fm_clear_email_log' ) ) {
                 EmailLog::clear();
+                \Fanaloka\Maintenance\Logger\Logger::log( 'Email log cleared' );
             }
             wp_safe_redirect( admin_url( 'admin.php?page=fm-email-log&fm_cleared=1' ) );
             exit;
         }
+
+        wp_safe_redirect( admin_url( 'admin.php?page=fm-email-log' ) );
+        exit;
     }
 
     private function get_relative_time( string $datetime ): string {

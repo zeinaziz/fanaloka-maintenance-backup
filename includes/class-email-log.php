@@ -209,6 +209,6 @@ class EmailLog {
      */
     public static function clear(): bool {
         global $wpdb;
-        return false !== $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}fm_email_log" );
+        return false !== $wpdb->query( "DELETE FROM {$wpdb->prefix}fm_email_log" );
     }
 }

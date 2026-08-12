@@ -99,6 +99,8 @@ class Admin {
         add_action( 'wp_ajax_fm_get_developer_tickets', [ $this, 'ajax_get_developer_tickets' ] );
         add_action( 'wp_ajax_fm_test_connection', [ new SettingsPage(), 'ajax_test_connection' ] );
         add_action( 'wp_ajax_fm_test_smtp', [ new SettingsPage(), 'ajax_test_smtp' ] );
+        add_action( 'admin_post_fm_email_log_delete', [ new \Fanaloka\Maintenance\Admin\EmailLogPage(), 'handle_actions' ] );
+        add_action( 'admin_post_fm_email_log_clear', [ new \Fanaloka\Maintenance\Admin\EmailLogPage(), 'handle_actions' ] );
     }
 
     /**
