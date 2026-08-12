@@ -90,7 +90,7 @@ class DevelopersPage {
         </div>
 
         <style>
-        .fm-page-wrap { max-width: 100%; margin: 0; padding: 0 20px 40px; }
+        .fm-page-wrap { max-width: 100%; margin: 0; padding: 0 20px 0 0; }
         .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
         .fm-dev-search { display: flex; align-items: center; gap: 6px; background: #f0f0f1; border-radius: 6px; padding: 6px 12px; }

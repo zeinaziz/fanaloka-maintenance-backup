@@ -202,7 +202,7 @@ class RequestsPage {
         </div>
 
         <style>
-        .fm-page-wrap { max-width: 100%; margin: 0; padding: 0 20px 40px; }
+        .fm-page-wrap { max-width: 100%; margin: 0; padding: 0 20px 0 0; }
         .fm-page-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .fm-page-title { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
         .fm-card { background: #fff; border: 1px solid #e8eaed; border-radius: 12px; overflow: visible; box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06), 0 2px 8px rgba(60, 64, 67, 0.04); }
@@ -265,9 +265,6 @@ class RequestsPage {
             #fm-requests-tbody td { width: auto; min-width: 0; }
         }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
-        .widefat tr:hover td { background: #f9f9f9; }
-        #fm-requests-tbody tr:hover td { background: #eaf2fa; }
-        #fm-requests-tbody tr:hover td.column-ticket_number strong { color: #2271b1; }
         .fm-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; line-height: 1.4; white-space: nowrap; }
         .fm-badge-primary { background: #2271b1; }
         .fm-badge-success { background: #00a32a; }

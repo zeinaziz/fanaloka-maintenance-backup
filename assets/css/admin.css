@@ -335,7 +335,7 @@ ul.striped > :nth-child(odd) {
 .fm-page-wrap {
     max-width: 100%;
     margin: 0;
-    padding: 0 20px 40px;
+    padding: 0 20px 0 0;
 }
 
 /* ============================================
@@ -344,7 +344,7 @@ ul.striped > :nth-child(odd) {
 
 /* Tablet (768px and below) */
 @media screen and (max-width: 782px) {
-    .fm-page-wrap { padding: 0 10px 40px; }
+    .fm-page-wrap { padding: 0 10px 0 0; }
 
     /* Page header - stack title and search */
     .fm-page-header {
@@ -392,7 +392,7 @@ ul.striped > :nth-child(odd) {
 
 /* Mobile (480px and below) */
 @media screen and (max-width: 480px) {
-    .fm-page-wrap { padding: 0 8px 30px; }
+    .fm-page-wrap { padding: 0 8px 0 0; }
     .fm-page-header { padding: 10px 12px; margin-bottom: 12px; border-radius: 6px; }
     .fm-page-title { font-size: 16px; }
 
