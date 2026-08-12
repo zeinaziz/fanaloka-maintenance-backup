@@ -332,10 +332,20 @@ ul.striped > :nth-child(odd) {
    Page Container
    ============================================ */
 
+/* Full-width plugin pages: remove core left padding so content is flush with menu */
+#wpcontent {
+    padding-left: 0;
+}
+
+#wpbody-content {
+    padding-left: 0;
+    padding-right: 20px;
+}
+
 .fm-page-wrap {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 24px 40px;
+    max-width: 100%;
+    margin: 0;
+    padding: 0 20px 40px 0;
 }
 
 /* ============================================
@@ -344,7 +354,7 @@ ul.striped > :nth-child(odd) {
 
 /* Tablet (768px and below) */
 @media screen and (max-width: 782px) {
-    .fm-page-wrap { padding: 0 10px 40px; }
+    .fm-page-wrap { padding: 0 10px 40px 0; }
 
     /* Page header - stack title and search */
     .fm-page-header {
@@ -392,7 +402,7 @@ ul.striped > :nth-child(odd) {
 
 /* Mobile (480px and below) */
 @media screen and (max-width: 480px) {
-    .fm-page-wrap { padding: 0 8px 30px; }
+    .fm-page-wrap { padding: 0 8px 30px 0; }
     .fm-page-header { padding: 10px 12px; margin-bottom: 12px; border-radius: 6px; }
     .fm-page-title { font-size: 16px; }
 
