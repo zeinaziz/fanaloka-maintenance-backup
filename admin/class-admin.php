@@ -1122,6 +1122,7 @@ class Admin {
         if ( empty( $result['tickets'] ) ) {
             $html = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#8c8f94;">No tickets found.</td></tr>';
         } else {
+            $last_reply_map = $this->get_last_reply_map( array_map( fn( $t ) => (int) $t['id'], $result['tickets'] ) );
             $view_url = admin_url( 'admin.php?page=fm-requests&action=view&id=' );
             foreach ( $result['tickets'] as $ticket ) {
                 $status_colors = [
@@ -1143,29 +1144,26 @@ class Admin {
 
                 $html .= '<tr>';
                 $html .= '<th scope="row" class="check-column"><input type="checkbox" name="ticket[]" value="' . esc_attr( $ticket['id'] ) . '" /></th>';
-                $html .= '<td class="column-ticket_number column-primary"><a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a></td>';
+                $ticket_col = '<a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a>';
+                if ( isset( $last_reply_map[ (int) $ticket['id'] ] ) ) {
+                    $lr        = $last_reply_map[ (int) $ticket['id'] ];
+                    $is_client = 'client' === $lr['type'];
+                    $lr_label  = $is_client ? __( 'Client', 'fanaloka-maintenance' ) : __( 'Admin', 'fanaloka-maintenance' );
+                    $lr_tooltip = $is_client
+                        ? sprintf( __( 'Last reply: %s · %s', 'fanaloka-maintenance' ), $lr_label, $lr['created_at'] )
+                        : sprintf( __( 'Last reply: %s (%s) · %s', 'fanaloka-maintenance' ), $lr_label, $lr['sender'], $lr['created_at'] );
+                    $ticket_col .= '<div class="fm-last-act" title="' . esc_attr( $lr_tooltip ) . '">'
+                        . '<span class="fm-last-act-dot ' . ( $is_client ? 'fm-last-act-client' : 'fm-last-act-admin' ) . '"></span>'
+                        . '<span>' . esc_html( $lr_label ) . ' &middot; ' . esc_html( $this->relative_time_label( $lr['created_at'] ) ) . '</span>'
+                        . '</div>';
+                }
+                $html .= '<td class="column-ticket_number column-primary">' . $ticket_col . '</td>';
                 $html .= '<td class="column-client"><strong>' . esc_html( $ticket['client_name'] ) . '</strong><br><span style="color:#8c8f94;font-size:12px;">' . esc_html( $ticket['client_email'] ) . '</span></td>';
                 $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
                 $html .= '<td class="column-priority"><span class="fm-badge ' . esc_attr( $pc ) . '">' . esc_html( $ticket['priority_label'] ?? $ticket['priority'] ) . '</span></td>';
                 $html .= '<td class="column-assigned_dev">' . esc_html( $ticket['assigned_dev_name'] ?? '-' ) . '</td>';
                 $date_val = $ticket['date_created'] ?? '';
-                $date_display = '';
-                if ( $date_val ) {
-                    $ts = strtotime( $date_val );
-                    $now = time();
-                    $diff = $now - $ts;
-                    if ( $diff < 60 ) {
-                        $date_display = sprintf( '%ds ago', $diff );
-                    } elseif ( $diff < 3600 ) {
-                        $date_display = sprintf( '%dm ago', floor( $diff / 60 ) );
-                    } elseif ( $diff < 86400 ) {
-                        $date_display = sprintf( '%dh ago', floor( $diff / 3600 ) );
-                    } elseif ( $diff < 604800 ) {
-                        $date_display = sprintf( '%dd ago', floor( $diff / 86400 ) );
-                    } else {
-                        $date_display = date( 'd M Y', $ts );
-                    }
-                }
+                $date_display = $date_val ? $this->relative_time_label( $date_val ) : '';
                 $html .= '<td class="column-date_created" title="' . esc_attr( $date_val ) . '">' . esc_html( $date_display ) . '</td>';
                 $html .= '</tr>';
             }
@@ -1197,6 +1195,74 @@ class Admin {
             'total'      => $total,
             'pages'      => $pages,
         ] );
+    }
+
+    /**
+     * Map the latest client/developer reply per ticket.
+     *
+     * @param array<int> $ticket_ids Ticket post IDs.
+     * @return array<int, array{type: string, sender: string, created_at: string}>
+     */
+    private function get_last_reply_map( array $ticket_ids ): array {
+        global $wpdb;
+
+        $ticket_ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+
+        if ( empty( $ticket_ids ) ) {
+            return [];
+        }
+
+        $table = \Fanaloka\Maintenance\Database::table_name();
+        $ids   = implode( ',', $ticket_ids );
+
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+            "SELECT c1.ticket_id, c1.entry_type, c1.sender, c1.created_at
+             FROM {$table} c1
+             INNER JOIN (
+                 SELECT ticket_id, MAX(id) AS max_id
+                 FROM {$table}
+                 WHERE entry_type IN ( 'client', 'developer' )
+                   AND ticket_id IN ( {$ids} )
+                 GROUP BY ticket_id
+             ) c2 ON c1.id = c2.max_id" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        );
+
+        $map = [];
+        foreach ( (array) $rows as $row ) {
+            $map[ (int) $row->ticket_id ] = [
+                'type'       => (string) $row->entry_type,
+                'sender'     => (string) $row->sender,
+                'created_at' => (string) $row->created_at,
+            ];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Human-friendly relative time label.
+     *
+     * @param string $date MySQL datetime.
+     * @return string
+     */
+    private function relative_time_label( string $date ): string {
+        $ts   = strtotime( $date );
+        $diff = time() - $ts;
+
+        if ( $diff < 60 ) {
+            return sprintf( __( '%ds ago', 'fanaloka-maintenance' ), max( 0, $diff ) );
+        }
+        if ( $diff < 3600 ) {
+            return sprintf( __( '%dm ago', 'fanaloka-maintenance' ), (int) floor( $diff / 60 ) );
+        }
+        if ( $diff < 86400 ) {
+            return sprintf( __( '%dh ago', 'fanaloka-maintenance' ), (int) floor( $diff / 3600 ) );
+        }
+        if ( $diff < 604800 ) {
+            return sprintf( __( '%dd ago', 'fanaloka-maintenance' ), (int) floor( $diff / 86400 ) );
+        }
+
+        return date( 'd M Y', $ts );
     }
 
     /**

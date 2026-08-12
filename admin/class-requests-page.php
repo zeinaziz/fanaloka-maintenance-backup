@@ -166,6 +166,11 @@ class RequestsPage {
         #fm-requests-table .column-ticket_number { width: auto; max-width: 200px; min-width: fit-content; }
         #fm-requests-table .column-client { max-width: 110px; }
         #fm-requests-tbody td, #fm-requests-tbody td strong { font-weight: 400; }
+        .fm-last-act { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11px; color: #646970; line-height: 1.3; white-space: nowrap; }
+        .fm-last-act-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .fm-last-act-dot.fm-last-act-client { background: #00a32a; box-shadow: 0 0 0 2px rgba(0, 163, 42, 0.15); }
+        .fm-last-act-dot.fm-last-act-admin { background: #2271b1; box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.15); }
+        #fm-requests-tbody .column-ticket_number strong { color: inherit; }
         @media (max-width: 782px) {
             .fm-card { overflow-x: auto; }
             .fm-page-header { flex-wrap: wrap; }
