@@ -655,40 +655,116 @@ class Admin {
 
         // Handle attachments.
         $att_ids = ! empty( $entry['attachments'] ) ? explode( ',', $entry['attachments'] ) : [];
-        $att_ids = array_filter( array_map( 'absint', $att_ids ) );
         if ( ! empty( $att_ids ) ) {
-            $att_count = count( $att_ids );
-            $label = 1 === $att_count ? 'Attachment' : 'Attachments';
-            $html .= '<div class="fm-entry-attachments">';
-            $html .= '<div class="fm-attachments-label">' . esc_html( $label ) . '</div>';
-            $html .= '<div class="fm-attachments-grid">';
-            foreach ( $att_ids as $att_id ) {
-                $url  = wp_get_attachment_url( $att_id );
-                $name = get_the_title( $att_id );
-                $mime = get_post_mime_type( $att_id );
-                if ( ! $url ) {
-                    continue;
-                }
-                $is_image = str_starts_with( $mime, 'image/' );
-                $ext = strtoupper( pathinfo( $name, PATHINFO_EXTENSION ) );
-                $size = size_format( (int) get_post_field( 'post_mime_type', $att_id ) ? 0 : 0 );
-                if ( $is_image ) {
-                    $html .= '<div class="fm-attachment-item fm-attachment-thumb"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">';
-                    $html .= '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $name ) . '" />';
-                    $html .= '</a></div>';
-                } else {
-                    $html .= '<a class="fm-attachment-file" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">';
-                    $html .= '<span class="fm-attachment-icon">' . esc_html( $ext ) . '</span>';
-                    $html .= '<span class="fm-attachment-name">' . esc_html( $name ) . '</span>';
-                    $html .= '</a>';
-                }
-            }
-            $html .= '</div></div>';
+            $html .= self::render_attachment_block( $att_ids );
         }
 
         $html .= '</div></div>';
 
         return $html;
+    }
+
+    /**
+     * Render a Gmail-style attachment block for a conversation entry.
+     *
+     * @param array<int|string> $att_ids Attachment post IDs.
+     * @return string
+     */
+    public static function render_attachment_block( array $att_ids ): string {
+        $att_ids = array_values( array_filter( array_map( 'absint', $att_ids ) ) );
+
+        if ( empty( $att_ids ) ) {
+            return '';
+        }
+
+        $att_count = count( $att_ids );
+        $label     = 1 === $att_count ? __( 'Attachment', 'fanaloka-maintenance' ) : __( 'Attachments', 'fanaloka-maintenance' );
+
+        $html  = '<div class="fm-entry-attachments">';
+        $html .= '<div class="fm-attachments-header">';
+        $html .= '<span class="fm-attachments-label">' . esc_html( $label ) . '</span>';
+        $html .= '<span class="fm-attachments-count">' . (int) $att_count . '</span>';
+        $html .= '</div>';
+        $html .= '<div class="fm-attachments-grid">';
+
+        foreach ( $att_ids as $att_id ) {
+            $url = wp_get_attachment_url( $att_id );
+
+            if ( ! $url ) {
+                continue;
+            }
+
+            $name     = get_the_title( $att_id );
+            $mime     = get_post_mime_type( $att_id );
+            $is_image = $mime && str_starts_with( $mime, 'image/' );
+
+            // File size.
+            $size = '';
+            $file = get_attached_file( $att_id );
+
+            if ( $file && file_exists( $file ) ) {
+                $size = size_format( (int) filesize( $file ) ) ?: '';
+            }
+
+            $html .= '<div class="fm-attachment-card">';
+            $html .= '<div class="fm-attachment-preview">';
+            $html .= '<a class="fm-attachment-preview-link" href="' . esc_url( $url ) . '" target="_blank" rel="noopener" title="' . esc_attr( $name ) . '">';
+
+            if ( $is_image ) {
+                $medium = wp_get_attachment_image_src( $att_id, 'medium' );
+                $src    = $medium ? $medium[0] : $url;
+                $html  .= '<img src="' . esc_url( $src ) . '" alt="' . esc_attr( $name ) . '" loading="lazy" />';
+            } else {
+                $icon = self::attachment_icon_data( $mime );
+                $html .= '<span class="dashicons ' . esc_attr( $icon['icon'] ) . '" style="color:' . esc_attr( $icon['color'] ) . ';"></span>';
+            }
+
+            $html .= '</a>';
+            $html .= '</div>';
+            $html .= '<div class="fm-attachment-info">';
+            $html .= '<div class="fm-attachment-name" title="' . esc_attr( $name ) . '">' . esc_html( $name ) . '</div>';
+            $html .= '<div class="fm-attachment-size">' . esc_html( $size ) . '</div>';
+            $html .= '</div>';
+            $html .= '<div class="fm-attachment-actions">';
+            $html .= '<a class="fm-attachment-action" href="' . esc_url( $url ) . '" download title="' . esc_attr__( 'Download', 'fanaloka-maintenance' ) . '"><span class="dashicons dashicons-download"></span></a>';
+            $html .= '<a class="fm-attachment-action" href="' . esc_url( $url ) . '" target="_blank" rel="noopener" title="' . esc_attr__( 'View', 'fanaloka-maintenance' ) . '"><span class="dashicons dashicons-external"></span></a>';
+            $html .= '</div>';
+            $html .= '</div>';
+        }
+
+        $html .= '</div>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Map a MIME type to a dashicon + Gmail-like accent color.
+     *
+     * @param string $mime Attachment MIME type.
+     * @return array{icon: string, color: string}
+     */
+    private static function attachment_icon_data( string $mime ): array {
+        if ( str_starts_with( $mime, 'image/' ) ) {
+            return [ 'icon' => 'dashicons-format-image', 'color' => '#188038' ];
+        }
+        if ( 'application/pdf' === $mime ) {
+            return [ 'icon' => 'dashicons-media-document', 'color' => '#d93025' ];
+        }
+        if ( in_array( $mime, [ 'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed' ], true ) ) {
+            return [ 'icon' => 'dashicons-media-archive', 'color' => '#5f6368' ];
+        }
+        if ( in_array( $mime, [ 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv' ], true ) ) {
+            return [ 'icon' => 'dashicons-media-spreadsheet', 'color' => '#188038' ];
+        }
+        if ( str_starts_with( $mime, 'text/' ) ) {
+            return [ 'icon' => 'dashicons-media-text', 'color' => '#5f6368' ];
+        }
+        if ( str_contains( $mime, 'presentation' ) ) {
+            return [ 'icon' => 'dashicons-media-code', 'color' => '#ea8600' ];
+        }
+        // doc / docx / fallback.
+        return [ 'icon' => 'dashicons-media-document', 'color' => '#1a73e8' ];
     }
 
     /**

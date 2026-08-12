@@ -211,37 +211,8 @@ class TicketDetailPage {
                                     <?php
                                     $entry_attachments = ! empty( $entry['attachments'] ) ? explode( ',', $entry['attachments'] ) : [];
                                     if ( ! empty( $entry_attachments ) ) :
-                                        $att_count = count( $entry_attachments );
-                                        $label = 1 === $att_count ? 'Attachment' : 'Attachments';
-                                    ?>
-                                        <div class="fm-entry-attachments">
-                                            <div class="fm-attachments-label"><?php echo esc_html( $label ); ?></div>
-                                            <div class="fm-attachments-grid">
-                                            <?php foreach ( $entry_attachments as $att_id ) :
-                                                $att_id = absint( $att_id );
-                                                $url    = wp_get_attachment_url( $att_id );
-                                                $name   = get_the_title( $att_id );
-                                                $mime   = get_post_mime_type( $att_id );
-                                                $is_image = str_starts_with( $mime, 'image/' );
-                                                if ( $url ) : ?>
-                                                    <?php if ( $is_image ) : ?>
-                                                        <div class="fm-attachment-item fm-attachment-thumb">
-                                                            <a href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener">
-                                                                <img src="<?php echo esc_url( $url ); ?>" alt="<?php echo esc_attr( $name ); ?>" />
-                                                            </a>
-                                                        </div>
-                                                    <?php else :
-                                                        $ext = strtoupper( pathinfo( $name, PATHINFO_EXTENSION ) ); ?>
-                                                        <a class="fm-attachment-file" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener">
-                                                            <span class="fm-attachment-icon"><?php echo esc_html( $ext ); ?></span>
-                                                            <span class="fm-attachment-name"><?php echo esc_html( $name ); ?></span>
-                                                        </a>
-                                                    <?php endif; ?>
-                                                <?php endif;
-                                            endforeach; ?>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
+                                        echo Admin::render_attachment_block( $entry_attachments ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                                    endif; ?>
                                 </div>
                             </div>
                             <?php if ( $has_collapse && $is_first ) : ?>
@@ -504,17 +475,26 @@ class TicketDetailPage {
         .fm-entry-cc-bcc strong { color: #1d2327; }
         .fm-entry-content p { margin: 0 0 8px; }
         .fm-entry-content p:last-child { margin-bottom: 0; }
-        .fm-entry-attachments { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee; }
-        .fm-attachments-label { font-size: 11px; font-weight: 600; color: #646970; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-        .fm-attachments-grid { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
-        .fm-attachment-thumb { margin: 0; }
-        .fm-attachment-thumb a { display: block; width: 10rem; height: 10rem; padding: 0; overflow: hidden; border-radius: 6px; border: 1px solid #ddd; transition: transform .2s ease; }
-        .fm-attachment-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
-        .fm-attachment-thumb a:hover { transform: scale(1.05); }
-        .fm-attachment-file { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 6px; text-decoration: none; color: #1d2327; font-size: 13px; transition: all .2s ease; max-width: 280px; }
-        .fm-attachment-file:hover { background: #2271b1; border-color: #2271b1; color: #fff; }
-        .fm-attachment-icon { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 2px 6px; background: #fff; border: 1px solid #dcdcde; border-radius: 4px; font-size: 11px; font-weight: 700; color: #2271b1; text-transform: uppercase; flex-shrink: 0; }
-        .fm-attachment-file:hover .fm-attachment-icon { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: #fff; }
+        .fm-entry-attachments { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+        .fm-attachments-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .fm-attachments-label { font-size: 12px; font-weight: 500; color: #1f1f1f; }
+        .fm-attachments-count { font-size: 11px; color: #3c4043; background: #f1f3f4; border-radius: 10px; padding: 1px 8px; }
+        .fm-attachments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; align-items: stretch; }
+        .fm-attachment-card { position: relative; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; transition: border-color .15s ease, box-shadow .15s ease; }
+        .fm-attachment-card:hover { border-color: #c9ccd1; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .fm-attachment-preview { height: 120px; display: flex; align-items: center; justify-content: center; background: #f6f8fc; overflow: hidden; }
+        .fm-attachment-preview-link { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; text-decoration: none; }
+        .fm-attachment-preview img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; transition: transform .2s ease; }
+        .fm-attachment-card:hover .fm-attachment-preview img { transform: scale(1.04); }
+        .fm-attachment-preview .dashicons { font-size: 48px; width: 48px; height: 48px; }
+        .fm-attachment-info { padding: 8px 10px 9px; border-top: 1px solid #f0f0f0; }
+        .fm-attachment-name { font-size: 13px; font-weight: 500; color: #1f1f1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fm-attachment-size { font-size: 11px; color: #5f6368; margin-top: 2px; }
+        .fm-attachment-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; padding: 2px; background: rgba(255,255,255,0.95); border: 1px solid #dadce0; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); opacity: 0; transition: opacity .15s ease; }
+        .fm-attachment-card:hover .fm-attachment-actions { opacity: 1; }
+        .fm-attachment-action { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: #5f6368; text-decoration: none; }
+        .fm-attachment-action:hover { background: #f1f3f4; color: #1a73e8; }
+        .fm-attachment-action .dashicons { font-size: 14px; width: 14px; height: 14px; }
         .fm-attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }
 
         /* Empty State */
