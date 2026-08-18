@@ -479,6 +479,22 @@ class ConversationManager {
             $normalized_ticket_subject = $this->normalize_subject( $ticket_subject );
 
             if ( $normalized_ticket_subject === $normalized_subject ) {
+                // Check if ticket is active (not closed > 30 days).
+                $status = get_post_meta( $post_id, '_fm_status', true );
+
+                if ( in_array( $status, [ 'completed', 'cancelled' ], true ) ) {
+                    $completion_date = get_post_meta( $post_id, '_fm_completion_date', true );
+
+                    if ( ! empty( $completion_date ) ) {
+                        $thirty_days_ago = gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) );
+
+                        if ( $completion_date < $thirty_days_ago ) {
+                            // Closed more than 30 days ago, skip.
+                            continue;
+                        }
+                    }
+                }
+
                 return $post_id;
             }
         }

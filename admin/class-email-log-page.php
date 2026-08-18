@@ -168,6 +168,26 @@ class EmailLogPage {
         #fm-email-log-card table { table-layout: auto; }
         #fm-email-filter-status, #fm-email-filter-context { margin-right: 8px; }
         #fm-email-search { width: 250px; }
+        /* WordPress core hides .tablenav .actions at <=782px (meant for bulk-action
+           controls); this page reuses that class for its own filter/search bar, so
+           override it back to visible and let it wrap tidily instead of vanishing. */
+        @media (max-width: 782px) {
+            .tablenav.top .alignleft.actions {
+                display: flex !important;
+                flex-wrap: wrap;
+                gap: 8px;
+                float: none;
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            .tablenav.top .alignleft.actions select,
+            #fm-email-search {
+                width: auto;
+                flex: 1 1 160px;
+                min-width: 0;
+                margin-right: 0;
+            }
+        }
         #fm-email-log-card .column-time,
         #fm-email-log-card .column-context,
         #fm-email-log-card .column-status,

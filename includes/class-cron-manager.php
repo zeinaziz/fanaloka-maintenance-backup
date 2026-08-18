@@ -183,7 +183,7 @@ class CronManager {
             $processed_ids = get_option( 'fm_processed_message_ids', [] );
             $new_emails = [];
             foreach ( $emails as $email_data ) {
-                $mid = $email_data['message_id'] ?? '';
+                $mid = $email_data['headers']['message_id'] ?? '';
                 if ( ! empty( $mid ) && in_array( $mid, $processed_ids, true ) ) {
                     Logger::log( sprintf( 'Skip already-processed: %s', $mid ), Logger::LEVEL_DEBUG );
                     continue;
@@ -273,7 +273,7 @@ class CronManager {
                     }
 
                     // Track processed message_id for local dedup (Gmail UNSEEN workaround).
-                    $mid = $email_data['message_id'] ?? '';
+                    $mid = $email_data['headers']['message_id'] ?? '';
                     if ( ! empty( $mid ) ) {
                         $processed_ids[] = $mid;
                         $processed_ids = array_slice( array_unique( $processed_ids ), -500 );
@@ -584,7 +584,7 @@ class CronManager {
             $processed_ids = get_option( 'fm_processed_message_ids', [] );
             $new_emails = [];
             foreach ( $emails as $email_data ) {
-                $mid = $email_data['message_id'] ?? '';
+                $mid = $email_data['headers']['message_id'] ?? '';
                 if ( ! empty( $mid ) && in_array( $mid, $processed_ids, true ) ) {
                     Logger::log( sprintf( 'Skip already-processed: %s', $mid ), Logger::LEVEL_DEBUG );
                     continue;
@@ -601,8 +601,8 @@ class CronManager {
             $email_index = 0;
             foreach ( $emails as $email_data ) {
                 $email_index++;
-                $subject = $email_data['subject'] ?? '(no subject)';
-                $from = $email_data['from'] ?? '';
+                $subject = $email_data['headers']['subject'] ?? '(no subject)';
+                $from = $email_data['headers']['from']['email'] ?? '';
                 $steps[] = [ 'step' => 'process_email', 'time' => gmdate( 'H:i:s' ), 'msg' => sprintf( '[%d/%d] Processing: "%s" from %s', $email_index, count( $emails ), mb_substr( $subject, 0, 50 ), $from ) ];
                 Logger::log( sprintf( 'Processing email %d/%d: "%s" from %s', $email_index, count( $emails ), $subject, $from ) );
 

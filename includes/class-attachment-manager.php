@@ -29,13 +29,33 @@ class AttachmentManager {
         'image/png',
         'image/gif',
         'image/webp',
-        'image/svg+xml',
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'application/zip',
         'application/x-zip-compressed',
         'application/x-gzip',
+    ];
+
+    /**
+     * Extensions permitted for each allowed MIME type. The email-supplied
+     * MIME type cannot be trusted on its own (it comes from the sender's
+     * Content-Type header), so the filename's extension must also match
+     * one of these before a file is written to disk.
+     *
+     * @var array<string, array<int, string>>
+     */
+    private const MIME_EXTENSIONS = [
+        'image/jpeg' => [ 'jpg', 'jpeg' ],
+        'image/png'  => [ 'png' ],
+        'image/gif'  => [ 'gif' ],
+        'image/webp' => [ 'webp' ],
+        'application/pdf' => [ 'pdf' ],
+        'application/msword' => [ 'doc' ],
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => [ 'docx' ],
+        'application/zip' => [ 'zip' ],
+        'application/x-zip-compressed' => [ 'zip' ],
+        'application/x-gzip' => [ 'gz', 'tgz' ],
     ];
 
     /**
@@ -109,6 +129,21 @@ class AttachmentManager {
             return false;
         }
 
+        // Sanitize filename.
+        $filename = sanitize_file_name( $filename );
+
+        // The MIME type is attacker-controlled (it comes from the email's own
+        // Content-Type header), so also require the filename's extension to
+        // match — this stops e.g. "shell.php" declared as image/jpeg from
+        // ever being written to a web-accessible directory.
+        $extension           = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
+        $allowed_extensions  = self::MIME_EXTENSIONS[ $mime_type ] ?? [];
+
+        if ( '' === $extension || ! in_array( $extension, $allowed_extensions, true ) ) {
+            Logger::log( sprintf( 'Skipped attachment with mismatched extension for type %s: %s', $mime_type, $filename ), Logger::LEVEL_WARNING );
+            return false;
+        }
+
         // Ensure uploads directory exists.
         $upload_dir = wp_upload_dir();
         $ticket_dir = $upload_dir['path'] . '/fm_tickets/' . $ticket_id;
@@ -116,9 +151,6 @@ class AttachmentManager {
         if ( ! file_exists( $ticket_dir ) ) {
             wp_mkdir_p( $ticket_dir );
         }
-
-        // Sanitize filename.
-        $filename = sanitize_file_name( $filename );
 
         // Avoid overwrites.
         $file_path = $ticket_dir . '/' . $filename;

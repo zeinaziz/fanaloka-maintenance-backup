@@ -338,6 +338,11 @@ class DashboardPage {
             .fm-stat-card { min-width: 100%; box-sizing: border-box; }
             .fm-card-body-np { overflow-x: auto; }
             .fm-table { min-width: 520px; }
+            /* Make the scroll affordance visible instead of relying on an invisible
+               overlay scrollbar that makes the truncated text look permanently cut off. */
+            .fm-card-body-np::-webkit-scrollbar { height: 8px; }
+            .fm-card-body-np::-webkit-scrollbar-track { background: transparent; }
+            .fm-card-body-np::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 4px; }
         }
         </style>
         <script>

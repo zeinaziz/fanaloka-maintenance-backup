@@ -109,6 +109,26 @@ class ActivityLogPage {
         .fm-log-count { font-size: 13px; color: #646970; }
         #fm-log-filter-action { margin-right: 8px; }
         #fm-log-search { width: 250px; }
+        /* WordPress core hides .tablenav .actions at <=782px (meant for bulk-action
+           controls); this page reuses that class for its own filter/search bar, so
+           override it back to visible and let it wrap tidily instead of vanishing. */
+        @media (max-width: 782px) {
+            .tablenav.top .alignleft.actions {
+                display: flex !important;
+                flex-wrap: wrap;
+                gap: 8px;
+                float: none;
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            .tablenav.top .alignleft.actions select,
+            #fm-log-search {
+                width: auto;
+                flex: 1 1 160px;
+                min-width: 0;
+                margin-right: 0;
+            }
+        }
         .fm-log-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: #f0f0f1; color: #1d2327; }
         .fm-log-badge-ticket-created { background: #d4edda; color: #155724; }
         .fm-log-badge-ticket-status-changed { background: #cce5ff; color: #004085; }

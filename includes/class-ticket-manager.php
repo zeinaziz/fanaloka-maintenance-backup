@@ -258,7 +258,7 @@ class TicketManager {
             $entry_type = 'developer';
         }
 
-        $result = $conversation->add_entry( $ticket_id, $entry_type, $parsed['body'] ?? '', [
+        $entry_result = $conversation->add_entry( $ticket_id, $entry_type, $parsed['body'] ?? '', [
             'from_name'  => $parsed['sender_name'] ?? '',
             'from_email' => $parsed['sender_email'] ?? '',
             'subject'    => $parsed['original_subject'] ?? $parsed['subject'] ?? '',
@@ -304,9 +304,9 @@ class TicketManager {
                 $parsed_filtered          = $parsed;
                 $parsed_filtered['attachments'] = $filtered_attachments;
                 $attachment_manager = new AttachmentManager();
-                $result = $attachment_manager->save_attachments_from_email( $ticket_id, $parsed_filtered );
-                $saved_ids  = $result['all'] ?? [];
-                $inline_ids = $result['inline'] ?? [];
+                $attachment_result = $attachment_manager->save_attachments_from_email( $ticket_id, $parsed_filtered );
+                $saved_ids  = $attachment_result['all'] ?? [];
+                $inline_ids = $attachment_result['inline'] ?? [];
             } else {
                 $saved_ids  = [];
                 $inline_ids = [];
@@ -333,7 +333,7 @@ class TicketManager {
 
         Logger::log( sprintf( 'Reply added to ticket #%d', $ticket_id ) );
 
-        return false !== $result;
+        return false !== $entry_result;
     }
 
     /**
@@ -837,6 +837,8 @@ class TicketManager {
      * @return bool True on success.
      */
     public function delete_ticket( int $ticket_id ): bool {
+        ( new AttachmentManager() )->delete_ticket_attachments( $ticket_id );
+
         $result = wp_delete_post( $ticket_id, true );
 
         if ( false !== $result ) {

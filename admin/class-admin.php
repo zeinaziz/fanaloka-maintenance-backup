@@ -375,18 +375,28 @@ class Admin {
     }
 
     /**
+     * Verify the AJAX nonce and require 'manage_options' capability.
+     * Sends a JSON error (which halts execution) if either check fails.
+     *
+     * @return void
+     */
+    private function require_admin_ajax(): void {
+        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
+        }
+    }
+
+    /**
      * AJAX: Update ticket field (status/priority/developer).
      *
      * @return void
      */
     public function ajax_update_ticket(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+        $this->require_admin_ajax();
 
         require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Unauthorized' ] );
-        }
 
         $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
         $field     = sanitize_text_field( wp_unslash( $_POST['field'] ?? '' ) );
@@ -417,7 +427,8 @@ class Admin {
         $log_action = 'ticket_' . str_replace( 'developer_id', 'assigned', $field ) . '_changed';
         if ( 'developer_id' === $field ) {
             $log_action = 'ticket_assigned';
-            $dev_name = get_the_title( absint( $value ) ) ?: 'Unassigned';
+            $dev_user = get_userdata( absint( $value ) );
+            $dev_name = $dev_user ? $dev_user->display_name : 'Unassigned';
             \Fanaloka\Maintenance\Log\ActivityLog::log( $log_action, 'ticket', $ticket_id, sprintf( 'Ticket #%d assigned to %s', $ticket_id, $dev_name ) );
         } else {
             \Fanaloka\Maintenance\Log\ActivityLog::log( $log_action, 'ticket', $ticket_id, sprintf( 'Ticket #%d %s changed to %s', $ticket_id, $field, $value ) );
@@ -469,13 +480,9 @@ class Admin {
      * @return void
      */
     public function ajax_reply_ticket(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+        $this->require_admin_ajax();
 
         require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Unauthorized' ] );
-        }
 
         $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
         $content   = wp_kses_post( wp_unslash( $_POST['content'] ?? '' ) );
@@ -538,13 +545,9 @@ class Admin {
      * AJAX handler: Add internal note.
      */
     public function ajax_add_internal_note(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+        $this->require_admin_ajax();
 
         require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Unauthorized' ] );
-        }
 
         $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
         $content   = wp_kses_post( wp_unslash( $_POST['note_content'] ?? '' ) );
@@ -862,7 +865,7 @@ class Admin {
 
         // Allowed MIME types and max file size (10MB).
         $allowed_mimes = [
-            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg',
+            'jpg', 'jpeg', 'png', 'gif', 'webp',
             'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
             'txt', 'csv', 'zip', 'rar', '7z',
         ];
@@ -897,7 +900,7 @@ class Admin {
             finfo_close( $finfo );
             $ext_to_mime = [
                 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
-                'gif' => 'image/gif', 'webp' => 'image/webp', 'svg' => 'image/svg+xml',
+                'gif' => 'image/gif', 'webp' => 'image/webp',
                 'pdf' => 'application/pdf',
                 'doc' => 'application/msword', 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'xls' => 'application/vnd.ms-excel', 'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -971,11 +974,7 @@ class Admin {
      * @return void
      */
     public function ajax_get_entries(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Unauthorized' ] );
-        }
+        $this->require_admin_ajax();
 
         $ticket_id = absint( $_POST['ticket_id'] ?? 0 );
         $after_id  = absint( $_POST['after_id'] ?? 0 );
@@ -1084,11 +1083,7 @@ class Admin {
      * @return void
      */
     public function ajax_list_requests(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
-        }
+        $this->require_admin_ajax();
 
         $paged    = isset( $_POST['paged'] ) ? max( 1, absint( $_POST['paged'] ) ) : 1;
         $client   = isset( $_POST['client'] ) ? sanitize_email( wp_unslash( $_POST['client'] ) ) : '';
@@ -1159,13 +1154,13 @@ class Admin {
                 }
                 $ticket_col .= '<a href="' . esc_url( $view_url . $ticket['id'] ) . '"><strong>' . esc_html( $ticket['subject'] ) . ' - ' . esc_html( $ticket['id'] ) . '</strong></a>';
                 $html .= '<td class="column-ticket_number column-primary">' . $ticket_col . '</td>';
-                $html .= '<td class="column-client">' . $this->client_cell_html( $ticket['client_name'] ?? '', $ticket['client_email'] ?? '' ) . '</td>';
-                $html .= '<td class="column-status"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
-                $html .= '<td class="column-priority"><span class="fm-badge ' . esc_attr( $pc ) . '">' . esc_html( $ticket['priority_label'] ?? $ticket['priority'] ) . '</span></td>';
-                $html .= '<td class="column-assigned_dev">' . esc_html( $ticket['assigned_dev_name'] ?? '-' ) . '</td>';
+                $html .= '<td class="column-client" data-colname="' . esc_attr__( 'Client', 'fanaloka-maintenance' ) . '">' . $this->client_cell_html( $ticket['client_name'] ?? '', $ticket['client_email'] ?? '' ) . '</td>';
+                $html .= '<td class="column-status" data-colname="' . esc_attr__( 'Status', 'fanaloka-maintenance' ) . '"><span class="fm-badge ' . esc_attr( $sc ) . '">' . esc_html( $ticket['status_label'] ?? $ticket['status'] ) . '</span></td>';
+                $html .= '<td class="column-priority" data-colname="' . esc_attr__( 'Priority', 'fanaloka-maintenance' ) . '"><span class="fm-badge ' . esc_attr( $pc ) . '">' . esc_html( $ticket['priority_label'] ?? $ticket['priority'] ) . '</span></td>';
+                $html .= '<td class="column-assigned_dev" data-colname="' . esc_attr__( 'Developer', 'fanaloka-maintenance' ) . '">' . esc_html( $ticket['assigned_dev_name'] ?? '-' ) . '</td>';
                 $date_val = $ticket['date_created'] ?? '';
                 $date_display = $date_val ? $this->relative_time_label( $date_val ) : '';
-                $html .= '<td class="column-date_created" title="' . esc_attr( $date_val ) . '">' . esc_html( $date_display ) . '</td>';
+                $html .= '<td class="column-date_created" data-colname="' . esc_attr__( 'Date', 'fanaloka-maintenance' ) . '" title="' . esc_attr( $date_val ) . '">' . esc_html( $date_display ) . '</td>';
                 $html .= '</tr>';
             }
         }
@@ -1322,13 +1317,9 @@ class Admin {
      * @return void
      */
     public function ajax_bulk_delete_requests(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+        $this->require_admin_ajax();
 
         require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
-        }
 
         $ids = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : [];
         $ids = array_filter( $ids );
@@ -1364,13 +1355,9 @@ class Admin {
      * @return void
      */
     public function ajax_bulk_update_requests(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
+        $this->require_admin_ajax();
 
         require_once FM_PLUGIN_DIR . 'includes/class-activity-log.php';
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
-        }
 
         $ids    = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : [];
         $ids    = array_filter( $ids );
@@ -1422,11 +1409,7 @@ class Admin {
      * @return void
      */
     public function ajax_list_clients(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
-        }
+        $this->require_admin_ajax();
 
         $search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
 
@@ -1552,11 +1535,7 @@ class Admin {
      * @return void
      */
     public function ajax_get_client_tickets(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
-        }
+        $this->require_admin_ajax();
 
         $email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 
@@ -1643,11 +1622,7 @@ class Admin {
      * @return void
      */
     public function ajax_list_developers(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
-        }
+        $this->require_admin_ajax();
 
         $search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
 
@@ -1791,11 +1766,7 @@ class Admin {
      * @return void
      */
     public function ajax_get_developer_tickets(): void {
-        check_ajax_referer( 'fm_admin_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'Permission denied.' ] );
-        }
+        $this->require_admin_ajax();
 
         $user_id = absint( $_POST['user_id'] ?? 0 );
 

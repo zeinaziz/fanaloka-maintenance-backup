@@ -147,10 +147,12 @@ class Database {
                         'subject'            => $entry['subject'] ?? '',
                         'body'               => $entry['content'] ?? '',
                         'entry_type'         => $entry['type'] ?? 'client',
+                        'attachments'        => '',
+                        'meta'               => '',
                         'imap_uid'           => 0,
                         'created_at'         => $entry['date'] ?? current_time( 'mysql' ),
                     ],
-                    [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
+                    [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
                 );
 
                 $migrated++;

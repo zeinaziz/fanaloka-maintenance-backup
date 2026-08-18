@@ -730,6 +730,8 @@ class TicketDetailPage {
 
             case 'reply':
                 $content = wp_kses_post( wp_unslash( $_POST['reply_content'] ?? '' ) );
+                $cc      = $this->sanitize_email_list( wp_unslash( $_POST['reply_cc'] ?? '' ) );
+                $bcc     = $this->sanitize_email_list( wp_unslash( $_POST['reply_bcc'] ?? '' ) );
                 if ( ! empty( $content ) ) {
                     $conversation = new ConversationManager();
                     $entry_id = $conversation->add_reply_from_developer( $this->ticket_id, $content );
@@ -740,7 +742,7 @@ class TicketDetailPage {
                     }
 
                     // Send email to client (with attachments).
-                    $this->send_reply_email( $content, $this->ticket_id );
+                    $this->send_reply_email( $content, $this->ticket_id, $cc, $bcc );
                 }
                 break;
         }
@@ -893,7 +895,7 @@ class TicketDetailPage {
      * @param int    $ticket_id Ticket ID.
      * @return void
      */
-    private function send_reply_email( string $content, int $ticket_id = 0 ): void {
+    private function send_reply_email( string $content, int $ticket_id = 0, string $cc = '', string $bcc = '' ): void {
         $ticket_id = $ticket_id ?: $this->ticket_id;
         $ticket    = ( new TicketManager() )->get_ticket_meta( $ticket_id );
         $to        = $ticket['client_email'] ?? '';
@@ -956,7 +958,14 @@ class TicketDetailPage {
         add_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ], 999 );
 
         // Pass HTML body directly with HTML content type.
-        \Fanaloka\Maintenance\Email\EmailLog::send( $to, $subject, $body_html, "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0", 'reply', $ticket_id );
+        $headers = "Content-Type: text/html; charset=UTF-8\nMIME-Version: 1.0";
+        if ( ! empty( $cc ) ) {
+            $headers .= "\nCc: " . $cc;
+        }
+        if ( ! empty( $bcc ) ) {
+            $headers .= "\nBcc: " . $bcc;
+        }
+        \Fanaloka\Maintenance\Email\EmailLog::send( $to, $subject, $body_html, $headers, 'reply', $ticket_id );
 
         remove_action( 'phpmailer_init', [ $admin, 'set_reply_email_headers' ], 999 );
 
@@ -964,6 +973,25 @@ class TicketDetailPage {
         $admin->set_reply_body( '', '' );
 
         \Fanaloka\Maintenance\Logger\Logger::log( sprintf( 'Reply email sent to %s for ticket #%d', $to, $ticket_id ) );
+    }
+
+    /**
+     * Sanitize a comma-separated list of email addresses, dropping any
+     * entries that aren't valid email addresses.
+     *
+     * @param string $list Raw comma-separated addresses.
+     * @return string Comma-separated valid addresses (empty string if none).
+     */
+    private function sanitize_email_list( string $list ): string {
+        $emails = array_filter( array_map(
+            static function ( string $email ) {
+                $email = sanitize_email( trim( $email ) );
+                return is_email( $email ) ? $email : '';
+            },
+            explode( ',', $list )
+        ) );
+
+        return implode( ', ', $emails );
     }
 
     /**

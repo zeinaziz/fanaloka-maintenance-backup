@@ -259,6 +259,36 @@ class RequestsPage {
             #fm-requests-table { width: 100%; }
             #fm-requests-tbody td { width: auto; min-width: 0; }
         }
+        /* WordPress core hides non-primary columns at <=782px expecting a row-toggle
+           button this table doesn't have. Between 601-782px, keep them as normal
+           scrollable table cells instead of vanishing with no way to see them. */
+        @media (min-width: 601px) and (max-width: 782px) {
+            #fm-requests-table th:not(.column-primary),
+            #fm-requests-table td:not(.column-primary) {
+                display: table-cell !important;
+            }
+            /* Let the table grow past the container and scroll horizontally instead
+               of being forced to 100% width, which crams nowrap column text on top
+               of itself once these columns come back. */
+            #fm-requests-table { width: max-content; min-width: 100%; }
+        }
+        /* At <=600px WordPress core stacks the other columns as unlabeled blocks
+           (client/status/priority/date all read fine on their own), but never
+           restores column-assigned_dev since it has no built-in column of that
+           name — show it the same way for consistency. */
+        @media (max-width: 600px) {
+            #fm-requests-table .column-assigned_dev {
+                display: block !important;
+            }
+        }
+        /* WordPress core auto-prefixes any td[data-colname] with a "Label: " ::before
+           at <=782px. This table's cells (avatar+name flex layout, colored badges)
+           aren't designed for that prefix, so suppress it everywhere. */
+        @media (max-width: 782px) {
+            #fm-requests-table td[data-colname]::before {
+                content: none !important;
+            }
+        }
         .widefat td { border-bottom: 1px solid #f0f0f1; font-size: 14px; }
         .fm-sync-btn { white-space: nowrap; }
         .fm-auto-refresh-info { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #646970; }
@@ -269,7 +299,7 @@ class RequestsPage {
         /* Freshdesk-style layout: scrollable table left, sticky filter sidebar right */
         .fm-requests-layout { display: flex; gap: 20px; align-items: stretch; }
         .fm-requests-main { flex: 1; min-width: 0; height: calc(100vh - 80px); min-height: 420px; overflow-y: auto; border-radius: 12px; padding-right: 6px; }
-        .fm-requests-main::-webkit-scrollbar { width: 8px; }
+        .fm-requests-main::-webkit-scrollbar { width: 8px; height: 8px; }
         .fm-requests-main::-webkit-scrollbar-track { background: transparent; }
         .fm-requests-main::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 4px; }
         .fm-requests-main::-webkit-scrollbar-thumb:hover { background: #c3c7cc; }
