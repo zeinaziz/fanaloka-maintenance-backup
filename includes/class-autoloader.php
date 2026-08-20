@@ -63,6 +63,7 @@ class Autoloader {
         'Fanaloka\Maintenance\Logger\Logger'              => 'includes/class-logger.php',
         'Fanaloka\Maintenance\PublicArea\Frontend'        => 'public/class-frontend.php',
         'Fanaloka\Maintenance\Database'                   => 'includes/class-database.php',
+        'Fanaloka\Maintenance\Updater\GitHubUpdater'      => 'includes/class-github-updater.php',
     ];
 
     /**
