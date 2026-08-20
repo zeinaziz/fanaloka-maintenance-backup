@@ -430,13 +430,20 @@ class EmailParser {
             'image/png',
             'image/gif',
             'image/webp',
-            'image/svg+xml',
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'text/csv',
             'application/zip',
             'application/x-zip-compressed',
             'application/x-gzip',
+            'application/x-rar-compressed',
+            'application/x-7z-compressed',
         ];
 
         $allowed_extensions = [
@@ -445,12 +452,19 @@ class EmailParser {
             'png',
             'gif',
             'webp',
-            'svg',
             'pdf',
             'doc',
             'docx',
+            'xls',
+            'xlsx',
+            'ppt',
+            'pptx',
+            'txt',
+            'csv',
             'zip',
             'gz',
+            'rar',
+            '7z',
         ];
 
         return array_filter( $attachments, function ( $attachment ) use ( $allowed_types, $allowed_extensions ) {

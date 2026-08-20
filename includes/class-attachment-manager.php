@@ -32,9 +32,17 @@ class AttachmentManager {
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+        'text/csv',
         'application/zip',
         'application/x-zip-compressed',
         'application/x-gzip',
+        'application/x-rar-compressed',
+        'application/x-7z-compressed',
     ];
 
     /**
@@ -53,9 +61,17 @@ class AttachmentManager {
         'application/pdf' => [ 'pdf' ],
         'application/msword' => [ 'doc' ],
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => [ 'docx' ],
+        'application/vnd.ms-excel' => [ 'xls' ],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => [ 'xlsx' ],
+        'application/vnd.ms-powerpoint' => [ 'ppt' ],
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' => [ 'pptx' ],
+        'text/plain' => [ 'txt' ],
+        'text/csv' => [ 'csv' ],
         'application/zip' => [ 'zip' ],
         'application/x-zip-compressed' => [ 'zip' ],
         'application/x-gzip' => [ 'gz', 'tgz' ],
+        'application/x-rar-compressed' => [ 'rar' ],
+        'application/x-7z-compressed' => [ '7z' ],
     ];
 
     /**
